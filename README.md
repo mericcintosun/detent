@@ -92,6 +92,18 @@ recorded demo runs with both sets filled in.
 
 Contract build and deploy commands are in `contracts/README.md`.
 
+## Tests
+
+```bash
+npm test              # vitest: the edge schemas and the policy evaluator
+cd contracts && forge test   # PlanAnchor, including two fuzz tests
+```
+
+`npm test` covers the two mechanisms the demo turns on: the zod validation at
+the API edge, and the policy evaluation that produces the refusal with the
+failing condition and the byte offset. Foundry is deliberately not wired into
+the npm scripts, so the contract suite runs from `contracts/`.
+
 ## Demo, ninety seconds
 
 1. The console opens on the register: token address, HashScan badge, twelve

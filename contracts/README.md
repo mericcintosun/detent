@@ -15,7 +15,13 @@ contract only witnesses what Detent approved.
 ```bash
 cd contracts
 forge build
+forge test
 ```
+
+`forge test` runs `test/PlanAnchor.t.sol`: the anchor to settle lifecycle plus
+two fuzz tests, one asserting that no address other than the deploying operator
+can write to the register, one asserting the status transition and the recorded
+token and selector for any plan hash.
 
 ## Deploy to Hedera testnet (chain 296)
 
