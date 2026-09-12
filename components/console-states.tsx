@@ -38,8 +38,21 @@ export interface TreasuryKeyBannerProps {
    * because a refusal nobody can attribute proves nothing.
    */
   engineLive?: boolean;
+  /**
+   * Whether the receipt behind a confirmed send is a broadcast transaction or a
+   * hash derived from the calldata. The signed branch does not get to say the
+   * wallet put anything on chain until this says on-chain.
+   */
+  receiptKind?: "on-chain" | "synthetic" | "none";
 }
 
+/**
+ * Every branch of the banner replaces the one before it in place, which is a
+ * change a sighted reader sees and a screen reader would otherwise miss
+ * entirely. So the frame is the console's live region: polite for the states
+ * that merely report progress, an assertive alert for the refusal, which is the
+ * one answer the operator must not scroll past.
+ */
 function Frame({
   tone,
   label,
@@ -52,7 +65,12 @@ function Frame({
   const border =
     tone === "bad" ? "border-bad" : tone === "ok" ? "border-ok" : "border-border";
   return (
-    <div className={`detent-enter space-y-2 border px-4 py-4 ${border}`}>
+    <div
+      role={tone === "bad" ? "alert" : "status"}
+      aria-live={tone === "bad" ? "assertive" : "polite"}
+      aria-atomic="true"
+      className={`detent-enter space-y-2 border px-4 py-4 ${border}`}
+    >
       <p className="detent-label">{label}</p>
       {children}
     </div>
@@ -67,6 +85,7 @@ export function TreasuryKeyBanner({
   onRetry,
   busy,
   engineLive = false,
+  receiptKind = "none",
 }: TreasuryKeyBannerProps) {
   switch (state) {
     case "disconnected":
@@ -129,10 +148,20 @@ export function TreasuryKeyBanner({
 
     case "tx-confirmed":
       return (
-        <Frame tone="ok" label="Treasury key, signed">
+        <Frame
+          tone="ok"
+          label={
+            receiptKind === "on-chain"
+              ? "Treasury key, signed"
+              : "Treasury key, signed, nothing broadcast"
+          }
+        >
           <p className="max-w-[72ch] text-sm leading-relaxed">
             The payload matched the approved calldata byte for byte, the wallet
             signed it, and the policy is revoked.
+            {receiptKind === "on-chain"
+              ? ""
+              : " The receipt is synthetic: no transaction went to Hedera testnet, so there is nothing to open on HashScan."}
           </p>
           {note ? (
             <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
@@ -193,7 +222,10 @@ export function SendErrorState({
   busy,
 }: SendErrorStateProps) {
   return (
-    <div className="space-y-3">
+    // A failed call is the one thing on this page a reader can miss entirely,
+    // because nothing else on screen moves. role="alert" is the announcement,
+    // and the retry underneath is the way out of it.
+    <div role="alert" aria-live="assertive" className="space-y-3">
       <p className="border border-bad px-4 py-3 text-sm leading-relaxed text-bad">
         {hint}
       </p>

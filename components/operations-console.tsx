@@ -22,7 +22,13 @@ import {
 } from "@/components/console-states";
 import { actions, approvers, couponWindow, type ActionKind } from "@/lib/data";
 import type { DetentErrorCode } from "@/lib/errors";
-import { hashscanToken, hashscanTransaction } from "@/lib/hashscan";
+import {
+  anchorExplorerHref,
+  callTargetProvenance,
+  readReceipt,
+  registerProvenance,
+  tokenExplorerHref,
+} from "@/lib/hashscan";
 import {
   CHAIN_ID,
   buildCalldata,
@@ -63,15 +69,21 @@ interface AuditEntry {
   anchorNote?: string;
 }
 
-/** The anchor's two halves, split for the audit entry that carries them. */
+/**
+ * The anchor's two halves, split for the audit entry that carries them.
+ *
+ * anchorExplorerHref is what decides whether there is a link: lib/anchor.ts only
+ * fills transactionHash after a real writeContract, and a run that found the
+ * hash already anchored reports anchored without a hash of its own. Anything
+ * that does not clear that bar prints the anchor's sentence instead.
+ */
 function anchorParts(anchor: AnchorReceipt | undefined): {
   anchorHref?: string;
   anchorNote?: string;
 } {
   if (!anchor) return {};
-  if (anchor.transactionHash) {
-    return { anchorHref: hashscanTransaction(anchor.transactionHash) };
-  }
+  const href = anchorExplorerHref(anchor);
+  if (href !== null) return { anchorHref: href };
   return { anchorNote: anchor.note };
 }
 
@@ -91,6 +103,60 @@ function inputToMicros(input: string): string | null {
 
 function stamp(): string {
   return new Date().toISOString().slice(11, 19);
+}
+
+/**
+ * Read one /api/detent answer without asserting its shape.
+ *
+ * `(await response.json()) as ApiResponse<T>` is a lie to the compiler: a 500
+ * from a proxy, an HTML error page or a route mid-refactor all satisfy it and
+ * then blow up on the first property read. This narrows the envelope for real
+ * and turns anything else into the typed parse failure the console already
+ * knows how to render. `data` stays a single, documented boundary cast: the
+ * route owns that half of the contract and there is no runtime schema for it on
+ * the client.
+ */
+async function readApiResponse<T>(
+  response: Response
+): Promise<ApiResponse<T>> {
+  const unreadable: ApiResponse<T> = {
+    ok: false,
+    error: "parse_failure",
+    hint: "The endpoint answered with something this build could not read. Nothing was signed.",
+  };
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return unreadable;
+  }
+
+  if (typeof body !== "object" || body === null) return unreadable;
+  const envelope = body as Record<string, unknown>;
+
+  if (envelope.ok === true) {
+    return { ok: true, data: envelope.data as T };
+  }
+
+  if (envelope.ok === false && typeof envelope.error === "string") {
+    const blockers = Array.isArray(envelope.blockers)
+      ? envelope.blockers.filter(
+          (entry): entry is string => typeof entry === "string"
+        )
+      : undefined;
+    return {
+      ok: false,
+      error: envelope.error as DetentErrorCode,
+      hint:
+        typeof envelope.hint === "string"
+          ? envelope.hint
+          : "The endpoint refused the call without saying why.",
+      ...(blockers && blockers.length > 0 ? { blockers } : {}),
+    };
+  }
+
+  return unreadable;
 }
 
 interface OperationsConsoleProps {
@@ -155,6 +221,31 @@ export function OperationsConsole({
     settlement.policySource === "recompiled-from-approved-plan" &&
     settlement.verdict.allowed &&
     !settlement.transactionHash;
+
+  /**
+   * What came back from the last send, and whether its hash may be linked.
+   * readReceipt reads both the old `{ transactionHash, live }` shape and a
+   * receipt that names itself, and defaults to synthetic when neither does, so
+   * this console never puts a HashScan link under a hash that was derived from
+   * the calldata rather than mined.
+   */
+  const receipt = readReceipt(settlement);
+
+  /**
+   * The two addresses this console can link, each one gated on having actually
+   * been read off chain. The register's token address is the live read's own
+   * value; the call target is not, because lib/plan.ts builds it from the seed
+   * constant, so callTargetProvenance makes the two agree before it counts as
+   * on chain.
+   */
+  const registerTokenHref = tokenExplorerHref(
+    snapshot.token.address,
+    registerProvenance(snapshot.source)
+  );
+  const targetHref = tokenExplorerHref(
+    plan.target,
+    callTargetProvenance(plan.target, snapshot.token.address, snapshot.source)
+  );
 
   const treasuryKeyState = deriveTreasuryKeyState({
     privyLive: installation?.live ?? false,
@@ -227,7 +318,7 @@ export function OperationsConsole({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ intent: "lock", plan, approvals }),
       });
-      const payload = (await response.json()) as ApiResponse<PolicyInstallation>;
+      const payload = await readApiResponse<PolicyInstallation>(response);
       if (!payload.ok) {
         setFailure({
           code: payload.error,
@@ -305,7 +396,7 @@ export function OperationsConsole({
           ...(preference ? { broadcastPreference: preference } : {}),
         }),
       });
-      const payload = (await response.json()) as ApiResponse<SubmitResult>;
+      const payload = await readApiResponse<SubmitResult>(response);
       if (!payload.ok) {
         setFailure({
           code: payload.error,
@@ -317,13 +408,19 @@ export function OperationsConsole({
       const result = payload.data;
       setSettlement(result);
       if (result.verdict.allowed) {
+        // The receipt decides both the headline and the link. A stub hash under
+        // "Signed and broadcast" is the one claim in this product a judge can
+        // disprove in a second, so a synthetic receipt says so in the entry it
+        // writes and carries no explorer link at all.
+        const sent = readReceipt(result);
         record({
-          event: "Signed and broadcast",
-          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. Policy ${installation.policyId} revoked.${result.anchor?.anchored ? " The plan is closed as settled on chain." : ""}`,
+          event:
+            sent.kind === "on-chain"
+              ? "Signed and broadcast"
+              : "Signed, nothing broadcast",
+          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. Policy ${installation.policyId} revoked.${result.anchor?.anchored ? " The plan is closed as settled on chain." : ""}${sent.kind === "synthetic" ? " The receipt is synthetic: it is derived from the calldata, no transaction was broadcast and there is nothing to open on HashScan." : ""}`,
           tone: "ok",
-          href: result.transactionHash
-            ? hashscanTransaction(result.transactionHash)
-            : undefined,
+          href: sent.href ?? undefined,
           ...anchorParts(result.anchor),
         });
       } else {
@@ -345,8 +442,8 @@ export function OperationsConsole({
   }
 
   /** The destination contract, to the clipboard. A browser that refuses the
-   *  permission changes nothing: the address is on screen with a title and an
-   *  explorer link beside it. */
+   *  permission changes nothing: the address is on screen in full in the title
+   *  attribute beside it, linked or not. */
   function copyTarget() {
     try {
       navigator.clipboard?.writeText(plan.target).catch(() => undefined);
@@ -433,7 +530,18 @@ export function OperationsConsole({
               then what it holds, then its provenance. One M4 wipe per child on
               the existing nth-child stagger, no inline delay anywhere. */}
           <div className="detent-stagger space-y-4">
-            <p className="detent-enter detent-label break-words">{modeLine}</p>
+            {/* The one line that states which mode the page is in, and the
+                only place the policy id appears before the audit entry. It
+                changes under the reader when a plan is locked, so it is a live
+                region: a screen reader hears the new policy id rather than
+                having to go looking for it. */}
+            <p
+              role="status"
+              aria-live="polite"
+              className="detent-enter detent-label break-words"
+            >
+              {modeLine}
+            </p>
             <p className="detent-enter detent-label">
               {snapshot.token.standard} · {couponWindow.reference} window
             </p>
@@ -462,8 +570,11 @@ export function OperationsConsole({
                   read and to nothing else. On the cached register the address
                   is a seed literal HashScan has never heard of, and a link to
                   an empty explorer page is worse than no link, so the seed
-                  branch says what the address is and prints it as plain text. */}
-              {snapshot.source === "hedera-testnet" ? (
+                  branch says what the address is and prints it as plain text.
+                  The branch is the href itself rather than the source, so an
+                  address that is not 20 bytes of hex lands on the honest side
+                  too instead of producing an anchor with no destination. */}
+              {registerTokenHref ? (
                 <>
                   {snapshot.token.verified ? (
                     <Badge variant="outline" className="border-ok text-ok">
@@ -471,11 +582,11 @@ export function OperationsConsole({
                     </Badge>
                   ) : null}
                   <a
-                    href={hashscanToken(snapshot.token.address)}
+                    href={registerTokenHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     title={snapshot.token.address}
-                    className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
+                    className="inline-flex min-h-11 items-center text-sm underline decoration-hairline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {shortHex(snapshot.token.address, 12, 8)}
                   </a>
@@ -583,7 +694,12 @@ export function OperationsConsole({
             {plan.rows.length === 0 ? (
               <PlanEmptyState partition={snapshot.token.partition} />
             ) : (
-            <div className="overflow-x-auto">
+            <div
+              role="region"
+              aria-label={`${plan.label}, ${plan.rows.length} rows`}
+              tabIndex={0}
+              className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            >
               <div className="min-w-[46rem]">
                 <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] gap-4 border-b border-border px-6 py-3">
                   <span className="detent-label">Holder</span>
@@ -844,6 +960,7 @@ export function OperationsConsole({
               note={failure?.hint ?? settlement?.note}
               busy={pending !== null}
               engineLive={settlement?.live ?? false}
+              receiptKind={receipt.kind}
               onSignAndRelay={() => send(lastSend?.tampered ?? false, "signature")}
               onRetry={() => send(lastSend?.tampered ?? false)}
             />
@@ -862,17 +979,30 @@ export function OperationsConsole({
                 installs no wallet connector, and the key that signs is a Privy
                 server wallet held to the policy above.
               </p>
+              {/* Same rule as the masthead: the address is a link only when
+                  the register was read on chain and the call target is that
+                  same contract. Otherwise it is the seed literal, and the note
+                  under it says so rather than sending a judge to a 404. */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-3">
                 <span className="detent-label">Destination contract</span>
-                <a
-                  href={hashscanToken(plan.target)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={plan.target}
-                  className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
-                >
-                  {shortHex(plan.target, 12, 8)}
-                </a>
+                {targetHref ? (
+                  <a
+                    href={targetHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={plan.target}
+                    className="inline-flex min-h-11 items-center text-sm underline decoration-hairline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {shortHex(plan.target, 12, 8)}
+                  </a>
+                ) : (
+                  <span
+                    title={plan.target}
+                    className="text-sm text-muted-foreground"
+                  >
+                    {shortHex(plan.target, 12, 8)}, seed address not on chain
+                  </span>
+                )}
                 <Button variant="ghost" size="sm" onClick={copyTarget}>
                   Copy the address
                 </Button>
@@ -943,7 +1073,11 @@ export function OperationsConsole({
                         : "border-bad text-bad"
                     }
                   >
-                    {settlement.verdict.allowed ? "Signed" : "Refused"}
+                    {settlement.verdict.allowed
+                      ? receipt.kind === "on-chain"
+                        ? "Signed"
+                        : "Signed, nothing broadcast"
+                      : "Refused"}
                   </Badge>
                   {settlement.policyRevoked ? (
                     <Badge variant="outline" className="border-hairline">
@@ -970,16 +1104,44 @@ export function OperationsConsole({
                 >
                   {settlement.verdict.reason}
                 </p>
-                {settlement.transactionHash ? (
+                {/* The receipt, told apart. A hash the wallet broadcast gets
+                    the explorer link. A hash this build derived from the
+                    calldata gets the same prominence and none of the claim:
+                    nothing was mined, so there is nothing to open, and saying
+                    that is the difference between a demo and a dressed up
+                    one. */}
+                {receipt.kind === "on-chain" && receipt.href ? (
                   <a
-                    href={hashscanTransaction(settlement.transactionHash)}
+                    href={receipt.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={settlement.transactionHash}
-                    className="inline-block text-sm underline decoration-hairline underline-offset-4"
+                    title={receipt.transactionHash ?? undefined}
+                    className="inline-flex min-h-11 items-center text-sm underline decoration-hairline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    View {shortHex(settlement.transactionHash)} on HashScan
+                    View {shortHex(receipt.transactionHash ?? "")} on HashScan
                   </a>
+                ) : receipt.kind === "synthetic" ? (
+                  <div className="space-y-2">
+                    <Badge
+                      variant="outline"
+                      className="border-border text-muted-foreground"
+                    >
+                      Synthetic receipt, nothing on chain
+                    </Badge>
+                    <p className="max-w-[76ch] text-sm leading-relaxed text-muted-foreground">
+                      No transaction was broadcast. This hash is derived from
+                      the calldata so the run has a reference to quote, and
+                      Hedera testnet has never seen it, which is why there is no
+                      HashScan link under it. Configure the Privy credentials
+                      and the same send returns a real one.
+                    </p>
+                    <p
+                      className="text-sm break-all text-muted-foreground tabular-nums"
+                      title={receipt.transactionHash ?? undefined}
+                    >
+                      {receipt.transactionHash}
+                    </p>
+                  </div>
                 ) : null}
               </div>
             ) : null}
@@ -1039,7 +1201,7 @@ export function OperationsConsole({
                         href={entry.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-block text-sm underline decoration-hairline underline-offset-4"
+                        className="inline-flex min-h-11 items-center text-sm underline decoration-hairline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         Open the payout on HashScan
                       </a>
@@ -1049,7 +1211,7 @@ export function OperationsConsole({
                         href={entry.anchorHref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-block text-sm underline decoration-hairline underline-offset-4"
+                        className="inline-flex min-h-11 items-center text-sm underline decoration-hairline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         Open the plan anchor on HashScan
                       </a>
