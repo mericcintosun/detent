@@ -1,23 +1,29 @@
 // Hedera / Asset Tokenization Studio integration.
 //
-// One function, two paths. When NEXT_PUBLIC_ATS_TOKEN_ADDRESS points at an ATS
-// equity token on Hedera testnet, getRegisterSnapshot reads the holder set and
-// the compliance verdicts straight off chain over the Hashio JSON-RPC relay.
-// With no address configured (or if the relay answers BUSY, which testnet does
-// under load) it falls back to the seed register in lib/data.ts so the console,
-// the plan engine and the demo all still work.
+// One entry point, two adapters. When the adapter seam is in real mode and
+// NEXT_PUBLIC_ATS_TOKEN_ADDRESS points at an ATS equity token on Hedera testnet,
+// liveRegisterAdapter reads the holder set and the compliance verdicts straight
+// off chain over the Hashio JSON-RPC relay. Otherwise, and whenever the relay
+// answers BUSY (which testnet does under load), getRegisterSnapshot serves the
+// cached register from lib/adapter.ts so the console, the plan engine and the
+// demo all still work.
 
 import { createPublicClient, defineChain, http, parseAbi, stringToHex } from "viem";
 import {
+  fakeRegisterAdapter,
+  useLiveRegister,
+  type RegisterAdapter,
+} from "@/lib/adapter";
+import {
   holders as seedHolders,
   security,
-  treasury,
   type ComplianceState,
   type Holder,
-  type SecurityToken,
-  type TreasuryAccount,
 } from "@/lib/data";
 import { CHAIN_ID } from "@/lib/plan";
+import type { RegisterSnapshot } from "@/lib/types";
+
+export type { RegisterSnapshot };
 
 const RPC_URL =
   process.env.NEXT_PUBLIC_HEDERA_RPC_URL ?? "https://testnet.hashio.io/api";
@@ -45,15 +51,6 @@ const ATS_ABI = parseAbi([
   "function decimals() view returns (uint8)",
 ]);
 
-export interface RegisterSnapshot {
-  source: "hedera-testnet" | "seed";
-  token: SecurityToken;
-  treasury: TreasuryAccount;
-  holders: Holder[];
-  fetchedAt: string;
-  note: string;
-}
-
 export function hashscanToken(address: string): string {
   return `https://hashscan.io/testnet/contract/${address}`;
 }
@@ -76,19 +73,17 @@ function complianceFromCode(code: string): ComplianceState {
   }
 }
 
-export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
-  if (!TOKEN_ADDRESS) {
-    return {
-      source: "seed",
-      token: security,
-      treasury,
-      holders: seedHolders,
-      fetchedAt: new Date().toISOString(),
-      note: "Seed register. Set NEXT_PUBLIC_ATS_TOKEN_ADDRESS to read the live ATS token.",
-    };
-  }
+/**
+ * The on chain path. Throws when the relay refuses, which is what lets
+ * getRegisterSnapshot fall back to the cached register.
+ */
+export const liveRegisterAdapter: RegisterAdapter = {
+  mode: "real",
+  async load(): Promise<RegisterSnapshot> {
+    if (!TOKEN_ADDRESS) {
+      throw new Error("NEXT_PUBLIC_ATS_TOKEN_ADDRESS is not set.");
+    }
 
-  try {
     const client = createPublicClient({
       chain: hederaTestnet,
       transport: http(RPC_URL),
@@ -132,21 +127,28 @@ export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
       })
     );
 
+    const snapshot = await fakeRegisterAdapter.load();
     return {
+      ...snapshot,
       source: "hedera-testnet",
       token: { ...security, address: TOKEN_ADDRESS },
-      treasury,
       holders: live,
-      fetchedAt: new Date().toISOString(),
       note: `Live read from ${RPC_URL} at chain ${CHAIN_ID}.`,
     };
+  },
+};
+
+export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
+  const adapter: RegisterAdapter = useLiveRegister()
+    ? liveRegisterAdapter
+    : fakeRegisterAdapter;
+
+  try {
+    return await adapter.load();
   } catch {
+    const fallback = await fakeRegisterAdapter.load();
     return {
-      source: "seed",
-      token: security,
-      treasury,
-      holders: seedHolders,
-      fetchedAt: new Date().toISOString(),
+      ...fallback,
       note: "Hashio did not answer, falling back to the cached register.",
     };
   }

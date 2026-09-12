@@ -5,8 +5,13 @@ import {
   installPolicy,
   quorumSatisfied,
   submitTransaction,
-  type PrivyPolicy,
 } from "@/lib/privy";
+import type {
+  ApiResponse,
+  PolicyInstallation,
+  PrivyPolicy,
+  SubmitResult,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -35,34 +40,37 @@ interface SubmitBody {
 
 type Body = LockBody | SubmitBody;
 
+/** Every response from this route carries the same envelope. */
+function fail(error: string, status: number, blockers?: string[]) {
+  const payload: ApiResponse<never> = blockers
+    ? { ok: false, error, blockers }
+    : { ok: false, error };
+  return NextResponse.json(payload, { status });
+}
+
 export async function POST(request: Request) {
   let body: Body;
   try {
     body = (await request.json()) as Body;
   } catch {
-    return NextResponse.json({ error: "Malformed request body." }, { status: 400 });
+    return fail("Malformed request body.", 400);
   }
 
   if (body.intent === "lock") {
     const { plan, approvals } = body;
 
     if (plan.blockers.length > 0) {
-      return NextResponse.json(
-        {
-          error: "The plan still has blockers, nothing can be locked.",
-          blockers: plan.blockers,
-        },
-        { status: 409 }
+      return fail(
+        "The plan still has blockers, nothing can be locked.",
+        409,
+        plan.blockers
       );
     }
 
     if (!quorumSatisfied(approvals)) {
-      return NextResponse.json(
-        {
-          error:
-            "Key quorum not met. Two distinct signers must approve before the policy is installed.",
-        },
-        { status: 409 }
+      return fail(
+        "Key quorum not met. Two distinct signers must approve before the policy is installed.",
+        409
       );
     }
 
@@ -72,11 +80,15 @@ export async function POST(request: Request) {
         policy: installation.policy,
         plan,
       });
-      return NextResponse.json(installation);
+      const response: ApiResponse<PolicyInstallation> = {
+        ok: true,
+        data: installation,
+      };
+      return NextResponse.json(response);
     } catch (error) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Policy install failed." },
-        { status: 502 }
+      return fail(
+        error instanceof Error ? error.message : "Policy install failed.",
+        502
       );
     }
   }
@@ -86,7 +98,7 @@ export async function POST(request: Request) {
     const held = vault.get(policyId);
     const policy = held?.policy ?? compilePolicy(approvedPlan);
 
-    const calldata =
+    const calldata: `0x${string}` =
       submittedRows.length > 0
         ? buildCalldata(approvedPlan.kind, submittedRows)
         : "0x";
@@ -104,20 +116,22 @@ export async function POST(request: Request) {
         vault.delete(policyId);
       }
 
-      return NextResponse.json({
+      const data: SubmitResult = {
         ...result,
         calldata,
         tampered,
         policySource: held ? "held-from-lock" : "recompiled-from-approved-plan",
         planHash: approvedPlan.planHash,
-      });
+      };
+      const response: ApiResponse<SubmitResult> = { ok: true, data };
+      return NextResponse.json(response);
     } catch (error) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Submission failed." },
-        { status: 502 }
+      return fail(
+        error instanceof Error ? error.message : "Submission failed.",
+        502
       );
     }
   }
 
-  return NextResponse.json({ error: "Unknown intent." }, { status: 400 });
+  return fail("Unknown intent.", 400);
 }

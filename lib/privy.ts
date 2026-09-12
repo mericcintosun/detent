@@ -11,8 +11,26 @@
 // component.
 
 import type { Hex } from "viem";
+import { useLivePrivy } from "@/lib/adapter";
 import { treasury } from "@/lib/data";
 import type { Plan } from "@/lib/plan";
+import type {
+  ExecutionResult,
+  PolicyCondition,
+  PolicyInstallation,
+  PolicyRule,
+  PrivyPolicy,
+  SignatureVerdict,
+} from "@/lib/types";
+
+export type {
+  ExecutionResult,
+  PolicyCondition,
+  PolicyInstallation,
+  PolicyRule,
+  PrivyPolicy,
+  SignatureVerdict,
+};
 
 const PRIVY_API = process.env.PRIVY_API_URL ?? "https://api.privy.io";
 const APP_ID = process.env.PRIVY_APP_ID;
@@ -20,54 +38,8 @@ const APP_SECRET = process.env.PRIVY_APP_SECRET;
 const WALLET_ID = process.env.PRIVY_TREASURY_WALLET_ID ?? treasury.walletId;
 const QUORUM_THRESHOLD = 2;
 
-export interface PolicyCondition {
-  field_source: "ethereum_transaction";
-  field: "to" | "chain_id" | "data";
-  operator: "eq" | "starts_with";
-  value: string;
-}
-
-export interface PolicyRule {
-  name: string;
-  method: "eth_sendTransaction";
-  conditions: PolicyCondition[];
-  action: "ALLOW";
-}
-
-export interface PrivyPolicy {
-  version: "1.0";
-  name: string;
-  chain_type: "ethereum";
-  rules: PolicyRule[];
-  default_action: "DENY";
-}
-
-export interface PolicyInstallation {
-  policyId: string;
-  policy: PrivyPolicy;
-  walletId: string;
-  quorumThreshold: number;
-  live: boolean;
-  note: string;
-}
-
-export interface SignatureVerdict {
-  allowed: boolean;
-  ruleName: string;
-  reason: string;
-  failedCondition?: PolicyCondition;
-}
-
-export interface ExecutionResult {
-  verdict: SignatureVerdict;
-  transactionHash?: string;
-  policyRevoked: boolean;
-  live: boolean;
-  note: string;
-}
-
 export function isPrivyLive(): boolean {
-  return Boolean(APP_ID && APP_SECRET);
+  return useLivePrivy();
 }
 
 function authHeaders(): Record<string, string> {

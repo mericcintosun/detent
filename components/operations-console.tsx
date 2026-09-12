@@ -22,42 +22,11 @@ import {
   shortHex,
   type PlanRow,
 } from "@/lib/plan";
-
-interface PolicyCondition {
-  field: string;
-  operator: string;
-  value: string;
-}
-
-interface Installation {
-  policyId: string;
-  walletId: string;
-  quorumThreshold: number;
-  live: boolean;
-  note: string;
-  policy: {
-    name: string;
-    default_action: string;
-    rules: Array<{ name: string; method: string; conditions: PolicyCondition[] }>;
-  };
-}
-
-interface Verdict {
-  allowed: boolean;
-  reason: string;
-  ruleName: string;
-}
-
-interface Settlement {
-  verdict: Verdict;
-  transactionHash?: string;
-  policyRevoked: boolean;
-  live: boolean;
-  calldata: string;
-  tampered: boolean;
-  policySource: string;
-  planHash: string;
-}
+import type {
+  ApiResponse,
+  PolicyInstallation,
+  SubmitResult,
+} from "@/lib/types";
 
 interface AuditEntry {
   id: string;
@@ -91,8 +60,10 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
   const [deferred, setDeferred] = useState<string[]>([]);
   const [forced, setForced] = useState<string[]>([]);
   const [approvals, setApprovals] = useState<string[]>([]);
-  const [installation, setInstallation] = useState<Installation | null>(null);
-  const [settlement, setSettlement] = useState<Settlement | null>(null);
+  const [installation, setInstallation] = useState<PolicyInstallation | null>(
+    null
+  );
+  const [settlement, setSettlement] = useState<SubmitResult | null>(null);
   const [pending, setPending] = useState<"lock" | "send" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tamperInput, setTamperInput] = useState<string | null>(null);
@@ -167,15 +138,15 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ intent: "lock", plan, approvals }),
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        setError(payload.error ?? "The policy could not be installed.");
+      const payload = (await response.json()) as ApiResponse<PolicyInstallation>;
+      if (!payload.ok) {
+        setError(payload.error);
         return;
       }
-      setInstallation(payload as Installation);
+      setInstallation(payload.data);
       record({
         event: "Policy compiled and installed",
-        detail: `${payload.policy.name} pins ${plan.target} and one selector, plan hash ${shortHex(plan.planHash)}.`,
+        detail: `${payload.data.policy.name} pins ${plan.target} and one selector, plan hash ${shortHex(plan.planHash)}.`,
         tone: "neutral",
       });
     } catch {
@@ -219,12 +190,12 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
           tampered,
         }),
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        setError(payload.error ?? "The wallet endpoint failed.");
+      const payload = (await response.json()) as ApiResponse<SubmitResult>;
+      if (!payload.ok) {
+        setError(payload.error);
         return;
       }
-      const result = payload as Settlement;
+      const result = payload.data;
       setSettlement(result);
       if (result.verdict.allowed) {
         record({
@@ -369,6 +340,18 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
           </CardHeader>
 
           <CardContent className="p-0">
+            {plan.rows.length === 0 ? (
+              <div className="px-6 py-6">
+                <div className="border border-dashed border-border px-6 py-10 text-center">
+                  <p className="detent-label">No rows in this register</p>
+                  <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
+                    The register returned no holders for partition{" "}
+                    {snapshot.token.partition}, so there is nothing to preview
+                    and nothing to sign.
+                  </p>
+                </div>
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <div className="min-w-[46rem]">
                 <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] gap-4 border-b border-border px-6 py-3">
@@ -438,6 +421,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                 </ul>
               </div>
             </div>
+            )}
 
             <div className="grid gap-6 border-t border-border px-6 py-5 sm:grid-cols-3">
               <p className="text-sm leading-relaxed">
@@ -495,7 +479,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
         </Card>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section id="policy" className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="border-b border-border">
             <CardTitle className="font-display text-xl">
@@ -619,7 +603,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
         </Card>
       </section>
 
-      <section className="space-y-6">
+      <section id="send" className="space-y-6">
         <Card className={settlement && !settlement.verdict.allowed ? "border-bad" : ""}>
           <CardHeader className="border-b border-border">
             <CardTitle className="font-display text-xl">Send it</CardTitle>
