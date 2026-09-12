@@ -46,7 +46,7 @@ forge build
 forge test -vv
 ```
 
-34 tests, 9 of them fuzz, with 100 percent line, statement, branch and function
+37 tests, 9 of them fuzz, with 100 percent line, statement, branch and function
 coverage on `src/PlanAnchor.sol` (`forge coverage`). They walk the full state
 machine in both directions, assert every illegal transition against its exact
 custom error, assert `onlyOperator` on all four mutating functions (`anchor`,

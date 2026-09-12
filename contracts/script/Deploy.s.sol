@@ -10,9 +10,12 @@ interface Vm {
     function stopBroadcast() external;
 }
 
-interface Console {
-    function log(string memory, address) external view;
-}
+/// @dev forge's console. The address has no code on a real network, on anvil or in
+///      a test, so a call through a typed interface reverts on Solidity's extcodesize
+///      check before it is ever made. That is how this script used to revert on every
+///      network after the deployment. A low-level staticcall skips the check: forge
+///      intercepts it and prints, and anywhere else it returns without effect.
+address constant CONSOLE = 0x000000000000000000636F6e736F6c652e6c6f67;
 
 /// @title Deploy
 /// @notice Deploys `PlanAnchor` and prints the address to wire into
@@ -25,7 +28,6 @@ interface Console {
 ///      the raw key back into the process environment.
 contract Deploy {
     Vm constant vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
-    Console constant console = Console(0x000000000000000000636F6e736F6c652e6c6f67);
 
     /// @notice Broadcasts the deployment.
     /// @dev The broadcasting sender becomes the immutable `operator`, so it must
@@ -36,7 +38,16 @@ contract Deploy {
         anchor = new PlanAnchor();
         vm.stopBroadcast();
 
-        console.log("PlanAnchor deployed at", address(anchor));
-        console.log("Operator pinned to", anchor.operator());
+        _log("PlanAnchor deployed at", address(anchor));
+        _log("Operator pinned to", anchor.operator());
+    }
+
+    /// @dev Best effort print through forge's console, see `CONSOLE`.
+    function _log(string memory label, address value) private view {
+        bytes memory payload = abi.encodeWithSignature("log(string,address)", label, value);
+        address sink = CONSOLE;
+        assembly {
+            pop(staticcall(gas(), sink, add(payload, 32), mload(payload), 0, 0))
+        }
     }
 }

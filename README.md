@@ -39,7 +39,7 @@ no address and no transaction hash is quoted anywhere.
 | The plan, the quorum, the compiled policy, the refusal with its byte offset, the audit record | **Runs today**, on the live URL and on a fresh clone with an empty `.env.local`. The policy is compiled and evaluated by `lib/privy.ts` locally. | Nothing. `npm install && npm run dev`. |
 | The register read: `balanceOfByPartition` and `canTransfer` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio and falls back to the cached register on any failure. | `NEXT_PUBLIC_ADAPTER_MODE=real` plus `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`, after issuing the token through the ATS factory. |
 | The signature: policy installed on a Privy server wallet under a key quorum of two, then revoked | **Written, not exercised against live credentials.** Without them the same evaluator answers locally, which is why the demo produces a real refusal with no keys. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID`. |
-| The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Written and tested in Foundry, not deployed.** Five tests pass, three of them fuzz. The app renders its `unwired` state instead of implying a record. | `forge script script/Deploy.s.sol` from `contracts/`, then `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`. See "On chain proof". |
+| The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Written and tested in Foundry, not deployed.** 37 tests pass, 9 of them fuzz, and the deploy and smoke scripts run end to end under test. The app renders its `unwired` state instead of implying a record. | `forge script script/Deploy.s.sol` from `contracts/`, then `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`. See "On chain proof". |
 
 The demo video and the live URL both run the first row, and the console prints
 which half it is on: `Cached register · Treasury key, policy evaluated locally`.
@@ -408,8 +408,9 @@ exported, and both need `--legacy` because the Hedera relay rejects typed
 transactions:
 
 ```bash
-forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $DEPLOYER_PRIVATE_KEY --broadcast --legacy
-DEPLOYED_CONTRACT=0xYourDeployedAnchor forge script script/Smoke.s.sol --rpc-url $RPC_URL --private-key $DEPLOYER_PRIVATE_KEY --broadcast --legacy
+cast wallet import detent-operator --interactive
+forge script script/Deploy.s.sol --rpc-url $RPC_URL --account detent-operator --broadcast --legacy
+DEPLOYED_CONTRACT=0xYourDeployedAnchor forge script script/Smoke.s.sol --rpc-url $RPC_URL --account detent-operator --broadcast --legacy
 ```
 
 The account behind that key needs testnet HBAR from
