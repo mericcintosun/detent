@@ -475,6 +475,12 @@ export async function submitTransaction(options: {
   to: string;
   chainId: number;
   data: Hex;
+  /**
+   * Set by the console's wrong-network action for one send only. It overrides
+   * PRIVY_BROADCAST_MODE, so an operator who watched Privy refuse eip155:296
+   * can take the sign and relay path without a redeploy.
+   */
+  broadcastPreference?: "auto" | "signature";
 }): Promise<ExecutionResult> {
   const verdict = evaluatePolicy(options.policy, {
     to: options.to,
@@ -518,7 +524,9 @@ export async function submitTransaction(options: {
     };
   }
 
-  if (PRIVY_BROADCAST_MODE === "signature") {
+  const broadcastMode = options.broadcastPreference ?? PRIVY_BROADCAST_MODE;
+
+  if (broadcastMode === "signature") {
     return signAndRelay({ ...options, verdict });
   }
 
@@ -541,7 +549,7 @@ export async function submitTransaction(options: {
       );
       return denialResult(options.policy, options.policyId, response.status);
     }
-    if (PRIVY_BROADCAST_MODE === "auto" && response.status < 500) {
+    if (broadcastMode === "auto" && response.status < 500) {
       console.info(
         `${LOG_PREFIX} tx submitted: Privy answered ${response.status} for eip155:${options.chainId}, taking the signature path instead`
       );

@@ -12,10 +12,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  LedgerEmptyState,
+  PlanEmptyState,
+  PolicyEmptyState,
+  SendErrorState,
+  TreasuryKeyBanner,
+} from "@/components/console-states";
 import { actions, approvers, couponWindow, type ActionKind } from "@/lib/data";
 import type { DetentErrorCode } from "@/lib/errors";
 import { hashscanToken, hashscanTransaction } from "@/lib/hashscan";
 import {
+  buildCalldata,
   buildPlan,
   formatMicros,
   formatTokens,
@@ -23,11 +31,13 @@ import {
   type PlanRow,
 } from "@/lib/plan";
 import type {
+  AnchorReceipt,
   ApiResponse,
   PolicyInstallation,
   RegisterSnapshot,
   SubmitResult,
 } from "@/lib/types";
+import { deriveTreasuryKeyState } from "@/lib/wallet-state";
 
 /** What the console keeps from a failed call: the code it switches on, the
  *  sentence it prints, and the blockers that belong under it. */
@@ -43,7 +53,24 @@ interface AuditEntry {
   event: string;
   detail: string;
   tone: "ok" | "bad" | "neutral";
+  /** The payout transaction on HashScan. */
   href?: string;
+  /** The PlanAnchor transaction on HashScan, when one was sent. */
+  anchorHref?: string;
+  /** What the anchor said when it did not send anything. */
+  anchorNote?: string;
+}
+
+/** The anchor's two halves, split for the audit entry that carries them. */
+function anchorParts(anchor: AnchorReceipt | undefined): {
+  anchorHref?: string;
+  anchorNote?: string;
+} {
+  if (!anchor) return {};
+  if (anchor.transactionHash) {
+    return { anchorHref: hashscanTransaction(anchor.transactionHash) };
+  }
+  return { anchorNote: anchor.note };
 }
 
 function microsToInput(micros: string): string {
@@ -77,10 +104,22 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
   const [failure, setFailure] = useState<ConsoleFailure | null>(null);
   const [tamperInput, setTamperInput] = useState<string | null>(null);
   const [log, setLog] = useState<AuditEntry[]>([]);
+  /** What the last send was, so the retry and the relay action can re-fire it. */
+  const [lastSend, setLastSend] = useState<{
+    tampered: boolean;
+    preference?: "auto" | "signature";
+  } | null>(null);
 
   const plan = useMemo(
-    () => buildPlan({ kind, deferred, forced, holders: snapshot.holders }),
-    [kind, deferred, forced, snapshot.holders]
+    () =>
+      buildPlan({
+        kind,
+        deferred,
+        forced,
+        holders: snapshot.holders,
+        treasuryMicros: snapshot.treasury.balanceMicros,
+      }),
+    [kind, deferred, forced, snapshot.holders, snapshot.treasury.balanceMicros]
   );
 
   const action = actions.find((entry) => entry.kind === kind) ?? actions[0];
@@ -91,6 +130,31 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
     tamperInput ?? (firstRow ? microsToInput(firstRow.amountMicros) : "");
   const locked = installation !== null;
   const quorumMet = approvals.length >= 2;
+
+  // Privy was live, the policy had to be recompiled rather than recalled, the
+  // payload was allowed and nothing landed: that is a refused chain, not a
+  // refused payload.
+  const chainRefused =
+    settlement !== null &&
+    settlement.live &&
+    settlement.policySource === "recompiled-from-approved-plan" &&
+    settlement.verdict.allowed &&
+    !settlement.transactionHash;
+
+  const treasuryKeyState = deriveTreasuryKeyState({
+    privyLive: installation?.live ?? false,
+    pending,
+    locked,
+    settlement: settlement
+      ? {
+          allowed: settlement.verdict.allowed,
+          transactionHash: settlement.transactionHash,
+          policySource: settlement.policySource,
+          chainRefused,
+        }
+      : null,
+    failure: failure ? { code: failure.code, hint: failure.hint } : null,
+  });
 
   function record(entry: Omit<AuditEntry, "id" | "at">) {
     setLog((previous) => [
@@ -108,6 +172,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
     setSettlement(null);
     setTamperInput(null);
     setFailure(null);
+    setLastSend(null);
   }
 
   function toggleRow(row: PlanRow) {
@@ -159,8 +224,9 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
       setInstallation(payload.data);
       record({
         event: "Policy compiled and installed",
-        detail: `${payload.data.policy.name} pins ${plan.target} and one selector, plan hash ${shortHex(plan.planHash)}.`,
+        detail: `${payload.data.policy.name} pins ${plan.target} and one selector, plan hash ${shortHex(plan.planHash)}. ${payload.data.anchor?.anchored ? "The plan hash is anchored on chain." : "The plan hash was not anchored on chain."}`,
         tone: "neutral",
+        ...anchorParts(payload.data.anchor),
       });
     } catch {
       setFailure({
@@ -172,10 +238,11 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
     }
   }
 
-  async function send(tampered: boolean) {
+  async function send(tampered: boolean, preference?: "auto" | "signature") {
     if (!installation) return;
     setPending("send");
     setFailure(null);
+    setLastSend({ tampered, preference });
 
     let submittedRows = includedRows.map((row) => ({
       address: row.address,
@@ -197,6 +264,18 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
       );
     }
 
+    // One key per distinct submission. The calldata is in it, so a second
+    // tampered amount is a different send, and the broadcast preference is in
+    // it, so the sign and relay retry is not answered from the ledger. Two
+    // clicks on the same button are the same key and broadcast once.
+    const submittedCalldata =
+      submittedRows.length > 0
+        ? buildCalldata(plan.kind, submittedRows)
+        : "0x";
+    const submissionKey = `${installation.policyId}:${plan.planHash}:${
+      tampered ? "tampered" : "approved"
+    }:${submittedCalldata}:${preference ?? "auto"}`;
+
     try {
       const response = await fetch("/api/detent", {
         method: "POST",
@@ -207,6 +286,8 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
           approvedPlan: plan,
           submittedRows,
           tampered,
+          submissionKey,
+          ...(preference ? { broadcastPreference: preference } : {}),
         }),
       });
       const payload = (await response.json()) as ApiResponse<SubmitResult>;
@@ -223,17 +304,19 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
       if (result.verdict.allowed) {
         record({
           event: "Signed and broadcast",
-          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. Policy ${installation.policyId} revoked.`,
+          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. Policy ${installation.policyId} revoked.${result.anchor?.anchored ? " The plan is closed as settled on chain." : ""}`,
           tone: "ok",
           href: result.transactionHash
             ? hashscanTransaction(result.transactionHash)
             : undefined,
+          ...anchorParts(result.anchor),
         });
       } else {
         record({
           event: "Signature refused",
-          detail: result.verdict.reason,
+          detail: `${result.verdict.reason}${result.anchor?.anchored ? " The plan is closed as abandoned on chain rather than left open." : ""}`,
           tone: "bad",
+          ...anchorParts(result.anchor),
         });
       }
     } catch {
@@ -267,6 +350,10 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
         drawMicros: plan.drawMicros,
       },
       policy: installation?.policy ?? null,
+      anchors: {
+        onLock: installation?.anchor ?? null,
+        onSend: settlement?.anchor ?? null,
+      },
       approvals,
       settlement,
       entries: log,
@@ -367,16 +454,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
 
           <CardContent className="p-0">
             {plan.rows.length === 0 ? (
-              <div className="px-6 py-6">
-                <div className="border border-dashed border-border px-6 py-10 text-center">
-                  <p className="detent-label">No rows in this register</p>
-                  <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
-                    The register returned no holders for partition{" "}
-                    {snapshot.token.partition}, so there is nothing to preview
-                    and nothing to sign.
-                  </p>
-                </div>
-              </div>
+              <PlanEmptyState partition={snapshot.token.partition} />
             ) : (
             <div className="overflow-x-auto">
               <div className="min-w-[46rem]">
@@ -617,13 +695,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 border border-dashed border-border p-6">
-                <p className="detent-label">No policy installed</p>
-                <p className="max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-                  Until the plan is locked, the treasury key can sign anything the
-                  contract exposes. That is the state this product exists to end.
-                </p>
-              </div>
+              <PolicyEmptyState />
             )}
           </CardContent>
         </Card>
@@ -639,6 +711,15 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
+            <TreasuryKeyBanner
+              state={treasuryKeyState}
+              reason={settlement?.verdict.reason}
+              note={failure?.hint ?? settlement?.note}
+              busy={pending !== null}
+              onSignAndRelay={() => send(lastSend?.tampered ?? false, "signature")}
+              onRetry={() => send(lastSend?.tampered ?? false)}
+            />
+
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <div className="space-y-2">
                 <label htmlFor="tamper" className="detent-label block">
@@ -678,23 +759,14 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
             </Button>
 
             {failure ? (
-              <div className="space-y-2">
-                <p className="border border-bad px-4 py-3 text-sm leading-relaxed text-bad">
-                  {failure.hint}
-                </p>
-                {failure.code === "plan_blocked" && failure.blockers ? (
-                  <ul className="space-y-1 px-4">
-                    {failure.blockers.map((blocker) => (
-                      <li
-                        key={blocker}
-                        className="text-sm leading-relaxed text-bad"
-                      >
-                        {blocker}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+              <SendErrorState
+                hint={failure.hint}
+                blockers={
+                  failure.code === "plan_blocked" ? failure.blockers : undefined
+                }
+                busy={pending !== null || !locked}
+                onRetry={() => send(lastSend?.tampered ?? false, lastSend?.preference)}
+              />
             ) : null}
 
             {settlement ? (
@@ -761,12 +833,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
         </div>
 
         {log.length === 0 ? (
-          <div className="border border-dashed border-border px-6 py-10 text-center">
-            <p className="detent-label">Nothing recorded yet</p>
-            <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
-              Lock a plan, then send it. Entries land here as the wallet answers.
-            </p>
-          </div>
+          <LedgerEmptyState />
         ) : (
           <ul className="detent-stagger divide-y divide-border border-y border-border">
             {log.map((entry) => (
@@ -790,15 +857,32 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                   <p className="max-w-[78ch] text-sm leading-relaxed text-muted-foreground">
                     {entry.detail}
                   </p>
-                  {entry.href ? (
-                    <a
-                      href={entry.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-block text-sm underline decoration-hairline underline-offset-4"
-                    >
-                      Open on HashScan
-                    </a>
+                  <div className="flex flex-wrap items-center gap-4">
+                    {entry.href ? (
+                      <a
+                        href={entry.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block text-sm underline decoration-hairline underline-offset-4"
+                      >
+                        Open the payout on HashScan
+                      </a>
+                    ) : null}
+                    {entry.anchorHref ? (
+                      <a
+                        href={entry.anchorHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block text-sm underline decoration-hairline underline-offset-4"
+                      >
+                        Open the plan anchor on HashScan
+                      </a>
+                    ) : null}
+                  </div>
+                  {entry.anchorNote ? (
+                    <p className="max-w-[78ch] text-xs leading-relaxed text-muted-foreground">
+                      {entry.anchorNote}
+                    </p>
                   ) : null}
                 </div>
               </li>
