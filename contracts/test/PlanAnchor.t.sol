@@ -85,4 +85,44 @@ contract PlanAnchorTest {
         );
         require(planAnchor.planOf(planHash).settledAt != 0, "settledAt should be written");
     }
+
+    /// @notice The escape hatch, the one gap the Phase 5 audit found: a wedged
+    ///         register must not wedge the recorded demo. Paused stops the write
+    ///         and unpausing lets the same anchor through.
+    function test_pausedBlocksAnchorAndOperatorCanResume() external {
+        PlanAnchor planAnchor = new PlanAnchor();
+
+        bytes32 planHash = keccak256("detent.v1|coupon|296|2026-Q3|paused");
+        address token = address(uint160(uint256(keccak256("detent.bmeq.token"))));
+        bytes4 selector = bytes4(keccak256("distributeCoupon(bytes32,address[],uint256[])"));
+
+        planAnchor.setPaused(true);
+        require(planAnchor.paused(), "paused should be true");
+
+        vm.expectRevert(PlanAnchor.Paused.selector);
+        planAnchor.anchor(planHash, token, selector);
+
+        planAnchor.setPaused(false);
+        require(!planAnchor.paused(), "paused should be false again");
+
+        planAnchor.anchor(planHash, token, selector);
+
+        require(
+            planAnchor.planOf(planHash).status == PlanAnchor.Status.Anchored,
+            "status should be Anchored after resuming"
+        );
+        require(planAnchor.anchoredCount() == 1, "anchoredCount should be 1");
+    }
+
+    /// @notice The escape hatch is owner gated: nobody but the deploying operator
+    ///         may pause or resume the register, whichever address tries.
+    function testFuzz_setPausedRejectsNonOperator(address caller) external {
+        if (caller == address(this)) return;
+
+        PlanAnchor planAnchor = new PlanAnchor();
+
+        vm.prank(caller);
+        vm.expectRevert(PlanAnchor.NotOperator.selector);
+        planAnchor.setPaused(true);
+    }
 }

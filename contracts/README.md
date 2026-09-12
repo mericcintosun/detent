@@ -23,6 +23,16 @@ two fuzz tests, one asserting that no address other than the deploying operator
 can write to the register, one asserting the status transition and the recorded
 token and selector for any plan hash.
 
+`setPaused(bool)` is the operator-only escape hatch added in Phase 5: it flips
+`paused`, which `anchor`, `settle` and `abandon` all read through
+`whenNotPaused`, so a wedged register can be stopped mid demo without a
+redeploy. `planOf` and `anchoredCount` stay open reads either way.
+
+Two more tests cover it: `test_pausedBlocksAnchorAndOperatorCanResume` asserts
+that anchoring while paused reverts with `Paused()` and that the same anchor
+succeeds after unpausing, and `testFuzz_setPausedRejectsNonOperator` asserts
+that no other address can touch the hatch.
+
 ## Deploy to Hedera testnet (chain 296)
 
 ```bash

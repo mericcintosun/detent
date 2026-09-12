@@ -26,6 +26,7 @@ contract PlanAnchor {
     }
 
     address public immutable operator;
+    bool public paused;
     mapping(bytes32 => Plan) private plans;
     bytes32[] public anchoredHashes;
 
@@ -37,13 +38,20 @@ contract PlanAnchor {
     );
     event PlanSettled(bytes32 indexed planHash, bytes32 txReference);
     event PlanAbandoned(bytes32 indexed planHash, string reason);
+    event PauseSet(bool paused);
 
     error NotOperator();
     error AlreadyAnchored();
     error NotAnchored();
+    error Paused();
 
     modifier onlyOperator() {
         if (msg.sender != operator) revert NotOperator();
+        _;
+    }
+
+    modifier whenNotPaused() {
+        if (paused) revert Paused();
         _;
     }
 
@@ -51,8 +59,20 @@ contract PlanAnchor {
         operator = msg.sender;
     }
 
+    /// @notice The escape hatch: the operator can stop writes to the register
+    ///         during a live demo without redeploying the contract. Reads stay
+    ///         open either way, so a paused register still renders the record.
+    function setPaused(bool value) external onlyOperator {
+        paused = value;
+        emit PauseSet(value);
+    }
+
     /// @notice Record the hash of an approved plan before the wallet policy opens.
-    function anchor(bytes32 planHash, address token, bytes4 selector) external onlyOperator {
+    function anchor(bytes32 planHash, address token, bytes4 selector)
+        external
+        onlyOperator
+        whenNotPaused
+    {
         if (plans[planHash].status != Status.Unknown) revert AlreadyAnchored();
 
         plans[planHash] = Plan({
@@ -69,7 +89,11 @@ contract PlanAnchor {
     }
 
     /// @notice Close a plan once the treasury transaction has landed.
-    function settle(bytes32 planHash, bytes32 txReference) external onlyOperator {
+    function settle(bytes32 planHash, bytes32 txReference)
+        external
+        onlyOperator
+        whenNotPaused
+    {
         Plan storage plan = plans[planHash];
         if (plan.status != Status.Anchored) revert NotAnchored();
 
@@ -80,7 +104,11 @@ contract PlanAnchor {
     }
 
     /// @notice Close a plan that was refused or withdrawn, so the record is complete.
-    function abandon(bytes32 planHash, string calldata reason) external onlyOperator {
+    function abandon(bytes32 planHash, string calldata reason)
+        external
+        onlyOperator
+        whenNotPaused
+    {
         Plan storage plan = plans[planHash];
         if (plan.status != Status.Anchored) revert NotAnchored();
 
