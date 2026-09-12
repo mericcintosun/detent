@@ -4,8 +4,12 @@ This file is the contract every later phase reads. The shot list for the video
 derives from it, the section anchors below are load bearing, and no phase may
 rename them without amending this file first.
 
-**Demo start route: `/`.** The console is the only route in the product. There is
-no landing page, no settings page and no auth screen to click through.
+**Demo start route: `/`.** The console is the working surface: every action the
+operator takes happens there, and there is no landing page, no settings page and
+no auth screen to click through. There is exactly one other route,
+`/record/[planHash]`, added in Phase 4. It is read only, it is reached from the
+audit record rather than typed, and it exists because a record that dies with the
+session is not a record.
 
 ## The problem
 
@@ -31,7 +35,7 @@ The preview is not a report sitting next to the signature. The preview is the
 signing limit, it exists for exactly one corporate action, and it is revoked
 when that transaction lands.
 
-## The five steps
+## The six steps
 
 ### Step 1. Read the register
 
@@ -76,6 +80,22 @@ Press "Execute the approved plan". It signs, the policy is revoked, the HashScan
 link and the plan hash land in the audit record, and "Download the record"
 writes the JSON audit file.
 
+### Step 6. Read the record back off the chain
+
+**Anchor:** `/record/<planHash>` **File:** `app/record/[planHash]/page.tsx`
+
+Press "Open the permanent record" in the audit record section. The route reads
+`planOf` off `PlanAnchor` with no operator key and prints what the contract holds:
+the state reads settled, the token and the selector match the plan that was just
+sent, the anchored and settled timestamps print in UTC, and the HashScan link
+opens `PlanAnchor` itself. Reload it, or open it in a fresh private window, and
+the record is still there, which is the point: this page outlives the session.
+
+Degraded states are documented, not bugs. With no
+`NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` the page says the anchor contract is not
+configured; with a hash the contract has never seen it says to lock a plan first;
+with a busy relay it says to reload.
+
 ## What is real at each phase
 
 | Step | Phase 1 (this build) | Later |
@@ -85,3 +105,4 @@ writes the JSON audit file.
 | 3 | Policy compiled locally, quorum enforced server side | Phase 2 installs it on a real Privy wallet |
 | 4 | Real evaluation against the compiled policy | Same evaluator, Privy returns the refusal |
 | 5 | Stub receipt derived from the calldata | Real HashScan transaction, plus the on chain anchor |
+| 6 | Route did not exist | Phase 4 added it: `planOf` read back off `PlanAnchor`, so the record survives the session |

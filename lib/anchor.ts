@@ -30,7 +30,7 @@ import {
   SIGNED_TX_GAS_LIMIT,
 } from "@/lib/config";
 import { hederaPublicClient, hederaTestnet } from "@/lib/hedera";
-import type { AnchorReceipt } from "@/lib/types";
+import type { AnchorReceipt, PlanRecord, PlanRecordState } from "@/lib/types";
 
 const ANCHOR_ABI = parseAbi([
   "struct Plan { address token; bytes4 selector; address anchoredBy; uint64 anchoredAt; uint64 settledAt; uint8 status; }",
@@ -114,6 +114,99 @@ async function statusOf(
   const { status } = record as unknown as { status: number | bigint };
   return Number(status);
 }
+
+/* --- The read path -------------------------------------------------------- */
+
+/** The struct planOf returns, as the ABI declares it. */
+interface OnChainPlan {
+  token: `0x${string}`;
+  selector: Hex;
+  anchoredBy: `0x${string}`;
+  anchoredAt: bigint | number;
+  settledAt: bigint | number;
+  status: number | bigint;
+}
+
+/** A uint64 second count, or nothing when the contract holds a zero. */
+function isoFromSeconds(value: bigint | number): string | undefined {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return new Date(seconds * 1000).toISOString();
+}
+
+function stateFromStatus(status: number): PlanRecordState {
+  switch (status) {
+    case STATUS_ANCHORED:
+      return "anchored";
+    case STATUS_SETTLED:
+      return "settled";
+    case STATUS_ABANDONED:
+      return "abandoned";
+    default:
+      return "unknown";
+  }
+}
+
+/**
+ * Read one plan hash back off the chain. `planOf` is a view call, so this needs
+ * no operator key and no wallet client: only the contract address. That is what
+ * lets /record/[planHash] render on a deployment that can read but not write.
+ *
+ * Like everything else here it never throws. A missing address is `unwired`, a
+ * relay that will not answer is `unreadable`, and a hash the contract has never
+ * seen is `unknown`.
+ */
+export async function readPlanRecord(planHash: Hex): Promise<PlanRecord> {
+  if (!PLAN_ANCHOR_ADDRESS) {
+    return {
+      state: "unwired",
+      note: "PlanAnchor is not wired: set NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS to the deployed contract and reload.",
+    };
+  }
+
+  try {
+    const result = await hederaPublicClient().readContract({
+      address: PLAN_ANCHOR_ADDRESS,
+      abi: ANCHOR_ABI,
+      functionName: "planOf",
+      args: [planHash],
+    });
+    const plan = result as unknown as OnChainPlan;
+    const state = stateFromStatus(Number(plan.status));
+
+    if (state === "unknown") {
+      return {
+        state,
+        note: "PlanAnchor has never seen this plan hash, so there is no record to show yet.",
+      };
+    }
+
+    return {
+      state,
+      note:
+        state === "settled"
+          ? "The plan was anchored before the policy opened and closed as settled once the payout landed."
+          : state === "abandoned"
+            ? "The plan was anchored and then closed as abandoned, so the refused run left a complete record."
+            : "The plan is anchored and still open. It closes when the treasury key either signs or refuses.",
+      token: plan.token,
+      selector: plan.selector,
+      anchoredBy: plan.anchoredBy,
+      anchoredAt: isoFromSeconds(plan.anchoredAt),
+      settledAt: isoFromSeconds(plan.settledAt),
+    };
+  } catch (error) {
+    const detail =
+      error instanceof Error ? error.message : "unknown relay failure";
+    console.error(`${LOG_PREFIX} anchor read failed:`, detail);
+    return {
+      state: "unreadable",
+      note: "The Hedera relay did not answer the planOf call, so the record could not be read this time.",
+    };
+  }
+}
+
+/* --- The write path ------------------------------------------------------- */
 
 function relayFailure(step: string, error: unknown): AnchorReceipt {
   const detail =

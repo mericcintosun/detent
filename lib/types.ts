@@ -46,6 +46,35 @@ export interface AnchorReceipt {
   note: string;
 }
 
+/**
+ * What the chain holds for one plan hash right now, as read back by
+ * readPlanRecord in lib/anchor.ts.
+ *
+ * The first two states are not chain states at all: `unwired` means no contract
+ * address is configured, `unreadable` means the relay would not answer. The other
+ * four mirror PlanAnchor.Status, so `unknown` is a hash the contract has never
+ * seen. Everything past `state` is present only once the record exists.
+ */
+export type PlanRecordState =
+  | "unwired"
+  | "unreadable"
+  | "unknown"
+  | "anchored"
+  | "settled"
+  | "abandoned";
+
+export interface PlanRecord {
+  state: PlanRecordState;
+  /** One sentence a reader can act on, in every state. */
+  note: string;
+  token?: `0x${string}`;
+  selector?: `0x${string}`;
+  anchoredBy?: `0x${string}`;
+  /** ISO 8601, or absent when the contract holds a zero timestamp. */
+  anchoredAt?: string;
+  settledAt?: string;
+}
+
 export interface PolicyInstallation {
   policyId: string;
   policy: PrivyPolicy;

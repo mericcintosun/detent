@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -404,27 +404,48 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                 href={hashscanToken(snapshot.token.address)}
                 target="_blank"
                 rel="noreferrer"
+                title={snapshot.token.address}
                 className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
               >
                 {shortHex(snapshot.token.address, 12, 8)}
               </a>
             </div>
           </div>
-          <figure className="detent-enter border border-border bg-card p-3">
-            <Image
-              src="/brand/og.png"
-              alt="A ruled register sheet closed with a wax seal"
-              width={1200}
-              height={630}
-              className="h-auto w-full"
-              priority
-            />
-            <figcaption className="pt-3 text-xs leading-relaxed text-muted-foreground">
-              Register snapshot taken {snapshot.fetchedAt.slice(0, 19).replace("T", " ")} UTC.
-              {" "}
+          {/* One mark per page, and the rail already carries it. What the
+              masthead needs here is the provenance of the numbers beside it, so
+              this is the register note rather than a second raster. */}
+          <div className="detent-enter border border-border bg-card p-4">
+            <p className="detent-label">Register note</p>
+            <dl className="space-y-2 pt-3 text-sm leading-relaxed">
+              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+                <dt className="detent-label">Snapshot</dt>
+                <dd className="text-right tabular-nums">
+                  {snapshot.fetchedAt.slice(0, 19).replace("T", " ")} UTC
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+                <dt className="detent-label">Source</dt>
+                <dd className="text-right">
+                  {snapshot.source === "hedera-testnet"
+                    ? "Read on chain"
+                    : "Cached seed register"}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+                <dt className="detent-label">Partition</dt>
+                <dd className="text-right">{snapshot.token.partition}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="detent-label">Settles in</dt>
+                <dd className="text-right">
+                  {snapshot.treasury.settlementAsset}
+                </dd>
+              </div>
+            </dl>
+            <p className="pt-3 text-xs leading-relaxed text-muted-foreground">
               {snapshot.note}
-            </figcaption>
-          </figure>
+            </p>
+          </div>
         </div>
       </section>
 
@@ -483,7 +504,10 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                           {row.legalName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {row.jurisdiction} · {shortHex(row.address, 10, 4)}
+                          {row.jurisdiction} ·{" "}
+                          <span title={row.address}>
+                            {shortHex(row.address, 10, 4)}
+                          </span>
                         </p>
                         {row.held ? (
                           <p className="max-w-[46ch] text-xs leading-relaxed text-bad">
@@ -565,7 +589,10 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
             <dl className="grid gap-4 border-t border-border px-6 py-5 sm:grid-cols-2">
               <div>
                 <dt className="detent-label">Plan hash</dt>
-                <dd className="pt-1 text-sm tabular-nums break-all">
+                <dd
+                  className="pt-1 text-sm tabular-nums break-all"
+                  title={plan.planHash}
+                >
                   {plan.planHash}
                 </dd>
               </div>
@@ -676,7 +703,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                       <dt className="detent-label">
                         {condition.field} {condition.operator}
                       </dt>
-                      <dd className="pt-1 text-sm break-all">
+                      <dd className="pt-1 text-sm break-all" title={condition.value}>
                         {condition.value.length > 66
                           ? shortHex(condition.value, 34, 12)
                           : condition.value}
@@ -807,6 +834,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                     href={hashscanTransaction(settlement.transactionHash)}
                     target="_blank"
                     rel="noreferrer"
+                    title={settlement.transactionHash}
                     className="inline-block text-sm underline decoration-hairline underline-offset-4"
                   >
                     View {shortHex(settlement.transactionHash)} on HashScan
@@ -827,9 +855,16 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
               they happened.
             </p>
           </div>
-          <Button variant="outline" onClick={downloadAudit}>
-            Download the record
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={downloadAudit}>
+              Download the record
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/record/${plan.planHash}`}>
+                Open the permanent record
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {log.length === 0 ? (

@@ -241,7 +241,50 @@ export function LedgerEmptyState() {
   );
 }
 
-/* --- The one skeleton in the repo ----------------------------------------- */
+/**
+ * The three states in which /record/[planHash] has nothing to print. Each one
+ * names the next action rather than reporting an absence: wire the contract, lock
+ * a plan, or try again.
+ */
+export type RecordEmptyKind = "unwired" | "unknown" | "unreadable";
+
+export function RecordEmptyState({
+  kind,
+  note,
+}: {
+  kind: RecordEmptyKind;
+  note?: string;
+}) {
+  const label =
+    kind === "unwired"
+      ? "No anchor contract configured"
+      : kind === "unknown"
+        ? "Nothing anchored under this hash"
+        : "The chain could not be read";
+
+  const sentence =
+    kind === "unwired"
+      ? "This deployment has no PlanAnchor address, so there is nothing on chain to read back. Set NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS to the deployed contract and reload this URL."
+      : kind === "unknown"
+        ? "PlanAnchor has never seen this plan hash. Lock a plan on the console first: the lock step anchors the hash, and this page fills in from that moment on."
+        : "The Hedera relay was busy, so the planOf call came back with nothing. The record itself is unaffected, it is permanent on chain. Reload to read it again.";
+
+  return (
+    <div className="space-y-3 border border-dashed border-border p-6">
+      <p className="detent-label">{label}</p>
+      <p className="max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
+        {sentence}
+      </p>
+      {note ? (
+        <p className="max-w-[62ch] text-xs leading-relaxed text-muted-foreground">
+          {note}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/* --- The skeletons, one per server read ----------------------------------- */
 
 /**
  * The register is read on the server, so this stands in while it arrives. Same
@@ -285,6 +328,42 @@ export function RegisterSkeleton() {
               </li>
             ))}
           </ul>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * The record route reads planOf over the relay, which can take a second on a
+ * busy Hashio. Same ruled-block idiom as RegisterSkeleton: the heading rule, the
+ * hash line, then the six rows of the record's own dl.
+ */
+export function RecordSkeleton() {
+  return (
+    <div className="max-w-[72ch] space-y-8">
+      <div className="space-y-4">
+        <p className="detent-label">Reading the plan record</p>
+        <div className="h-9 w-full max-w-[24ch] border-b border-border bg-card sm:h-10" />
+        <div className="h-4 w-full max-w-[60ch] bg-card" />
+      </div>
+
+      <Card>
+        <CardHeader className="border-b border-border">
+          <div className="h-6 w-32 border border-border bg-card" />
+        </CardHeader>
+        <CardContent className="pt-6">
+          <dl className="space-y-4">
+            {[0, 1, 2, 3, 4, 5].map((row) => (
+              <div
+                key={row}
+                className="space-y-2 border-b border-border pb-3 last:border-b-0"
+              >
+                <div className="h-3 w-full max-w-[12ch] bg-secondary" />
+                <div className="h-4 w-full max-w-[38ch] bg-secondary" />
+              </div>
+            ))}
+          </dl>
         </CardContent>
       </Card>
     </div>

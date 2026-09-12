@@ -20,6 +20,16 @@ export const addressSchema = z.custom<`0x${string}`>(
   { message: "expected a 20 byte 0x address" }
 );
 
+/**
+ * A 32 byte plan hash: 0x plus exactly 64 hex characters. The record route parses
+ * its path segment with this, so a hand typed URL is a 404 rather than a relay
+ * call with a malformed argument.
+ */
+export const planHashSchema = z.custom<`0x${string}`>(
+  (value) => typeof value === "string" && /^0x[0-9a-fA-F]{64}$/.test(value),
+  { message: "expected a 32 byte 0x plan hash" }
+);
+
 /** Settlement amounts travel as decimal digit strings, never as numbers. */
 export const microsSchema = z
   .string()
