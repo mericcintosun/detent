@@ -24,6 +24,7 @@ import { actions, approvers, couponWindow, type ActionKind } from "@/lib/data";
 import type { DetentErrorCode } from "@/lib/errors";
 import { hashscanToken, hashscanTransaction } from "@/lib/hashscan";
 import {
+  CHAIN_ID,
   buildCalldata,
   buildPlan,
   formatMicros,
@@ -92,7 +93,20 @@ function stamp(): string {
   return new Date().toISOString().slice(11, 19);
 }
 
-export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) {
+interface OperationsConsoleProps {
+  snapshot: RegisterSnapshot;
+  /**
+   * Whether the treasury key on the server is a real Privy server wallet or the
+   * local evaluator standing in for one. Read in app/page.tsx through
+   * lib/register.ts, because lib/privy.ts is server only and this file is not.
+   */
+  signerLive: boolean;
+}
+
+export function OperationsConsole({
+  snapshot,
+  signerLive,
+}: OperationsConsoleProps) {
   const [kind, setKind] = useState<ActionKind>("coupon");
   const [deferred, setDeferred] = useState<string[]>([]);
   const [forced, setForced] = useState<string[]>([]);
@@ -383,21 +397,46 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
 
   const headroomNegative = BigInt(plan.headroomMicros) < 0n;
 
+  /**
+   * The first line on the fold, and the only place the page states which of its
+   * two modes a reader is looking at: where the register came from, which key
+   * would sign, and the chain. Once a plan is locked the policy id joins it, so
+   * the id the documentation tells a reader to look for is on screen rather than
+   * buried in an audit entry.
+   */
+  const modeLine = [
+    snapshot.source === "hedera-testnet"
+      ? "Live read from Hedera testnet"
+      : "Cached register",
+    signerLive
+      ? "Privy server wallet"
+      : "Treasury key, policy evaluated locally",
+    `Hedera testnet ${CHAIN_ID}`,
+    ...(installation ? [`Privy policy ${installation.policyId}`] : []),
+  ].join(" · ");
+
   return (
     <div className="space-y-12">
       <section id="register" className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-end">
           {/* The fold is the first thing the video shows, so it arrives the way
-              the product is read: the window, then the name of the security,
+              the product is read: which mode this screen is running in, the
+              window, the product and its promise, then the name of the security,
               then what it holds, then its provenance. One M4 wipe per child on
               the existing nth-child stagger, no inline delay anywhere. */}
           <div className="detent-stagger space-y-4">
+            <p className="detent-enter detent-label break-words">{modeLine}</p>
             <p className="detent-enter detent-label">
               {snapshot.token.standard} · {couponWindow.reference} window
             </p>
-            <h1 className="detent-enter max-w-[16ch] text-4xl leading-[1.05] tracking-tight sm:text-5xl">
-              {snapshot.token.name}
+            <h1 className="detent-enter font-display text-4xl leading-[1.05] tracking-tight sm:text-5xl">
+              Detent
             </h1>
+            <p className="detent-enter max-w-[68ch] text-lg leading-relaxed">
+              Preview the coupon run line by line, then lock the treasury wallet
+              to exactly that transaction.
+            </p>
+            <p className="detent-enter detent-label">{snapshot.token.name}</p>
             <p className="detent-enter max-w-[68ch] text-base leading-relaxed text-muted-foreground">
               {formatTokens(snapshot.token.totalSupply)} tokens across{" "}
               {snapshot.holders.length} holders on partition{" "}
@@ -731,6 +770,13 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                   <Badge variant="outline" className="border-border text-muted-foreground">
                     {installation.live ? "Installed on Privy" : "Compiled locally"}
                   </Badge>
+                </div>
+                {/* The id the status line above the fold and the audit entry both
+                    quote. Printed as its own row so it can be read off the
+                    screen instead of out of a log sentence. */}
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="detent-label">Policy id</span>
+                  <span className="break-all text-sm">{installation.policyId}</span>
                 </div>
                 {/* The third interactive moment: the conditions stop being a
                     list and become a diagram of the call they pin, explorable

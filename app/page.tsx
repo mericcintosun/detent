@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { OperationsConsole } from "@/components/operations-console";
 import { Plate, type PlateName } from "@/components/plates";
 import { Button } from "@/components/ui/button";
-import { getRegisterSnapshot } from "@/lib/register";
+import { getRegisterSnapshot, isPrivyLive } from "@/lib/register";
 
 /**
  * Matches REGISTER_CACHE_MS in lib/config.ts. Twelve holders times three relay
@@ -68,10 +68,14 @@ const comparison: { tool: string; does: string; stops: string }[] = [
 
 export default async function ConsolePage() {
   const snapshot = await getRegisterSnapshot();
+  /* Read on the server so the fold can state which of the two modes a reader is
+     looking at. A boolean crosses to the client, never the module: lib/privy.ts
+     reads PRIVY_APP_SECRET. */
+  const signerLive = isPrivyLive();
 
   return (
     <div className="space-y-16">
-      <OperationsConsole snapshot={snapshot} />
+      <OperationsConsole snapshot={snapshot} signerLive={signerLive} />
 
       <section id="brief" className="max-w-[68ch] space-y-10 border-t border-border pt-10">
         {/* One sentence, then the way in. The four paragraphs this fold used to
