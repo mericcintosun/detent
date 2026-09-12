@@ -7,3 +7,9 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 .farm-scaffold.json
+
+# farm: sır dosyaları (otomatik eklendi)
+*.pem
+*.key
+id_rsa
+!.env.example
