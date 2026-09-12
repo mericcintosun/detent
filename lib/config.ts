@@ -31,6 +31,18 @@ export const PRIVY_TREASURY_WALLET_ADDRESS = process.env
   .PRIVY_TREASURY_WALLET_ADDRESS as `0x${string}` | undefined;
 export const PRIVY_KEY_QUORUM_ID = process.env.PRIVY_KEY_QUORUM_ID;
 
+/* --- The lock gate, server side only -------------------------------------- */
+
+/**
+ * When set, the lock intent requires this token in the `x-detent-operator`
+ * header. The lock writes an anchor transaction with the operator key, so on any
+ * deployment that has an operator key this value should be set as well. Unset
+ * leaves the lock open, which is the keyless demo posture: then the only things
+ * standing between a visitor and the operator account are the rate limiter and
+ * the anchor write budget below, and both are per instance.
+ */
+export const OPERATOR_API_TOKEN = process.env.OPERATOR_API_TOKEN;
+
 /* --- PlanAnchor, server side only ----------------------------------------- */
 
 /**
@@ -80,6 +92,47 @@ export const REGISTER_CACHE_MS = 30_000;
 
 /** Gas ceiling for the raw transaction Detent broadcasts through the relay. */
 export const SIGNED_TX_GAS_LIMIT = 1_500_000n;
+
+/**
+ * How long a lock stays usable. A lock holds the compiled policy and the
+ * approved calldata, so this is also how long a policy can sit attached to the
+ * treasury wallet before the operator has to approve the plan again.
+ */
+export const LOCK_TTL_MS = 15 * 60_000;
+
+/** Hard ceiling on held locks. The oldest entry is evicted past this. */
+export const LOCK_VAULT_MAX_ENTRIES = 200;
+
+/** How long a completed send is answered from the ledger instead of re-sent. */
+export const SUBMISSION_TTL_MS = 30 * 60_000;
+
+/** Hard ceiling on remembered submissions. */
+export const SUBMISSION_LEDGER_MAX_ENTRIES = 500;
+
+/** Rate limit window and budget per client address, for the whole route. */
+export const RATE_LIMIT_WINDOW_MS = 60_000;
+export const RATE_LIMIT_MAX_REQUESTS = 30;
+
+/** The tighter budget for the lock intent, which is the intent that can write. */
+export const LOCK_RATE_LIMIT_MAX_REQUESTS = 6;
+
+/** How many distinct client addresses the limiter tracks before it evicts. */
+export const RATE_LIMIT_MAX_CLIENTS = 2_000;
+
+/**
+ * Anchor writes this process will pay for inside one budget window. The lock is
+ * idempotent per server derived plan hash, so a normal demo spends one write per
+ * distinct plan; this is the backstop for everything that is not normal.
+ */
+export const ANCHOR_WRITE_BUDGET = 25;
+export const ANCHOR_BUDGET_WINDOW_MS = 60 * 60_000;
+
+/** How long one anchor receipt is reused for the same plan hash. */
+export const ANCHOR_MEMO_MS = 10 * 60_000;
+
+/** How long one PlanAnchor read is reused, and how many hashes are memoised. */
+export const PLAN_RECORD_MEMO_MS = 15_000;
+export const PLAN_RECORD_MEMO_MAX_ENTRIES = 200;
 
 /** Prefix on every core path log line, so the demo run is greppable. */
 export const LOG_PREFIX = "[core]";
