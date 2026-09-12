@@ -1762,3 +1762,243 @@ that they are the two blockers whose surfaces are code and documentation, which
 are the first two applied items above. Nothing was skipped for lack of a quote:
 every finding the brief carried is on this list. If the Jüri card holds ranks 3
 and 4 as separate items, Phase 7 should check them against this ledger first.
+
+## Phase 7, the second jury fixes and the freeze
+
+**Goal.** Make the screen and the README tell the truth about which engine is
+speaking and which address resolves, so the second panel's two standing
+objections ("there is no address or policy id to show", "the refusal may be your
+own local copy, not Privy") die on the page rather than in an argument. Then
+freeze the code.
+
+**Status.** Four code and documentation slices applied, the fifth slice
+(verification plus this ledger) done by reading files. No new route, no new
+dependency, no new module, no new env variable, no schema change, no touch to
+`lib/plan.ts` or `contracts/src`. Nothing was cut: the 50 minutes held.
+
+**Decisions.**
+
+- The status line's fourth segment now branches on `installation.live` rather
+  than printing one string for both modes. `lib/privy.ts:266` mints
+  `pol_local_<8 hex>` in the local branch, so the old string at
+  `components/operations-console.tsx:415` was literally labelling a local id with
+  a sponsor's name. The branch is in the component, not in `lib/privy.ts`: the
+  id itself is fine, the words around it were the defect.
+- The line now ends on `No policy locked yet` before a lock instead of dropping
+  the segment. A judge who lands cold and never presses anything still reads the
+  term "policy" on the fold and learns where its value will appear, which is what
+  both judges said they went looking for and could not find.
+- The engine attribution is a prop, `engineLive?: boolean`, and not a second
+  `TreasuryKeyState` member. Adding a state would have doubled every branch of
+  the switch in `components/console-states.tsx` for one sentence in one branch;
+  the optional prop defaults to `false`, so the local wording is what an
+  un-passed call renders, which is the safe direction to be wrong in.
+- The seed branch of the fold keeps the address on screen rather than hiding it.
+  The objection was never that the address exists, it was that clicking it lands
+  on an empty explorer page. Plain text plus a badge saying what the address is
+  answers that without removing a number the register note also quotes.
+- `contracts/README.md` keeps its Sourcify instruction. It is a step for whoever
+  deploys, and the surrounding sentence now says so and adds that nothing has
+  been verified because nothing has been deployed. Deleting the step would have
+  made the deploy path incomplete to fix a claim that lives in `README.md`.
+
+**Failed attempts.** None. No edit needed a second correction, and no slice was
+abandoned.
+
+**Files changed.** `README.md` (the Tech stack sentence at :243-251),
+`contracts/README.md` (:67-73), `components/operations-console.tsx` (the
+`modeLine` construction, the fold's badge and address row, the
+`TreasuryKeyBanner` call, the settlement badge row), `components/console-states.tsx`
+(`TreasuryKeyBannerProps` and the `tx-rejected` branch), `DEMO.md` (step 1),
+`IDENTITY.md` (one dated Amendments line, appended after the Phase 6 line),
+`HANDOFF.md` (this section) and `.farm-commits.json` (new, five entries).
+
+Untouched, deliberately: `SUBMISSION.md`, `docs/VIDEO.md`, `docs/SCREENSHOTS.md`
+(the farm's surfaces this round, byte-unchanged), `lib/` in its entirety,
+`app/` in its entirety, `package.json`, `fixtures/`, `public/brand/`,
+`app/opengraph-image.png`, `contracts/` other than the one prose clause above,
+and the block above Amendments in `IDENTITY.md`.
+
+**Commands run.** None. This session had Write, Edit, Read, Glob and Grep and no
+shell: no `npm`, no `git`, no `forge`, no dev server. Every claim below that
+would need one is marked unverified and left for the runner.
+
+**Round-2 ledger.**
+
+- **REGRESSION. Blocker, sponsor-devrel: "SUBMISSION stack'inde beyan edilen
+  Sourcify kontrat doğrulamasının karşılığı yok, deploy edilmemiş bir kontratın
+  doğrulaması olamaz."** `SUBMISSION.md` is the farm's file and was not touched.
+  The same claim in this repo's own file is gone: `Sourcify for verification,`
+  is removed from the Tech stack sentence, and the paragraph now at
+  `README.md:249-251` states that `PlanAnchor` was not deployed for this
+  submission, so there is no address and no transaction hash to quote, naming
+  `contracts/test/PlanAnchor.t.sol`. `grep -n "Sourcify" README.md` returns zero
+  hits; `grep -n -i "not deployed for this submission" README.md` returns two,
+  at `:21` (the table row) and `:249` (the stack paragraph). The single remaining
+  Sourcify mention in the repo's instructions is `contracts/README.md:70-73`,
+  rewritten to read as a step for whoever deploys and to say outright that
+  nothing has been verified because nothing has been deployed.
+- **REPEAT. `roundDelta.repeated`: "Geçen turun 4. fix maddesi (Privy policy
+  id'sinin ve durum satırının ekrana yazılması): iki jüri de ekranda bir policy
+  id göremediğini yazdı."** Phase 6 did add the line, and the defect it left is
+  now fixed at `components/operations-console.tsx:407-424`: the fourth segment
+  branches on `installation.live`, reading `Privy policy <id>` live and
+  `Policy <id>, compiled locally` on the local path, and the same slot reads
+  `No policy locked yet` before a plan is locked, so the term is on the fold
+  from the first paint. The `Policy id` term-and-value row in the compiled policy
+  card is unchanged, at `components/operations-console.tsx:777-780` before this
+  phase's insertions. The likeliest reason both judges saw no id stands recorded:
+  the id only ever appeared after step 3, and nobody who stops at the fold gets
+  that far.
+- **NEW, blocker: "Tamper sahnesindeki ret, sponsorun policy motorunun değil
+  uygulamanın lokal kopyasının reddi olabilir, Privy ödülü tam da bu sahneye
+  dayanıyor."** The judges are right about the run they saw, and the screen now
+  says so instead of leaving it to be inferred. `TreasuryKeyBannerProps` in
+  `components/console-states.tsx` takes `engineLive?: boolean`, and the
+  `tx-rejected` branch prints one extra muted sentence: live reads "Refused by
+  the Privy server wallet under the installed policy.", local reads "Refused by
+  the local mirror of the same policy evaluator, before any wallet was asked.
+  With Privy credentials set, the wallet returns this refusal instead."
+  `components/operations-console.tsx` passes `engineLive={settlement?.live ?? false}`
+  at the banner call, and the settlement badge row carries one more outline
+  badge, `refused by: privy wallet` or `refused by: local policy mirror`, shown
+  only when `settlement.verdict.allowed` is false. The `Frame` tones are still
+  `neutral | bad | ok` and no colour, border or motion value was added.
+- **NEW, blocker: "Video ve deck zincir üstü kanıt vaat ediyor, README aynı
+  iddiayı geri çekiyor", plus both judges reporting that they went looking for a
+  token address and found nothing that resolves.** The code half is fixed. The
+  fold's verified badge and its HashScan link are now inside a
+  `snapshot.source === "hedera-testnet"` branch; the cached register renders a
+  `border-border text-muted-foreground` badge reading `Seed register address, not
+  on chain` and prints the same `shortHex(snapshot.token.address, 12, 8)` with
+  the same `title`, as plain text with no `<a>`. The live branch is byte-identical
+  to what it was. `DEMO.md` step 1 now describes both branches. The video and
+  deck half of this finding is the farm's, quoted below and untouched.
+
+**Held, regressed or re-done: every Phase 6 fix.**
+
+- **The README, SECURITY and DELIVERY retraction of the undeployed contract.**
+  HELD. `README.md:21` still carries the one-row retraction, and this phase added
+  a second statement of it in the Tech stack section rather than weakening it.
+- **The fold status line.** RE-DONE. It held as a line but regressed as a claim:
+  it called a `pol_local_…` id a Privy policy id. Fixed in Slice 2, and it now
+  also names the policy slot before a lock.
+- **The fold reorder that puts the product name first.** HELD. `Detent` in
+  `font-display` is still the `h1`, followed by the one-sentence promise and then
+  `snapshot.token.name`; this phase changed nothing above the badge row except
+  the trailing segment of the status line.
+- **The README "Store and migrations" sentence on the second-user consequence.**
+  HELD. Untouched this phase.
+- **The compiled policy card's `Policy id` row.** HELD. Untouched this phase, and
+  the brief explicitly asked for nothing new in that card.
+- **One regression found against Phase 6 itself:** the Sourcify claim survived in
+  `README.md`'s Tech stack sentence while Phase 6 retracted the deploy everywhere
+  else. That is Slice 1, and it is first in `.farm-commits.json`.
+
+**Handled by the farm, nothing written here.** Quoted as the brief carried them,
+and `SUBMISSION.md`, `docs/VIDEO.md` and `docs/SCREENSHOTS.md` are byte-unchanged.
+No substitute shot list, slide deck or form text was written anywhere in this
+repo.
+
+- **fixList rank 1, surface `submission-text`:** "the Sourcify line in
+  `SUBMISSION.md`".
+- **fixList rank 2, surface `video`:** "scenes 2, 3 and 7 plus the scene 2
+  status-line framing".
+- **fixList rank 3, surface `deck`:** "slide 7 and video scene 9".
+- **fixList rank 4, surface `submission-text`:** "the differentiation paragraph".
+- **fixList rank 5, surface `video`:** "scenes 5 and 6 hold times".
+- **fixList rank 6, surface `video`:** "the cold open".
+
+One consequence worth stating for whoever writes those: the scene 2 status-line
+framing now has to match a line that ends in `No policy locked yet` on the fold
+and in `Policy <id>, compiled locally` after step 3, and the tamper scene now has
+a sentence and a badge on screen naming the local mirror. A shot list written
+against the Phase 6 wording will not match what the camera sees.
+
+**Acceptance gate, compared item by item.**
+
+- *Every round-2 finding routed to code, readme or deploy is applied or declined
+  with a reason.* Met. Four findings, four applied, nothing declined; the six
+  farm-owned items are quoted above and untouched.
+- *The regression is first in `.farm-commits.json`, before any NEW item.* Met.
+  Entry 1 is `fix(jury2): retract the Sourcify verification claim from the README
+  stack`; the two NEW slices are entries 3 and 4.
+- *No new route, no new dependency, no new module.* Met by reading: nothing was
+  written under `app/`, `package.json` was not opened for edit, and no file was
+  created under `lib/`. UNVERIFIED that the dependency set still installs, since
+  `npm install` was not run.
+- *Every import in the edited files resolves.* Met by reading: this phase added
+  no import statement to either component. `components/console-states.tsx` gained
+  one optional prop and one paragraph; `components/operations-console.tsx` reuses
+  `Badge`, `shortHex` and `hashscanToken`, all already imported and all still
+  used elsewhere in the file, so no import went unused either.
+- *`fixtures/register.seed.json` still holds twelve holders with three held rows.*
+  Met by reading: twelve `"legalName"` keys, nine `"compliance": "clear"`, so
+  three non-clear rows. The file was not touched.
+- *`DEMO.md` still names the three files and the six anchors.* Met. Step 1 still
+  names `app/page.tsx` and `components/operations-console.tsx`, step 6 still
+  names `app/record/[planHash]/page.tsx`, and `#register #plan #policy #send
+  #ledger` plus `/record/<planHash>` are unchanged; only the prose of step 1
+  changed.
+- *`SUBMISSION.md`, `docs/VIDEO.md`, `docs/SCREENSHOTS.md` byte-unchanged.* Met.
+  None of the three was opened for writing.
+- *Sameness tripwire.* Met by reading. A case-insensitive grep over `app/` and
+  `components/` for the nine ground hexes, the twelve accent hexes, the three
+  amber hexes, `fade-up`, `float`, `float-y`, `glow-pulse`, `caret-blink`,
+  `pulse-dot`, `--delay`, `--d:`, `backdrop-blur`, `rounded-full`, `rounded-xl`,
+  `<button` and `<select` returns hits only on `<Button`, the project's own
+  primitive. A case-sensitive grep for the same list minus `<Button` returns zero
+  matches. `app/globals.css:115` is the only `@keyframes` in the repo
+  (`detent-wipe`). `public/brand/logo.png` appears in a rendered page exactly
+  once, at `components/rail.tsx:103`; the only other occurrence in `app/` or
+  `components/` is the explanatory comment at `components/plates.tsx:4`.
+- *`HANDOFF.md` carries the round-2 ledger and a held / regressed / re-done
+  verdict per Phase 6 fix.* Met, above.
+
+**Acceptance items not met, with evidence.**
+
+- `npm install`, `npm run build`, `npm test` and `forge test` were never run in
+  this session. The type surface this phase added is one optional prop,
+  `engineLive?: boolean`, on `TreasuryKeyBanner`; being optional it cannot break
+  the one call site, which is the render in `components/operations-console.tsx`
+  inside the `#send` card. The other risk is the JSX fragment pair added to the
+  fold's badge row; it was written complete but never compiled here.
+- Nothing was opened in a browser. The wrapping of the longer status line at
+  360px, the badge row now carrying three badges on a refusal, and the seed
+  address rendering as plain text are all read off the source and not off a
+  screen.
+- The live half of every branch this phase wrote has never executed. No phase of
+  this project has had Privy credentials, so `installation.live` and
+  `settlement.live` have always been false: `Privy policy <id>`, "Refused by the
+  Privy server wallet under the installed policy.", `refused by: privy wallet`
+  and the whole `hedera-testnet` branch of the fold are unrun code paths.
+
+**Open questions.**
+
+- Nothing was cut, so nothing is parked here from the cut protocol.
+- The word "locally" now appears three times on a full run: the status line's
+  `Treasury key, policy evaluated locally`, its `Policy <id>, compiled locally`,
+  and the banner's "Refused by the local mirror of the same policy evaluator".
+  That is deliberate under a panel that missed the point twice, but it is the
+  first thing to thin if a later round says the fold is crowded.
+- `engineLive` is sourced from `settlement?.live`, which is the send answer. In a
+  run where the policy was installed live but the send failed before Privy
+  answered, `settlement` is null and the banner is not in `tx-rejected`, so the
+  sentence does not print; no wrong attribution is possible today. If a future
+  path can set `tx-rejected` without a settlement, that prop needs a second
+  source.
+- Everything in the Phase 6 and Phase 9 open-questions lists above still stands:
+  the plan table at 390px, the duplicated About and Security rows, the Safari
+  fallback for the scroll-driven band, and the five hard-coded section ids in
+  `components/section-progress.tsx`.
+
+**Next best step.** The runner's: `npm install`, `npm run build`, the commits
+from `.farm-commits.json`, the Vercel redeploy, then the tag `v0.1-hackathon`.
+The code is frozen after that redeploy and only the submission form remains. The
+one thing that would still change a judge's mind, and it needs a human with a
+funded account rather than another phase: fund the account behind
+`FARM_EVM_PRIVATE_KEY` on Hedera testnet 296, run `contracts/script/Deploy.s.sol`
+with `--legacy` and then `contracts/script/Smoke.s.sol` with `DEPLOYED_CONTRACT`
+set, and paste the address and the two hashes into the `README.md` table by hand.
+That turns the retraction row into a proof row and retires the deploy half of two
+round-2 blockers at once.
