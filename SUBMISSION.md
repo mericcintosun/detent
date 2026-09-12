@@ -107,7 +107,7 @@ https://detent-app.vercel.app
 ## 7. Demo video
 
 ```
-<ADD_VIDEO_URL>
+https://detent-app.vercel.app/demo-video.mp4
 ```
 
 The shot list, the spoken lines and the timings are in `docs/VIDEO.md`. The
@@ -212,6 +212,6 @@ own, so nothing above is claimed against one.
 ## 12. Before pressing submit
 
 Work `DELIVERY.md` top to bottom. In short: both opt-in boxes ticked, the repo
-public, `<ADD_VIDEO_URL>` filled in here and in `README.md`, the three on chain
+public, https://detent-app.vercel.app/demo-video.mp4 filled in here and in `README.md`, the three on chain
 placeholders filled in `README.md` and the address line updated in `SECURITY.md`,
 and a commit history that is not one commit on the final day.

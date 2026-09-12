@@ -17,7 +17,7 @@ which is DEMO step 2.** Everything after that happens on the same page.
 | Artefact | Value |
 | --- | --- |
 | Live app | https://detent-app.vercel.app |
-| Demo video | `<ADD_VIDEO_URL>` |
+| Demo video | Recorded. 3:01, narrated, served from the site as a plain mp4. | [demo-video.mp4](https://detent-app.vercel.app/demo-video.mp4) |
 | `PlanAnchor`, Hedera testnet 296 | `<ADD_PLAN_ANCHOR_ADDRESS>` |
 | Smoke transaction, `anchor` | `<ADD_SMOKE_ANCHOR_TX>` |
 | Smoke transaction, `settle` | `<ADD_SMOKE_SETTLE_TX>` |
