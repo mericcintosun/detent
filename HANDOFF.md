@@ -339,3 +339,156 @@ command below is the runner's or a human's to execute.
 trap, issue the ATS token, then set `NEXT_PUBLIC_ADAPTER_MODE=real` plus
 `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and confirm the masthead badge flips from
 "Cached register" to "Live read from Hedera testnet".
+
+### Phase 2, 2026-09-12. The treasury key goes real
+
+**Goal.** Turn one mechanism real: the treasury key. `lib/privy.ts` stops being
+a local compiler with a stub receipt and becomes a client against the Privy REST
+API (`POST /v1/policies` owned by a key quorum, `POST /v1/wallets/{id}/rpc`,
+`DELETE /v1/policies/{id}`), with a documented fallback that takes a signature
+from Privy and broadcasts through Hashio when Privy will not send to
+`eip155:296`. Around it: one config home, a secret-free client graph, zod at the
+edge, typed error codes, and the register read hardened with timeouts, one
+retry and logging.
+
+**Status.** All five slices landed. Nothing was executed: this phase had no
+shell, so every live path is written and type-checked by reading, not proven
+against a real Privy app or a real ATS token. The fake path is untouched and is
+still the insurance for the recorded demo: with an empty `.env.local` the
+refusal names the failed condition and the byte offset, and the approved plan
+still returns the stub receipt.
+
+**Decisions.**
+
+- **The config split.** `lib/public-config.ts` reads only `NEXT_PUBLIC_*` and is
+  safe in a browser bundle. `lib/config.ts` re-exports it and adds the secret
+  block plus the named constants (`QUORUM_THRESHOLD`, `PRIVY_TIMEOUT_MS`,
+  `RPC_TIMEOUT_MS`, `RETRY_COUNT`, `SIGNED_TX_GAS_LIMIT`, `LOG_PREFIX`). Those
+  two files are the only `process.env` readers in the repo.
+- **Why `lib/adapter.ts` had to lose its Privy read.** The console is
+  `"use client"` and reached `lib/hedera.ts`, which imports `lib/adapter.ts`,
+  which read `PRIVY_APP_ID` and `PRIVY_APP_SECRET`. Those compile to `undefined`
+  in the browser so nothing leaked, but a secret-reading module sat in the
+  client import graph, which is a structural defect rather than a runtime one.
+  `useLivePrivy()` is deleted; its logic is now the body of `isPrivyLive()` in
+  `lib/privy.ts`, reading `lib/config.ts`. The console and the rail now import
+  the HashScan helpers from the new `lib/hashscan.ts` and `RegisterSnapshot`
+  from `lib/types.ts`, so neither touches `lib/hedera.ts` any more.
+- **The error code union.** `lib/errors.ts` carries eight codes
+  (`invalid_input`, `plan_blocked`, `quorum_not_met`, `not_configured`,
+  `upstream_timeout`, `upstream_error`, `parse_failure`, `policy_denied`), a
+  `DetentError` carrying `code` and `hint`, and one sentence per code. The API
+  envelope's failure arm is now `{ ok: false, error: <code>, hint, blockers? }`,
+  the route never passes a provider body or a stack trace out, and the console
+  switches on the code and renders the hint.
+- **Two broadcast paths.** `PRIVY_BROADCAST_MODE` is `auto` by default. `rpc`
+  and `auto` ask the wallet for `eth_sendTransaction` with
+  `caip2: eip155:<chain>`. When Privy answers 4xx and the body does not read as
+  a policy refusal, `auto` falls to the signature path: `eth_signTransaction`
+  from the same wallet under the same policy, then `sendRawTransaction` through
+  the Hashio client, with the nonce from `getTransactionCount`, the price from
+  `getGasPrice`, the gas from `SIGNED_TX_GAS_LIMIT` and `type: 0`, because the
+  Hedera relay rejects typed transactions. The `note` on the result says which
+  path ran. The policy still governs the signing request either way, so the
+  product claim survives.
+- **The local mirror runs first on the live path too.** `evaluatePolicy` is
+  evaluated before Privy is asked, so a tampered payload is refused in words the
+  operator can read without waiting on the provider. That is what keeps the wow
+  step identical with and without keys.
+- **One retry, written out.** `privyFetch` is a first attempt plus a single
+  re-attempt on a timeout or a 5xx, with no loop and no recursion, so a slow
+  provider costs at most two bounded waits. The viem transport uses the same
+  shape: `http(url, { timeout: RPC_TIMEOUT_MS, retryCount: RETRY_COUNT })`.
+- **The register read no longer loses eleven rows to one bad call.** Each holder
+  read is wrapped: a failing row keeps its seed values and its
+  `complianceNote` says it was not read in this snapshot. Only a total failure
+  throws, which is what still triggers the cached fallback. The `catch` in
+  `getRegisterSnapshot()` now logs, which the Phase 1 handoff asked for.
+
+**Failed attempts.** None. No slice needed a second correction pass.
+
+**Files changed.** Added: `lib/public-config.ts`, `lib/config.ts`,
+`lib/hashscan.ts`, `lib/errors.ts`, `lib/schemas.ts`, `vitest.config.ts`,
+`tests/core.test.ts`, `.farm-commits.json`. Edited: `lib/adapter.ts`,
+`lib/plan.ts`, `lib/hedera.ts`, `lib/privy.ts`, `lib/types.ts`,
+`app/api/detent/route.ts`, `components/operations-console.tsx`,
+`components/rail.tsx`, `contracts/test/PlanAnchor.t.sol`, `.env.example`,
+`package.json`, `README.md`, `contracts/README.md`, `IDENTITY.md` (one dated
+line under Amendments), this file.
+
+**Commands run.** None. This phase was file only, the agent had no shell.
+
+The runner's commands: `npm install`, `npm run build`, the per-slice commit
+replay from `.farm-commits.json` with a closing `faz-2:` commit, then push.
+
+The human's commands:
+
+```bash
+npm test
+cd contracts && forge test
+export RPC_URL=https://testnet.hashio.io/api
+forge script script/Deploy.s.sol --rpc-url $RPC_URL \
+  --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+export DEPLOYED_CONTRACT=0xYourDeployedAnchor
+forge script script/Smoke.s.sol --rpc-url $RPC_URL \
+  --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+```
+
+`DEPLOYED_CONTRACT` is the only `vm.env*` name in `contracts/script/*.s.sol`:
+`Smoke.s.sol` reads it with `vm.envAddress`, and `Deploy.s.sol` reads no
+environment value at all. Before the deploy, the wallet behind
+`FARM_EVM_PRIVATE_KEY` needs roughly 20 testnet HBAR (portal faucet, 100 HBAR
+per request), and its first transaction must be paid by that ECDSA key to break
+the hollow account trap.
+
+**Env keys the runner and the human must fill.**
+
+| Key | Where the value comes from |
+| --- | --- |
+| `NEXT_PUBLIC_ADAPTER_MODE` | Set to `real` to turn on both live paths. Anything else is read as fake. |
+| `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` | EVM address of the ATS equity token, from the factory deploy output or HashScan. |
+| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Written by the contract deploy step. `lib/public-config.ts` reads `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` first and falls back to this. |
+| `PRIVY_APP_ID` | Privy dashboard, Settings then Basics. |
+| `PRIVY_APP_SECRET` | Privy dashboard, API keys. |
+| `PRIVY_TREASURY_WALLET_ID` | The `id` in the `POST /v1/wallets` response, or the dashboard wallet page. |
+| `PRIVY_TREASURY_WALLET_ADDRESS` | The `address` in the same response. Only the signature fallback needs it, and it throws `not_configured` naming this key when it is missing. |
+| `PRIVY_KEY_QUORUM_ID` | Privy dashboard, Key quorums, threshold two. `installPolicy` throws `not_configured` naming this key when it is missing. |
+| `PRIVY_BROADCAST_MODE` | Leave at `auto`. Set to `signature` only if Privy refuses `eip155:296` outright, `rpc` to pin the Privy broadcast for a rehearsal. |
+
+**Acceptance items not met, with evidence.**
+
+- `app/page.tsx:3` still imports `getRegisterSnapshot` from `@/lib/hedera`. The
+  gate reads "no page or client component imports `lib/hedera.ts`". It is a
+  server component, so no secret reaches the browser, and slice 1 did not list
+  `app/page.tsx` among the files it may edit. Every client component is clean:
+  `components/operations-console.tsx:17` and `components/rail.tsx:5` now import
+  from `@/lib/hashscan`. Phase 3 can move the snapshot read behind a
+  `lib/register.ts` entry point if the literal reading matters.
+- Everything that needs a command is unverified: `npm run build`,
+  `npm test` and `forge test` were never executed. The Privy request and
+  response shapes, the Hashio raw broadcast and the two fuzz tests are written
+  from the documented shapes, not from a run.
+
+**Open questions.**
+
+- Privy's `eth_signTransaction` response field name. The parser reads
+  `data.signed_transaction` and treats anything else as `parse_failure`, so a
+  different field name shows up as a clean typed error rather than a crash. Fix
+  it in `lib/schemas.ts` (`privyRpcResponseSchema`) the first time the live path
+  runs.
+- Telling a Privy policy refusal apart from an unsupported chain: both are 4xx.
+  `looksLikePolicyDenial` reads the body for `policy`, `denied` or `not allowed`
+  without ever passing it to the client. If Privy words it differently, `auto`
+  will take the signature path on a genuine refusal, where the local mirror has
+  already produced the correct refusal text anyway.
+- The masthead figure in the console still renders `public/brand/og.png` beside
+  the rail's brand mark, carried over from Phase 1. Still worth a decision
+  before the video.
+- `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` is now read into
+  `PLAN_ANCHOR_ADDRESS`, but nothing calls `PlanAnchor` from the app yet. That
+  is still feature 5.
+
+**Next best step.** Phase 3: wire `PlanAnchor` from the console (anchor on lock,
+settle or abandon on send, both links in the audit record), read the treasury
+settlement balance on chain so the headroom is live, and add the per-step
+loading and error surfaces the send path still lacks.

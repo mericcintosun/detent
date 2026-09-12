@@ -25,3 +25,5 @@ DIFFERS_FROM: Checked the three ledger entries (Event Contracts Hackathon, peren
 A shareholder register is a record, so the product is dressed as one: wide margins, hairline rules, wide-tracked small caps over each column, the way a transfer agent's ledger page reads. Gold is spent on the rules and the one primary control, and oxide red is spent only on the refused row, so the moment the treasury key rejects a tampered payout is the single loudest thing on screen. The rail archetype fits because Detent is not a landing page with a demo behind it, it is the operator's console, so the shell itself is the product.
 
 ## Amendments (append-only; later phases add dated lines here, never edit the block above)
+
+2026-09-12, Phase 2. The send section's failure surface is now the same oxide-red bordered paragraph carrying one hint sentence, with the plan blockers listed under it as plain oxide-red lines when the error code is plan_blocked. No new colour, radius, font or motion value: the list reuses the treatment the plan table already gives its blockers.
