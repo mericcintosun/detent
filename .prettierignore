@@ -1,0 +1,12 @@
+.next/
+node_modules/
+out/
+contracts/cache/
+contracts/out/
+package-lock.json
+public/
+fixtures/
+next-env.d.ts
+
+# Prose is hand wrapped in this repo and Prettier would reflow every paragraph.
+*.md

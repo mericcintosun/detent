@@ -437,6 +437,23 @@ the API edge, and the policy evaluation that produces the refusal with the
 failing condition and the byte offset. Foundry is deliberately not wired into
 the npm scripts, so the contract suite runs from `contracts/`.
 
+## Lint and format
+
+```bash
+npm run lint          # ESLint 9, flat config in eslint.config.mjs
+npm run lint:fix
+npm run format:check  # Prettier, reports without writing
+npm run format        # Prettier, writes
+```
+
+`next build` does not lint, so `npm run lint` is the only thing that does. The
+rule set is `next/core-web-vitals` and `next/typescript` plus a short list that
+catches what strict TypeScript does not: unused values, loose equality, `var`,
+and a stray `console.log` in app code. It reports zero errors and zero warnings
+today. Prettier is configured but has not been run over the tree; `npm run
+format:check` names the files that differ, and prose is left out of it because
+the Markdown here is hand wrapped.
+
 ## Demo, ninety seconds
 
 1. The console opens on the register: token address, HashScan badge, twelve
