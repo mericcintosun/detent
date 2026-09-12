@@ -37,7 +37,7 @@ no address and no transaction hash is quoted anywhere.
 | Half | State | What turns it on |
 | --- | --- | --- |
 | The plan, the quorum, the compiled policy, the refusal with its byte offset, the audit record | **Runs today**, on the live URL and on a fresh clone with an empty `.env.local`. The policy is compiled and evaluated by `lib/privy.ts` locally. | Nothing. `npm install && npm run dev`. |
-| The register read: `balanceOfByPartition` and `canTransfer` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio and falls back to the cached register on any failure. | `NEXT_PUBLIC_ADAPTER_MODE=real` plus `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`, after issuing the token through the ATS factory. |
+| The register read: `balanceOfByPartition` and `canTransferByPartition` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio, checks each credit from the configured treasury, and falls back to the cached register on any failure or missing configuration. A dry run against a mock ATS token rendered the twelve holders with the three held rows and their reasons. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS`, optionally `NEXT_PUBLIC_ATS_PARTITION`, after issuing the token through the ATS factory. |
 | The signature: policy installed on a Privy server wallet under a key quorum of two, then revoked | **Written, not exercised against live credentials.** Without them the same evaluator answers locally, which is why the demo produces a real refusal with no keys. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID`. |
 | The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Written and tested in Foundry, not deployed.** 37 tests pass, 9 of them fuzz, and the deploy and smoke scripts run end to end under test. The app renders its `unwired` state instead of implying a record. | `forge script script/Deploy.s.sol` from `contracts/`, then `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`. See "On chain proof". |
 
@@ -55,12 +55,15 @@ below works against the cached register and the locally compiled policy.
    oxide red with the reason, and the headroom prints under the totals.
 3. Press **Approve** on both officers. That is the key quorum of two.
 4. Press **Lock this plan to the treasury key**. The compiled policy appears with
-   its four pinned conditions over `default_action: DENY`.
+   its four pinned conditions: chain, contract, function and exact calldata.
+   Anything that does not match all four is refused.
 5. Edit one digit of the amount in the send section.
 6. Press **Send edited plan**. The key refuses and names the condition that
    failed and the byte offset where the payload diverged.
 7. Press **Execute the approved plan**. The untouched plan signs under the same
-   wallet and the same policy, and the policy is revoked.
+   policy. With live Privy credentials the policy is then detached from the
+   treasury wallet and revoked; with no keys nothing was installed in Privy, so
+   the audit record says the local lock closed and there was nothing to revoke.
 
 ## The problem
 
@@ -80,11 +83,12 @@ Detent reads the holder set and the compliance state of an Asset Tokenization
 Studio token from Hedera testnet, replays the selected corporate action off
 chain and prints a plan: who receives what, which address the transfer hook will
 reject, how much cover the treasury actually has. When the operator accepts the
-plan, its calldata is compiled into a Privy wallet policy. The treasury server
-wallet is then permitted to sign that contract, that selector and those exact
-parameter bytes; everything else stays on `default_action: DENY`. A key quorum
-with threshold two installs the policy, the transaction goes out, and the policy
-is revoked. The plan hash and the HashScan link land in the audit record.
+plan, its calldata is compiled into a Privy wallet policy owned by a key quorum
+of two and bound to the treasury server wallet. The wallet may then sign for that
+chain, that contract, that function and that partition, and nothing else. The
+exact parameter bytes, which Privy's conditions cannot compare for the coupon's
+holder and amount arrays, are enforced by the server before the request reaches
+the wallet. The transaction goes out, and the policy is detached and revoked. The plan hash and the HashScan link land in the audit record.
 
 That paragraph describes the product as it is written. With no token issued and
 no credentials set, which is how the live URL and the recorded demo run, the
@@ -118,7 +122,7 @@ flowchart TD
   plan["lib/plan.ts<br/>rows, holds, headroom, calldata, plan hash"]
   privy["lib/privy.ts<br/>compile, install, evaluate, revoke"]
   anchor["lib/anchor.ts<br/>anchor, settle, abandon, read back"]
-  hedera["lib/hedera.ts<br/>balanceOfByPartition, canTransfer"]
+  hedera["lib/hedera.ts<br/>balanceOfByPartition, canTransferByPartition"]
   contract["contracts/src/PlanAnchor.sol"]
   chain["Hedera testnet, chain 296<br/>Hashio JSON-RPC relay"]
   scan["HashScan<br/>token, payout and anchor receipts"]
@@ -142,10 +146,13 @@ flowchart TD
 
 **Hedera, Asset Tokenization Studio (target track: Tokenization of Anything).**
 The security is modelled as an ATS equity token on Hedera testnet. `lib/hedera.ts`
-reads `balanceOfByPartition` (ERC-1410) for every holder and `canTransfer`
-(ERC-1594) for the compliance verdict on a would-be credit, over the Hashio
-JSON-RPC relay, and the reason code the compliance module returns is what turns a
-row red in the console. `contracts/src/PlanAnchor.sol` anchors each approved plan
+reads `balanceOfByPartition` (ERC-1410) for every holder and asks
+`canTransferByPartition` whether a credit from the treasury to that holder would
+clear, over the Hashio JSON-RPC relay. ATS answers with an EIP-1066 status byte
+and the selector of the error that refused the credit, and that is what turns a
+row red in the console. CLASS-A is the register's display label: against a single
+partition ATS token the reads use its default partition unless
+`NEXT_PUBLIC_ATS_PARTITION` names another. `contracts/src/PlanAnchor.sol` anchors each approved plan
 hash before the policy opens and settles it after, so HashScan carries the
 record.
 
@@ -160,14 +167,18 @@ ATS factory before pointing Detent at the result.
 
 **Privy, server wallets, policies and key quorums (Best B2B financial product).**
 `lib/privy.ts` is the compiler and the client. `compilePolicy` turns an approved
-plan into a policy with a single ALLOW rule pinning `chain_id`, `to`,
-`data starts_with <selector>` and `data eq <calldata>`, on top of
-`default_action: DENY`. `installPolicy` POSTs it to `/v1/policies` owned by a key
-quorum of threshold two; `submitTransaction` calls
-`/v1/wallets/{id}/rpc` with `eth_sendTransaction`; `revokePolicy` removes the
-rule once the transaction is in. `evaluatePolicy` mirrors the same rule
-evaluation locally so the refusal can be explained in words on screen, and so
-the demo runs with no keys configured.
+plan into the four conditions Detent enforces: chain id, contract, function
+selector and exact calldata. `compileWirePolicy` turns the same plan into the
+subset Privy's documented conditions can express: `chain_id` and `to` on
+`ethereum_transaction`, and the function and partition on `ethereum_calldata`
+with the ABI. `installPolicy` creates it at `/v1/policies` with `owner_id` set to
+the key quorum of threshold two and binds it to the treasury wallet through
+`policy_ids`; `submitTransaction` calls `/v1/wallets/{id}/rpc` with
+`eth_sendTransaction`; `revokePolicy` restores the wallet's previous policies and
+deletes this one. Every retry reuses a `privy-idempotency-key`, and actions on
+owned resources carry a `privy-authorization-signature`. `evaluatePolicy` checks
+the exact calldata on the server first, so a tampered payload never reaches the
+wallet, and the same check explains the refusal on screen when no keys are set.
 
 ## Bounty ledger
 
@@ -190,12 +201,14 @@ Where each clause is answered, and where it is not:
 
 - **Asset Tokenization Studio.** `lib/hedera.ts` carries the ATS contract surface
   in one `parseAbi` block: `balanceOfByPartition(bytes32,address)` from ERC-1410
-  and `canTransfer(address,uint256,bytes)` from ERC-1594. Both are called, not
-  just declared: `liveRegisterAdapter.load()` issues one `readContract` per
-  holder for `balanceOfByPartition` and a second for `canTransfer`, and the
-  `bytes32` reason code the compliance module returns is what turns a row oxide
-  red in the console. That adapter is selected only when
-  `NEXT_PUBLIC_ADAPTER_MODE=real` and a token address is set; no token has been
+  and `canTransferByPartition(address,address,bytes32,uint256,bytes,bytes)`, which
+  ATS allows in single and multi partition mode alike. Both are called, not just
+  declared: `liveRegisterAdapter.load()` issues one `readContract` per holder for
+  `balanceOfByPartition` and a second for `canTransferByPartition` from the
+  configured treasury, and the ATS error selector that refuses a credit is what
+  turns a row oxide red in the console. That adapter is selected only when
+  `NEXT_PUBLIC_ADAPTER_MODE=real` and a token address is set, and it falls back to
+  the cached register when `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS` is missing; no token has been
   issued for this submission, so the recorded run serves the cached register and
   labels it as cached. The reads are hand written with viem against the ATS ABI.
   `@hashgraph/asset-tokenization-sdk` is not installed and no claim here rests on
@@ -234,17 +247,19 @@ control, such as policies, signers, key quorums or intents.
 
 Every clause is implemented in `lib/privy.ts`:
 
-- `compilePolicy` turns the approved plan into a policy with one ALLOW rule
-  pinning `chain_id eq`, `to eq`, `data starts_with <selector>` and
-  `data eq <calldata>`, over `default_action: DENY`.
-- `installPolicy` POSTs that policy to `/v1/policies`, and the request body
-  carries `owner: { key_quorum_id: PRIVY_KEY_QUORUM_ID }`, so the policy is owned
-  by a key quorum rather than by one signer.
+- `compilePolicy` turns the approved plan into the four conditions Detent
+  enforces, and `compileWirePolicy` into the rules Privy accepts: `chain_id` and
+  `to` on `ethereum_transaction`, the function and the partition on
+  `ethereum_calldata` with the ABI. Privy refuses anything no rule allows.
+- `installPolicy` POSTs that policy to `/v1/policies` with `owner_id` set to
+  `PRIVY_KEY_QUORUM_ID`, so a key quorum rather than one signer owns it, and binds
+  it to the treasury wallet through `policy_ids`.
 - `submitTransaction` calls `/v1/wallets/{id}/rpc` for `eth_sendTransaction`, and
   falls back to `eth_signTransaction` plus a Hashio broadcast when Privy will not
   send to `eip155:296`. The policy governs the signing request either way.
-- `revokePolicy` DELETEs the rule once the transaction is in, so the treasury key
-  gets its general authority back.
+- `revokePolicy` restores the wallet's previous `policy_ids` and deletes the
+  policy after the send, and also after a refused binding, a failed send or an
+  expired lock, so nothing is left attached to the treasury key.
 - `evaluatePolicy` mirrors the same rule evaluation locally and runs first, which
   is why the refusal can name the failed condition and the byte offset where the
   submitted calldata diverged.

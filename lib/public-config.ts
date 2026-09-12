@@ -49,6 +49,26 @@ export const ATS_TOKEN_ADDRESS = parseEvmAddress(
 );
 
 /**
+ * The sender the compliance read checks a credit from. canTransferByPartition
+ * answers "can this sender move one unit to that holder", so the address has to
+ * hold the token on the read partition, carry KYC and sit on the control list:
+ * in practice the issuer treasury. Empty means the live read refuses with a
+ * configuration error rather than asking the question from the zero address.
+ */
+export const ATS_CHECK_FROM_ADDRESS = parseEvmAddress(
+  process.env.NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS,
+);
+
+/**
+ * The partition every register read uses, as configured. Empty means the ATS
+ * default partition of a single partition token; a 32 byte hex value is used
+ * as is and any other value is a label encoded as bytes32. lib/hedera.ts does
+ * the encoding, so this module stays free of viem.
+ */
+export const ATS_PARTITION: string | undefined =
+  process.env.NEXT_PUBLIC_ATS_PARTITION?.trim() || undefined;
+
+/**
  * The testnet settlement token whose balanceOf funds the coupon draw. Empty
  * means the treasury cover stays on the seed figure in lib/data.ts and the
  * register note says so.

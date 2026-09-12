@@ -8,8 +8,16 @@
 
 import registerSeed from "@/fixtures/register.seed.json";
 
+// "paused" and "unrecognised" only come from a live read: "paused" is a token
+// wide pause, "unrecognised" is a refusal Detent cannot name, which is held
+// rather than ever being read as clear.
 export type ComplianceState =
-  "clear" | "allowlist-expired" | "kyc-lapsed" | "sanctions-hold";
+  | "clear"
+  | "allowlist-expired"
+  | "kyc-lapsed"
+  | "sanctions-hold"
+  | "paused"
+  | "unrecognised";
 
 export interface Holder {
   id: string;

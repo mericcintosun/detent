@@ -11,9 +11,9 @@ of them has been run against a live service.
 
 | Item | What it needs | What to do once it exists |
 | --- | --- | --- |
-| Deploy `PlanAnchor` to Hedera testnet | A funded Hedera testnet ECDSA account | Follow `contracts/README.md` (keystore flow, `forge script ... --legacy`), run `Smoke.s.sol`, then set `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and verify the contract on HashScan. |
-| Issue an Asset Tokenization Studio token | A Hedera testnet account with ATS access | Issue and configure the equity token, then set `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and `NEXT_PUBLIC_ADAPTER_MODE=real` so the register reads live. |
-| Run the Privy server wallet path live | A Privy app, a server wallet and a key quorum with threshold two | Set `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID` and `PRIVY_KEY_QUORUM_ID`, then run lock and send once and confirm the policy binding against the real API. |
+| Deploy `PlanAnchor` to Hedera testnet | A funded Hedera testnet ECDSA account. The official faucet at portal.hedera.com/faucet funds an EVM address with 100 testnet HBAR a day without an account, but it requires a reCAPTCHA and cannot be automated. Deploy plus smoke costs about 1.85 HBAR. | Follow `contracts/README.md` (keystore flow, `forge script ... --legacy`), run `Smoke.s.sol`, then set `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and verify the contract on HashScan. |
+| Issue an Asset Tokenization Studio token | A funded Hedera testnet ECDSA key: about 40 to 60 HBAR with tuned gas limits, about 120 HBAR with the SDK default limits. The ATS SDK does not accept a raw private key, so the programmatic path calls the ATS factory contract directly; the fallback is the ATS web app with MetaMask on chain 296. | Deploy the equity through the factory, add the issuer, grant KYC and add each holder to the control list, issue balances on the default partition, then block one holder through the control list and let one KYC lapse. Set `NEXT_PUBLIC_ADAPTER_MODE=real`, `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`, and `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS` to a treasury that holds a balance and passes KYC and the control list. |
+| Run the Privy server wallet path live | A Privy app, a server wallet, a key quorum with threshold two, and the authorization keys that own them | Set `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID` and, for an owned wallet or a quorum owned policy, `PRIVY_AUTHORIZATION_KEYS`. Then run lock and send once and confirm the binding, the send and the cleanup against the real API. |
 | Static analysis on the contract | `slither` installed | Run it on `contracts/src/PlanAnchor.sol`. Until then the contract rests on 34 tests, 9 of them fuzz, at 100% branch coverage. |
 
 ## Decisions that belong to the author
@@ -36,12 +36,17 @@ of them has been run against a live service.
 
 ## Limits of the backend fixes
 
-- A treasury wallet that has an owner requires a `privy-authorization-signature`
-  header on the policy binding `PATCH`. That signature is not produced here,
-  because the signing algorithm is not published in the REST documentation and
-  Privy directs integrators to its SDK. With an owned wallet the lock therefore
-  stays closed and the error says so. Closing this means adopting the Privy
-  server SDK for the authorization signature.
+- The Privy authorization signature is implemented from the published algorithm
+  (an RFC 8785 canonical payload signed with ECDSA P-256 over SHA-256), but Privy
+  publishes no test vector, so it is verified only against its own public key. A
+  quorum of two sends two signatures joined by a comma, which the documentation
+  states for the wallet RPC header and not for policy deletion.
+- The policy installed in Privy cannot pin the coupon's full calldata, because
+  Privy's calldata conditions cannot compare the holder and amount arrays. The
+  exact calldata is enforced by the server, which refuses a tampered payload
+  before it reaches the wallet. The condition value formats, the body of a real
+  policy violation response and how a signed DELETE treats its body are inferred
+  from the documentation and have not run against the live engine.
 - The lock record, the rate limiter and the idempotency store live in the memory
   of one serverless instance. When a lock and its submit land on different
   instances the submit is refused with `lock_unknown`, and the limiter is a

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { keccak256, toHex } from "viem";
 import { abandonPlan, anchorPlan, settlePlan } from "@/lib/anchor";
 import {
+  EDGE_RATE_LIMIT_MAX_REQUESTS,
   LOCK_RATE_LIMIT_MAX_REQUESTS,
   LOG_PREFIX,
   OPERATOR_API_TOKEN,
@@ -12,6 +13,7 @@ import { hintFor, isDetentError, type DetentErrorCode } from "@/lib/errors";
 import { buildCalldata, buildPlan, type Plan } from "@/lib/plan";
 import {
   installPolicy,
+  releasePolicy,
   resolveApprovals,
   submitTransaction,
 } from "@/lib/privy";
@@ -46,12 +48,49 @@ export const runtime = "nodejs";
 // instance rebuilt the policy out of the approved plan the client echoed back and
 // therefore approved whatever the client sent. It is written up in SECURITY.md.
 
+// A lock that expires or is evicted unspent still has a policy bound to the
+// treasury wallet on the live path. Put the wallet back and revoke the policy
+// then, instead of leaving it attached with no lock left to spend it.
+lockVault.onExpire((lock) => {
+  if (!lock.live || !lock.policyAttached) return;
+  void releasePolicy({
+    walletId: lock.walletId,
+    policyId: lock.policyId,
+    previousPolicyIds: lock.previousPolicyIds,
+  })
+    .then((release) => {
+      console.info(
+        `${LOG_PREFIX} expired lock cleaned up: policy ${lock.policyId}, detached ${release.detached}, revoked ${release.revoked}`,
+      );
+    })
+    .catch(() => {
+      console.error(
+        `${LOG_PREFIX} expired lock cleanup failed: policy ${lock.policyId}`,
+      );
+    });
+});
+
+type Intent = "lock" | "submit";
+
 /** Every failure from this route carries the same envelope: a code and a hint. */
 function fail(
   error: DetentErrorCode,
   status: number,
-  options?: { hint?: string; blockers?: string[]; headers?: HeadersInit },
+  options?: {
+    hint?: string;
+    blockers?: string[];
+    headers?: HeadersInit;
+    /** Set on the two intents, so the failure gets its one server log line. */
+    intent?: Intent;
+    providerStatus?: number;
+  },
 ) {
+  if (options?.intent) {
+    // Code and statuses only: never the hint, the body or a header value.
+    console.warn(
+      `${LOG_PREFIX} ${options.intent} failed: ${error}, http ${status}, provider ${options.providerStatus ?? "none"}`,
+    );
+  }
   const payload: ApiResponse<never> = {
     ok: false,
     error,
@@ -65,17 +104,19 @@ function fail(
 }
 
 /** A thrown DetentError keeps its own code; anything else is an upstream error. */
-function failFromThrown(thrown: unknown) {
+function failFromThrown(thrown: unknown, intent: Intent) {
   if (isDetentError(thrown)) {
     return fail(thrown.code, thrown.code === "upstream_timeout" ? 504 : 502, {
       hint: thrown.hint,
+      intent,
+      providerStatus: thrown.providerStatus,
     });
   }
   console.error(
     `${LOG_PREFIX} unexpected failure on the core path:`,
     thrown instanceof Error ? thrown.message : "non-error thrown",
   );
-  return fail("upstream_error", 502);
+  return fail("upstream_error", 502, { intent });
 }
 
 /**
@@ -150,6 +191,20 @@ const MISMATCH_HINT =
   "The plan in this request is not the plan this server derives from the register, so nothing was locked and nothing was anchored. The register moves under the console, so reload the page, read the plan again and approve it again.";
 
 export async function POST(request: Request) {
+  // Counted before the body is read, so malformed JSON and bodies that fail
+  // validation spend budget as well. Coarse on purpose: the per intent buckets
+  // below still apply to every request that parses.
+  const edge = rateLimiter.consume(
+    `edge:${clientAddress(request)}`,
+    EDGE_RATE_LIMIT_MAX_REQUESTS,
+  );
+  if (!edge.allowed) {
+    return fail("rate_limited", 429, {
+      hint: `This address has sent too many requests in the current window. Wait ${edge.retryAfterSeconds} seconds and try again.`,
+      headers: { "Retry-After": String(edge.retryAfterSeconds) },
+    });
+  }
+
   let raw: unknown;
   try {
     raw = await request.json();
@@ -190,6 +245,7 @@ export async function POST(request: Request) {
     if (!operatorTokenAccepted(request)) {
       return fail("unauthorized", 401, {
         hint: "This deployment gates the lock intent with an operator token. Send it in the x-detent-operator header and lock the plan again.",
+        intent: "lock",
       });
     }
 
@@ -202,17 +258,24 @@ export async function POST(request: Request) {
         console.warn(
           `${LOG_PREFIX} plan mismatch on lock: client ${body.plan.planHash}, server ${plan.planHash}`,
         );
-        return fail("plan_mismatch", 409, { hint: MISMATCH_HINT });
+        return fail("plan_mismatch", 409, {
+          hint: MISMATCH_HINT,
+          intent: "lock",
+        });
       }
 
       if (plan.blockers.length > 0) {
-        return fail("plan_blocked", 409, { blockers: plan.blockers });
+        return fail("plan_blocked", 409, {
+          blockers: plan.blockers,
+          intent: "lock",
+        });
       }
 
       const approvals = resolveApprovals(body.approvals);
       if (!approvals.ok) {
         return fail("quorum_not_met", 409, {
           hint: `${approvals.reason} ${QUORUM_THRESHOLD} distinct officers from the approver registry must approve before the policy is installed on the treasury wallet.`,
+          intent: "lock",
         });
       }
 
@@ -265,7 +328,7 @@ export async function POST(request: Request) {
       };
       return NextResponse.json(response);
     } catch (error) {
-      return failFromThrown(error);
+      return failFromThrown(error, "lock");
     }
   }
 
@@ -295,10 +358,7 @@ export async function POST(request: Request) {
 
   const lock = lockVault.recall(lockId);
   if (!lock) {
-    console.info(
-      `${LOG_PREFIX} submit refused: no lock held for the presented id`,
-    );
-    return fail("lock_unknown", 409);
+    return fail("lock_unknown", 409, { intent: "submit" });
   }
 
   const calldata: `0x${string}` =
@@ -320,27 +380,44 @@ export async function POST(request: Request) {
       console.warn(
         `${LOG_PREFIX} plan mismatch on submit: locked ${lock.plan.planHash}, server ${plan.planHash}`,
       );
-      return fail("plan_mismatch", 409, { hint: MISMATCH_HINT });
+      return fail("plan_mismatch", 409, {
+        hint: MISMATCH_HINT,
+        intent: "submit",
+      });
     }
 
     // Blockers are enforced on both intents, from the server derived plan. A row
     // the compliance module is holding cannot reach payout calldata through a
     // direct call to this route, whatever the browser believed at lock time.
     if (plan.blockers.length > 0) {
-      return fail("plan_blocked", 409, { blockers: plan.blockers });
+      return fail("plan_blocked", 409, {
+        blockers: plan.blockers,
+        intent: "submit",
+      });
     }
 
-    const result = await submitTransaction({
-      policy: lock.policy,
-      policyId: lock.policyId,
-      walletId: lock.walletId,
-      previousPolicyIds: lock.previousPolicyIds,
-      to: plan.target,
-      chainId: plan.chainId,
-      planHash: plan.planHash,
-      data: calldata,
-      broadcastPreference,
-    });
+    let result: Awaited<ReturnType<typeof submitTransaction>>;
+    try {
+      result = await submitTransaction({
+        policy: lock.policy,
+        policyId: lock.policyId,
+        walletId: lock.walletId,
+        previousPolicyIds: lock.previousPolicyIds,
+        to: plan.target,
+        chainId: plan.chainId,
+        planHash: plan.planHash,
+        data: calldata,
+        broadcastPreference,
+      });
+    } catch (error) {
+      // A failed or unknown send already detached and revoked the policy, so
+      // the lock has nothing left to send under. Release it without the expiry
+      // cleanup, which would only repeat the same two calls.
+      if (isDetentError(error) && error.lockSpent) {
+        lockVault.release(lock.lockId);
+      }
+      throw error;
+    }
 
     // A send the wallet allowed spends the lock: the policy is detached and
     // revoked, so there is nothing left to send under. A refusal leaves the lock
@@ -379,6 +456,6 @@ export async function POST(request: Request) {
     const response: ApiResponse<SubmitResult> = { ok: true, data };
     return NextResponse.json(response);
   } catch (error) {
-    return failFromThrown(error);
+    return failFromThrown(error, "submit");
   }
 }

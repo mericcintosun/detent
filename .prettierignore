@@ -10,3 +10,8 @@ next-env.d.ts
 
 # Prose is hand wrapped in this repo and Prettier would reflow every paragraph.
 *.md
+
+# Playwright output.
+test-results/
+playwright-report/
+blob-report/
