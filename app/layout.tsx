@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Libre_Caslon_Text, Libre_Franklin } from "next/font/google";
-import { Rail } from "@/components/rail";
+import { AboutSecurity, Rail } from "@/components/rail";
 import "./globals.css";
 
 const display = Libre_Caslon_Text({
@@ -51,9 +51,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased">
         <div className="lg:flex lg:items-start">
           <Rail />
-          <main className="min-w-0 flex-1 px-6 py-10 lg:px-12 lg:py-14">
-            {children}
-          </main>
+          <div className="min-w-0 flex-1">
+            <main className="px-5 py-8 sm:px-6 lg:px-12 lg:py-14">
+              {children}
+            </main>
+            {/* The about and security rows the rail used to spend the phone's
+                first screen on. Rendered once here so they reach / and
+                /record/[planHash] alike; the rail shows the same block again
+                from lg up, where the column has the height for it. */}
+            <section
+              aria-label="About and security"
+              className="border-t border-border px-5 py-8 sm:px-6 lg:hidden"
+            >
+              <AboutSecurity />
+            </section>
+          </div>
         </div>
       </body>
     </html>
