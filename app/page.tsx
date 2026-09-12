@@ -10,6 +10,11 @@ import { getRegisterSnapshot, isPrivyLive } from "@/lib/register";
  */
 export const revalidate = 30;
 
+// There is deliberately no app/loading.tsx. On this statically rendered page it
+// only added a streamed Suspense boundary whose deferred reveal script moved
+// body nodes while React was still hydrating, the main source of React #418
+// under parallel cold loads.
+
 export const metadata: Metadata = {
   title: "Coupon run console",
   description:

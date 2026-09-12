@@ -57,6 +57,10 @@ export default async function PlanRecordPage({
   params: Promise<{ planHash: string }>;
 }) {
   const { planHash } = await params;
+  // No loading.tsx sits above this route on purpose. A streamed loading boundary
+  // commits the 200 status before this line runs, so notFound() could only swap
+  // the body and the malformed hash answered 200. Without the boundary this is a
+  // real 404, decided before any read.
   const parsed = planHashSchema.safeParse(planHash);
   if (!parsed.success) notFound();
 
@@ -137,6 +141,15 @@ export default async function PlanRecordPage({
       )}
 
       <div className="flex flex-wrap items-center gap-4 border-t border-border pt-6">
+        {/* The console opens this page in a tab of its own, so the session it
+            came from is still open there. The link keeps the name the
+            end-to-end suite asserts; the sentence above it says that following
+            it starts a fresh console rather than returning to that tab. */}
+        <p className="w-full max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
+          The console opened this record in a new tab. Its approvals, lock and
+          audit record are still in the tab you came from; the link below opens
+          a fresh console.
+        </p>
         <Button variant="outline" asChild>
           <Link href="/#ledger">Back to the audit record</Link>
         </Button>
