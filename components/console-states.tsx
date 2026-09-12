@@ -6,8 +6,9 @@
 // the compiler proves the set is covered: add a state to lib/wallet-state.ts and
 // this switch stops building until it is rendered. The empty states carry the
 // markup that used to sit inline in components/operations-console.tsx, each one
-// ending in the next click rather than a shrug, and app/loading.tsx renders the
-// same skeleton the console would, so there is one skeleton in the repo.
+// ending in the next click rather than a shrug. There is no loading skeleton: a
+// streamed loading.tsx boundary broke both the record route's 404 and hydration
+// under load, so every route renders complete HTML.
 //
 // Tokens only, per IDENTITY.md: oxide-red is spent on the refused row and
 // nowhere else, infrastructure trouble is muted.
@@ -15,7 +16,6 @@
 import type { ReactNode } from "react";
 import { Plate } from "@/components/plates";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { TreasuryKeyState } from "@/lib/wallet-state";
 
 /* --- The treasury key banner ---------------------------------------------- */
@@ -346,97 +346,13 @@ export function RecordEmptyState({
       <p className="max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
         {sentence}
       </p>
-      {note ? (
+      {/* The unwired note repeats the sentence above word for word, so it is
+          printed only for the states where it adds a detail. */}
+      {note && kind !== "unwired" ? (
         <p className="max-w-[62ch] text-xs leading-relaxed text-muted-foreground">
           {note}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-/* --- The skeletons, one per server read ----------------------------------- */
-
-/**
- * The register is read on the server, so this stands in while it arrives. Same
- * rhythm as the console, same tokens, no spinner: ruled blocks on the ground
- * colour, the way the page will look once the rows land.
- */
-export function RegisterSkeleton() {
-  return (
-    <div className="space-y-12">
-      <section className="space-y-6">
-        <p className="detent-label">Reading the register</p>
-        <div className="h-12 w-full max-w-[16ch] border-b border-border bg-card sm:h-14" />
-        <div className="space-y-3">
-          <div className="h-4 w-full max-w-[52ch] bg-card" />
-          <div className="h-4 w-full max-w-[44ch] bg-card" />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="h-6 w-32 border border-border bg-card" />
-          <div className="h-6 w-40 border border-border bg-card" />
-        </div>
-      </section>
-
-      <Card>
-        <CardHeader className="border-b border-border">
-          <p className="detent-label">Plan</p>
-          <div className="h-7 w-full max-w-[28ch] bg-secondary" />
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="border-b border-border px-6 py-3">
-            <div className="h-3 w-full max-w-[40ch] bg-secondary" />
-          </div>
-          <ul className="divide-y divide-border">
-            {[0, 1, 2, 3, 4, 5].map((row) => (
-              <li
-                key={row}
-                className="grid gap-4 px-6 py-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]"
-              >
-                <div className="h-4 w-full max-w-[24ch] bg-secondary" />
-                <div className="h-4 w-full max-w-[14ch] bg-secondary" />
-                <div className="h-4 w-full max-w-[10ch] bg-secondary" />
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-/**
- * The record route reads planOf over the relay, which can take a second on a
- * busy Hashio. Same ruled-block idiom as RegisterSkeleton: the heading rule, the
- * hash line, then the six rows of the record's own dl.
- */
-export function RecordSkeleton() {
-  return (
-    <div className="max-w-[72ch] space-y-8">
-      <div className="space-y-4">
-        <p className="detent-label">Reading the plan record</p>
-        <div className="h-9 w-full max-w-[24ch] border-b border-border bg-card sm:h-10" />
-        <div className="h-4 w-full max-w-[60ch] bg-card" />
-      </div>
-
-      <Card>
-        <CardHeader className="border-b border-border">
-          <div className="h-6 w-32 border border-border bg-card" />
-        </CardHeader>
-        <CardContent className="pt-6">
-          <dl className="space-y-4">
-            {[0, 1, 2, 3, 4, 5].map((row) => (
-              <div
-                key={row}
-                className="space-y-2 border-b border-border pb-3 last:border-b-0"
-              >
-                <div className="h-3 w-full max-w-[12ch] bg-secondary" />
-                <div className="h-4 w-full max-w-[38ch] bg-secondary" />
-              </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
     </div>
   );
 }

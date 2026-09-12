@@ -193,3 +193,43 @@ export function describeFailure(
       };
   }
 }
+
+/* --- What an allowed send did to the policy ------------------------------- */
+
+export interface PolicyReleaseInput {
+  /** True when the lock installed the policy on a real Privy wallet. */
+  installedOnWallet: boolean;
+  /** From the submit result: the policy id was unbound from the wallet. */
+  policyDetached: boolean;
+  /** From the submit result: the revoke call succeeded. */
+  policyRevoked: boolean;
+  policyId: string;
+  lockId: string;
+}
+
+/**
+ * The audit sentence for what happened to the policy and the lock after an
+ * allowed send, built from the server's own flags. Nothing is claimed that the
+ * response did not report: a keyless run installed nothing on a wallet, so it
+ * says there was nothing to detach or revoke, and a live run names each step
+ * that did not go through.
+ */
+export function describePolicyRelease(input: PolicyReleaseInput): string {
+  const { installedOnWallet, policyDetached, policyRevoked, policyId, lockId } =
+    input;
+  if (!installedOnWallet && !policyDetached && !policyRevoked) {
+    return `Policy ${policyId} was compiled locally and never installed on a wallet, so there was nothing to detach or revoke. Local lock ${lockId} is closed.`;
+  }
+  if (policyDetached && policyRevoked) {
+    return `Policy ${policyId} detached from the treasury wallet and revoked, lock ${lockId} spent.`;
+  }
+  const done = [
+    policyDetached ? "detached from the treasury wallet" : null,
+    policyRevoked ? "revoked" : null,
+  ].filter((step): step is string => step !== null);
+  const missing = [
+    policyDetached ? null : "detached from the wallet",
+    policyRevoked ? null : "revoked",
+  ].filter((step): step is string => step !== null);
+  return `Policy ${policyId} ${done.length > 0 ? `${done.join(" and ")}, but not ` : "was not "}${missing.join(" or ")}; finish it in the Privy dashboard. Lock ${lockId} spent.`;
+}

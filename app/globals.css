@@ -20,22 +20,27 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--gold);
-  --primary-foreground: var(--ground);
+  /* Ink, not ground: ground on gold is 2.8:1, ink on gold is 5.6:1 (WCAG AA). */
+  --primary-foreground: var(--ink);
   --secondary: var(--surface-deep);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-deep);
-  --muted-foreground: color-mix(in srgb, var(--ink) 60%, var(--ground));
+  /* 70 percent ink clears 4.5:1 on ground, surface and surface-deep alike. */
+  --muted-foreground: color-mix(in srgb, var(--ink) 70%, var(--ground));
   --accent: var(--surface-deep);
   --accent-foreground: var(--ink);
   --destructive: var(--oxide);
   --destructive-foreground: var(--ground);
   --border: var(--line);
   --input: var(--line);
-  --ring: var(--gold);
+  /* The focus ring is gold deepened with ink, so it clears 3:1 on every surface. */
+  --ring: color-mix(in srgb, var(--gold) 70%, var(--ink));
 
   /* Semantic states. WARN is a 60 percent oxide-red tint over the ground,
      declared this way in IDENTITY.md because the accent is already warm. */
-  --ok: #2e7d4f;
+  /* Deepened from #2e7d4f, which measured 4.1:1 on the surface; this clears 4.5:1
+     on ground, surface and surface-deep. */
+  --ok: #256a42;
   --warn: #bf8477;
   --bad: #9c3b2a;
 

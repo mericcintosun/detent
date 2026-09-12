@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +32,11 @@ import {
 import {
   CHAIN_ID,
   buildPlan,
+  decideTamperedSend,
   formatMicros,
   formatTokens,
+  microsToInput,
+  registerHeldCount,
   shortHex,
   type PlanRow,
 } from "@/lib/plan";
@@ -47,6 +50,7 @@ import type {
 import {
   deriveTreasuryKeyState,
   describeFailure,
+  describePolicyRelease,
   type FailureView,
 } from "@/lib/wallet-state";
 
@@ -107,26 +111,6 @@ function anchorParts(anchor: AnchorReceipt | undefined): {
   const href = anchorExplorerHref(anchor);
   if (href !== null) return { anchorHref: href };
   return { anchorNote: anchor.note };
-}
-
-function microsToInput(micros: string): string {
-  const value = BigInt(micros);
-  const whole = value / 1_000_000n;
-  const fraction = (value % 1_000_000n)
-    .toString()
-    .padStart(6, "0")
-    .replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : whole.toString();
-}
-
-function inputToMicros(input: string): string | null {
-  const trimmed = input.trim();
-  if (!/^\d+(\.\d{0,6})?$/.test(trimmed)) return null;
-  const [whole, fraction = ""] = trimmed.split(".");
-  return (
-    BigInt(whole) * 1_000_000n +
-    BigInt(fraction.padEnd(6, "0") || "0")
-  ).toString();
 }
 
 function stamp(): string {
@@ -211,6 +195,31 @@ export function OperationsConsole({
   const [failure, setFailure] = useState<ConsoleFailure | null>(null);
   const [tamperInput, setTamperInput] = useState<string | null>(null);
   const [log, setLog] = useState<AuditEntry[]>([]);
+  /** Why the amount field was not sent: unreadable, or equal to the approved amount. */
+  const [tamperNotice, setTamperNotice] = useState<{
+    kind: "invalid" | "unchanged";
+    message: string;
+  } | null>(null);
+  /** A corporate action the operator picked while a plan is locked, awaiting confirmation. */
+  const [pendingSwitch, setPendingSwitch] = useState<ActionKind | null>(null);
+  /** Whether the plan table is wider than its wrapper, so the scroll hint shows. */
+  const [tableOverflows, setTableOverflows] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+  /**
+   * The element that should take focus once the next render lands. A control
+   * that disables itself while a call is in flight drops focus to the body, so
+   * every answer hands focus to the place that reports it.
+   */
+  const focusNext = useRef<string | null>(null);
+
+  useEffect(() => {
+    const id = focusNext.current;
+    if (!id) return;
+    const element = document.getElementById(id);
+    if (!element) return;
+    focusNext.current = null;
+    element.focus();
+  });
   /** What the last send was, so the retry and the relay action can re-fire it. */
   const [lastSend, setLastSend] = useState<{
     tampered: boolean;
@@ -231,12 +240,24 @@ export function OperationsConsole({
 
   const action = actions.find((entry) => entry.kind === kind) ?? actions[0];
   const includedRows = plan.rows.filter((row) => row.included);
-  const heldCount = plan.rows.filter((row) => row.held).length;
+  const heldCount = registerHeldCount(snapshot.holders);
   const firstRow = includedRows[0];
   const tamperValue =
     tamperInput ?? (firstRow ? microsToInput(firstRow.amountMicros) : "");
   const locked = installation !== null;
   const quorumMet = approvals.length >= 2;
+  const rowCount = plan.rows.length;
+
+  useEffect(() => {
+    const element = tableRef.current;
+    if (!element) return;
+    const measure = () =>
+      setTableOverflows(element.scrollWidth > element.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [rowCount]);
 
   /**
    * What came back from the last send, and whether it may be linked.
@@ -248,8 +269,8 @@ export function OperationsConsole({
   const receipt = readReceipt(settlement);
 
   /**
-   * An allowed send spends the lock on the server: the policy is detached and
-   * revoked, and a second submit under the same lock id is lock_unknown. A
+   * An allowed send spends the lock on the server: on a live wallet the policy
+   * is detached and revoked, and a second submit under the same lock id is lock_unknown. A
    * refusal leaves it open, which is what lets the demo send the approved plan
    * straight after the tampered one.
    */
@@ -321,7 +342,43 @@ export function OperationsConsole({
     ]);
   }
 
+  /**
+   * Picking a corporate action rebuilds the plan from scratch. While a plan is
+   * locked and not yet sent that would drop the lock, so the switch waits for
+   * the operator to confirm it and the release is written to the audit record.
+   */
+  function selectAction(next: ActionKind) {
+    if (locked && !lockSpent) {
+      if (next === kind) return;
+      setPendingSwitch(next);
+      focusNext.current = "action-switch-confirm";
+      return;
+    }
+    resetRun(next);
+  }
+
+  function confirmSwitch() {
+    if (!pendingSwitch) return;
+    const next = actions.find((entry) => entry.kind === pendingSwitch);
+    if (installation) {
+      record({
+        event: "Lock released",
+        detail: `Switched from ${plan.label} to ${next?.label ?? pendingSwitch} before sending. This console dropped lock ${installation.lockId} and policy ${installation.policyId}; nothing was signed under it, and the server lets the unused lock expire within 15 minutes.`,
+        tone: "bad",
+      });
+    }
+    focusNext.current = `action-${pendingSwitch}`;
+    resetRun(pendingSwitch);
+  }
+
+  function keepLockedPlan() {
+    focusNext.current = `action-${pendingSwitch ?? kind}`;
+    setPendingSwitch(null);
+  }
+
   function resetRun(next: ActionKind) {
+    setPendingSwitch(null);
+    setTamperNotice(null);
     setKind(next);
     setDeferred([]);
     setForced([]);
@@ -387,10 +444,12 @@ export function OperationsConsole({
           stage: "lock",
           retryAfterSeconds: retryAfterOf(response),
         });
+        focusNext.current = "lock-failure";
         return;
       }
       setInstallation(payload.data);
       setSettlement(null);
+      focusNext.current = "policy-compiled";
       record({
         event: "Policy compiled and installed",
         detail: `${payload.data.policy.name} pins ${plan.target} and one selector, plan hash ${shortHex(plan.planHash)}. ${payload.data.anchor?.anchored ? "The plan hash is anchored on chain." : "The plan hash was not anchored on chain."}`,
@@ -403,6 +462,7 @@ export function OperationsConsole({
         hint: "The console could not reach the policy endpoint.",
         stage: "lock",
       });
+      focusNext.current = "lock-failure";
     } finally {
       setPending(null);
     }
@@ -410,9 +470,6 @@ export function OperationsConsole({
 
   async function send(tampered: boolean, preference?: "auto" | "signature") {
     if (!installation || lockSpent) return;
-    setPending("send");
-    setFailure(null);
-    setLastSend({ tampered, preference });
 
     let submittedRows = includedRows.map((row) => ({
       address: row.address,
@@ -420,20 +477,23 @@ export function OperationsConsole({
     }));
 
     if (tampered && firstRow) {
-      const micros = inputToMicros(tamperValue);
-      if (micros === null) {
-        setFailure({
-          code: "invalid_input",
-          hint: "Enter an amount with at most six decimal places.",
-          stage: "send",
-        });
-        setPending(null);
+      // Checked before anything is sent: an unreadable amount is the field's
+      // problem, not the server's, and an unchanged amount is the approved
+      // calldata, which would sign and spend the lock from the refusal control.
+      const decision = decideTamperedSend(tamperValue, firstRow.amountMicros);
+      if (decision.kind !== "edited") {
+        setTamperNotice({ kind: decision.kind, message: decision.message });
         return;
       }
       submittedRows = submittedRows.map((row, index) =>
-        index === 0 ? { ...row, amountMicros: micros } : row,
+        index === 0 ? { ...row, amountMicros: decision.micros } : row,
       );
     }
+
+    setTamperNotice(null);
+    setPending("send");
+    setFailure(null);
+    setLastSend({ tampered, preference });
 
     try {
       const response = await fetch("/api/detent", {
@@ -463,6 +523,7 @@ export function OperationsConsole({
             hint: payload.hint,
             stage: "lock",
           });
+          focusNext.current = "lock-failure";
           record({
             event: "Lock no longer held",
             detail: `The server holds no lock for ${installation.lockId}. Lock the plan again before sending.`,
@@ -480,10 +541,12 @@ export function OperationsConsole({
           stage: "send",
           retryAfterSeconds: retryAfterOf(response),
         });
+        focusNext.current = "send-failure";
         return;
       }
       const result = payload.data;
       setSettlement(result);
+      focusNext.current = "send-status";
       if (result.verdict.allowed) {
         // The receipt decides both the headline and the link. A stub hash under
         // "Signed and broadcast" is the one claim in this product a judge can
@@ -495,7 +558,7 @@ export function OperationsConsole({
             sent.kind === "on-chain"
               ? "Signed and broadcast"
               : "Signed, nothing broadcast",
-          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. Policy ${installation.policyId} revoked, lock ${installation.lockId} spent.${result.anchor?.anchored ? " The plan is closed as settled on chain." : ""}${sent.kind === "synthetic" ? " The receipt is synthetic: its reference is derived from the plan hash and the calldata, no transaction was broadcast and there is nothing to open on HashScan." : ""}`,
+          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. ${describePolicyRelease({ installedOnWallet: installation.live, policyDetached: result.policyDetached, policyRevoked: result.policyRevoked, policyId: installation.policyId, lockId: installation.lockId })}${result.anchor?.anchored ? " The plan is closed as settled on chain." : ""}${sent.kind === "synthetic" ? " The receipt is synthetic: its reference is derived from the plan hash and the calldata, no transaction was broadcast and there is nothing to open on HashScan." : ""}`,
           tone: "ok",
           href: sent.href ?? undefined,
           ...anchorParts(result.anchor),
@@ -514,6 +577,7 @@ export function OperationsConsole({
         hint: "The console could not reach the wallet endpoint.",
         stage: "send",
       });
+      focusNext.current = "send-failure";
     } finally {
       setPending(null);
     }
@@ -745,10 +809,11 @@ export function OperationsConsole({
               return (
                 <Button
                   key={entry.kind}
+                  id={`action-${entry.kind}`}
                   variant={selected ? "default" : "outline"}
                   size="sm"
                   aria-pressed={selected}
-                  onClick={() => resetRun(entry.kind)}
+                  onClick={() => selectAction(entry.kind)}
                   className={
                     selected
                       ? "px-5"
@@ -760,6 +825,40 @@ export function OperationsConsole({
               );
             })}
           </div>
+          {locked && !lockSpent && !pendingSwitch ? (
+            <p className="max-w-[68ch] text-sm leading-relaxed text-muted-foreground">
+              A plan is locked to the treasury key. Switching the corporate
+              action releases that lock before anything is sent.
+            </p>
+          ) : null}
+          {pendingSwitch && installation ? (
+            <div
+              id="action-switch-confirm"
+              role="group"
+              aria-labelledby="action-switch-title"
+              tabIndex={-1}
+              className="max-w-[76ch] space-y-3 border border-bad bg-card p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <p id="action-switch-title" className="detent-label text-bad">
+                Release the lock to switch
+              </p>
+              <p className="text-sm leading-relaxed">
+                {plan.label} is locked under {installation.lockId}. Switching to{" "}
+                {actions.find((entry) => entry.kind === pendingSwitch)?.label}{" "}
+                drops that lock and its policy in this console, clears the
+                approvals and writes the release to the audit record. Nothing is
+                signed.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" onClick={confirmSwitch}>
+                  Release the lock and switch
+                </Button>
+                <Button variant="ghost" onClick={keepLockedPlan}>
+                  Keep the locked plan
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <Card className="detent-enter">
@@ -781,85 +880,102 @@ export function OperationsConsole({
             {plan.rows.length === 0 ? (
               <PlanEmptyState partition={snapshot.token.partition} />
             ) : (
-              <div
-                role="region"
-                aria-label={`${plan.label}, ${plan.rows.length} rows`}
-                tabIndex={0}
-                className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-              >
-                <div className="min-w-[46rem]">
-                  <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] gap-4 border-b border-border px-6 py-3">
-                    <span className="detent-label">Holder</span>
-                    <span className="detent-label">Account</span>
-                    <span className="detent-label text-right">Position</span>
-                    <span className="detent-label text-right">
-                      {kind === "coupon" ? "Coupon due" : "Units moved"}
-                    </span>
-                    <span className="detent-label text-right">Status</span>
-                  </div>
+              <>
+                {tableOverflows ? (
+                  <p className="detent-label px-6 pt-4">
+                    Scroll the table sideways for every column. The row controls
+                    stay pinned on the right.
+                  </p>
+                ) : null}
+                <div
+                  ref={tableRef}
+                  role="region"
+                  aria-label={`${plan.label}, ${plan.rows.length} rows`}
+                  tabIndex={0}
+                  className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                >
+                  <div className="min-w-[46rem]">
+                    <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] gap-4 border-b border-border px-6 py-3">
+                      <span className="detent-label">Holder</span>
+                      <span className="detent-label">Account</span>
+                      <span className="detent-label text-right">Position</span>
+                      <span className="detent-label text-right">
+                        {kind === "coupon" ? "Coupon due" : "Units moved"}
+                      </span>
+                      <span className="detent-label sticky right-0 -mr-6 bg-card pr-6 pl-3 text-right">
+                        Status
+                      </span>
+                    </div>
 
-                  <ul className="detent-stagger divide-y divide-border">
-                    {plan.rows.map((row) => (
-                      <li
-                        key={row.holderId}
-                        className={`detent-enter grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] items-start gap-4 px-6 py-4 ${
-                          row.held ? "bg-secondary" : ""
-                        }`}
-                      >
-                        <div className="space-y-1">
-                          <p
-                            className={`text-sm font-medium ${row.held ? "text-bad" : ""}`}
-                          >
-                            {row.legalName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {row.jurisdiction} ·{" "}
-                            <span title={row.address}>
-                              {shortHex(row.address, 10, 4)}
-                            </span>
-                          </p>
-                          {row.held ? (
-                            <p className="max-w-[46ch] text-xs leading-relaxed text-bad">
-                              {row.holdReason}
-                            </p>
-                          ) : null}
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {row.accountId}
-                        </span>
-                        <span className="text-right text-sm tabular-nums">
-                          {formatTokens(row.balance)}
-                        </span>
-                        <span
-                          className={`text-right text-sm tabular-nums ${
-                            row.included
-                              ? ""
-                              : "text-muted-foreground line-through"
+                    <ul className="detent-stagger divide-y divide-border">
+                      {plan.rows.map((row) => (
+                        <li
+                          key={row.holderId}
+                          className={`detent-enter grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] items-start gap-4 px-6 py-4 ${
+                            row.held ? "bg-secondary" : ""
                           }`}
                         >
-                          {formatMicros(row.amountMicros)}
-                        </span>
-                        <div className="flex justify-end">
-                          <Button
-                            variant={row.included ? "outline" : "ghost"}
-                            size="sm"
-                            disabled={locked}
-                            onClick={() => toggleRow(row)}
+                          <div className="space-y-1">
+                            <p
+                              className={`text-sm font-medium ${row.held ? "text-bad" : ""}`}
+                            >
+                              {row.legalName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {row.jurisdiction} ·{" "}
+                              <span title={row.address}>
+                                {shortHex(row.address, 10, 4)}
+                              </span>
+                            </p>
+                            {row.held ? (
+                              <p className="max-w-[46ch] text-xs leading-relaxed text-bad">
+                                {row.holdReason}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {row.accountId}
+                          </span>
+                          <span className="text-right text-sm tabular-nums">
+                            {formatTokens(row.balance)}
+                          </span>
+                          <span
+                            className={`text-right text-sm tabular-nums ${
+                              row.included
+                                ? ""
+                                : "text-muted-foreground line-through"
+                            }`}
                           >
-                            {row.held
-                              ? row.included
-                                ? "Hold again"
-                                : "Force in"
-                              : row.included
-                                ? "Defer"
-                                : "Restore"}
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                            {formatMicros(row.amountMicros)}
+                          </span>
+                          {/* Pinned to the wrapper's right edge, so the row
+                            control is on screen at any width. */}
+                          <div
+                            className={`sticky right-0 -mr-6 flex justify-end pr-6 pl-3 ${
+                              row.held ? "bg-secondary" : "bg-card"
+                            }`}
+                          >
+                            <Button
+                              variant={row.included ? "outline" : "ghost"}
+                              size="sm"
+                              disabled={locked}
+                              onClick={() => toggleRow(row)}
+                            >
+                              {row.held
+                                ? row.included
+                                  ? "Hold again"
+                                  : "Force in"
+                                : row.included
+                                  ? "Defer"
+                                  : "Restore"}
+                            </Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <div className="grid gap-6 border-t border-border px-6 py-5 sm:grid-cols-3">
@@ -993,17 +1109,23 @@ export function OperationsConsole({
                 send that came back lock_unknown: the console has already
                 returned to this step, so the way out is the button above. */}
             {failure?.stage === "lock" && failureView ? (
-              <SendErrorState
-                title={failureView.title}
-                hint={failureView.sentence}
-                blockers={failure.blockers}
-                actionLabel={failureControl(failureView)?.label}
-                onRetry={failureControl(failureView)?.onClick}
-                busy={
-                  pending !== null ||
-                  (failureView.action === "relock" && !quorumMet)
-                }
-              />
+              <div
+                id="lock-failure"
+                tabIndex={-1}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <SendErrorState
+                  title={failureView.title}
+                  hint={failureView.sentence}
+                  blockers={failure.blockers}
+                  actionLabel={failureControl(failureView)?.label}
+                  onRetry={failureControl(failureView)?.onClick}
+                  busy={
+                    pending !== null ||
+                    (failureView.action === "relock" && !quorumMet)
+                  }
+                />
+              </div>
             ) : null}
           </CardContent>
         </Card>
@@ -1021,7 +1143,12 @@ export function OperationsConsole({
           </CardHeader>
           <CardContent className="pt-6">
             {installation ? (
-              <div className="detent-enter space-y-4">
+              <div
+                id="policy-compiled"
+                tabIndex={-1}
+                aria-label={`Compiled wallet policy ${installation.policy.name}`}
+                className="detent-enter space-y-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-card"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="border-hairline">
                     {installation.policy.name}
@@ -1079,18 +1206,24 @@ export function OperationsConsole({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
-            <TreasuryKeyBanner
-              state={treasuryKeyState}
-              reason={settlement?.verdict.reason}
-              note={failure?.hint ?? settlement?.note}
-              busy={pending !== null}
-              engineLive={decidedByWallet}
-              receiptKind={receipt.kind}
-              onSignAndRelay={() =>
-                send(lastSend?.tampered ?? false, "signature")
-              }
-              onRetry={() => send(lastSend?.tampered ?? false)}
-            />
+            <div
+              id="send-status"
+              tabIndex={-1}
+              className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <TreasuryKeyBanner
+                state={treasuryKeyState}
+                reason={settlement?.verdict.reason}
+                note={failure?.hint ?? settlement?.note}
+                busy={pending !== null}
+                engineLive={decidedByWallet}
+                receiptKind={receipt.kind}
+                onSignAndRelay={() =>
+                  send(lastSend?.tampered ?? false, "signature")
+                }
+                onRetry={() => send(lastSend?.tampered ?? false)}
+              />
+            </div>
 
             {/* Nobody should have to read calldata to learn what a button is
                 about to do. Same treatment as the register note block, so this
@@ -1146,11 +1279,31 @@ export function OperationsConsole({
                   inputMode="decimal"
                   value={tamperValue}
                   disabled={!locked || lockSpent || pending !== null}
-                  onChange={(event) => setTamperInput(event.target.value)}
+                  aria-invalid={tamperNotice?.kind === "invalid" || undefined}
+                  aria-describedby="tamper-help tamper-notice"
+                  onChange={(event) => {
+                    setTamperInput(event.target.value);
+                    setTamperNotice(null);
+                  }}
                 />
-                <p className="max-w-[56ch] text-xs leading-relaxed text-muted-foreground">
+                <p
+                  id="tamper-help"
+                  className="max-w-[56ch] text-xs leading-relaxed text-muted-foreground"
+                >
                   Change one digit and send. The policy pins the whole calldata
                   payload, so a single altered byte falls through to DENY.
+                </p>
+                {/* Always in the tree so the announcement is heard when it
+                    fills; empty until the field is refused before sending. */}
+                <p
+                  id="tamper-notice"
+                  role="status"
+                  aria-live="polite"
+                  className={`max-w-[56ch] text-sm leading-relaxed ${
+                    tamperNotice?.kind === "invalid" ? "text-bad" : ""
+                  }`}
+                >
+                  {tamperNotice?.message}
                 </p>
               </div>
               <Button
@@ -1177,14 +1330,20 @@ export function OperationsConsole({
             </Button>
 
             {failure?.stage === "send" && failureView ? (
-              <SendErrorState
-                title={failureView.title}
-                hint={failureView.sentence}
-                blockers={failure.blockers}
-                actionLabel={failureControl(failureView)?.label}
-                onRetry={failureControl(failureView)?.onClick}
-                busy={pending !== null || !locked || lockSpent}
-              />
+              <div
+                id="send-failure"
+                tabIndex={-1}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <SendErrorState
+                  title={failureView.title}
+                  hint={failureView.sentence}
+                  blockers={failure.blockers}
+                  actionLabel={failureControl(failureView)?.label}
+                  onRetry={failureControl(failureView)?.onClick}
+                  busy={pending !== null || !locked || lockSpent}
+                />
+              </div>
             ) : null}
 
             {settlement ? (
@@ -1227,13 +1386,13 @@ export function OperationsConsole({
                     </Badge>
                   )}
                 </div>
-                <p
-                  className={`max-w-[76ch] text-sm leading-relaxed ${
-                    settlement.verdict.allowed ? "" : "text-bad"
-                  }`}
-                >
-                  {settlement.verdict.reason}
-                </p>
+                {/* A refusal's reason is already the treasury key banner's
+                    alert at the top of this card, so it is printed once. */}
+                {settlement.verdict.allowed ? (
+                  <p className="max-w-[76ch] text-sm leading-relaxed">
+                    {settlement.verdict.reason}
+                  </p>
+                ) : null}
                 {/* The receipt, told apart. A hash the wallet broadcast gets
                     the explorer link. A hash this build derived from the
                     calldata gets the same prominence and none of the claim:
@@ -1293,8 +1452,15 @@ export function OperationsConsole({
               Download the record
             </Button>
             <Button variant="outline" asChild>
-              <Link href={`/record/${plan.planHash}`}>
+              {/* A new tab, so reading the record never unloads this session:
+                  the lock, the approvals and the entries below live only here. */}
+              <Link
+                href={`/record/${plan.planHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Open the permanent record
+                <span className="sr-only"> (opens in a new tab)</span>
               </Link>
             </Button>
           </div>
