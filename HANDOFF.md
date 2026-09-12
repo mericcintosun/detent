@@ -114,7 +114,9 @@ brand image anywhere.
 | `components/console-states.tsx` | The banner, the skeleton, the send error surface and the three empty states. |
 | `contracts/src/PlanAnchor.sol` | Anchors and settles plan hashes on chain. |
 | `contracts/script/Deploy.s.sol`, `Smoke.s.sol` | Deploy, then one real interaction for proof. |
-| `public/brand/logo.png`, `public/brand/og.png` | Pre-generated brand rasters. `og.png` is the register figure in the masthead. |
+| `public/brand/logo.png`, `public/brand/og.png` | Pre-generated brand rasters. `logo.png` is the one mark per page, in the rail. `og.png` is no longer rendered in the console: Phase 4 replaced the masthead figure with the register note block. |
+| `app/record/[planHash]/page.tsx` | Demo step 6. Reads `planOf` off `PlanAnchor` and renders the permanent record. Server component, no key needed. |
+| `DELIVERY.md` | The human's submission checklist: the opt-in checkbox string per bounty, and what to paste where. |
 | `public/logo.svg`, `app/icon.svg`, `public/illustrations/ledger-rule.svg` | Text-only wordmark for OG reuse, favicon, the ruled paper behind the plan header. |
 | `app/opengraph-image.png` | Already the OG image. Do not add an `opengraph-image.tsx`. |
 
@@ -642,3 +644,141 @@ still applies, plus:
 three times with `NEXT_PUBLIC_ADAPTER_MODE=real` and record the two smoke
 transaction hashes in `README.md`. After that, Phase 4 is the landing and OG
 polish plus the video.
+
+### Phase 4, 2026-09-12. Bounty ledger, the record route, and the surface judges touch
+
+**Goal.** Two things at once. Make the submission surface complete: a bounty
+ledger in `README.md` quoting each prize's own qualification wording and
+answering it with a file and a symbol, plus `DELIVERY.md` so no opt-in box is
+missed. Then add the second wow, a new route `/record/[planHash]` that reads the
+plan hash back off `PlanAnchor` so the record outlives the session, and finish
+with the responsive, touch target, metadata and landing pass on the one artifact
+every judge touches.
+
+**Status.** All four slices landed. Nothing was executed: this phase had no
+shell, so the new read path is written and checked by reading, not by running.
+DEMO.md now has six steps and the sixth one has never been seen on screen in any
+state other than by reading the code.
+
+**Decisions.**
+
+- **The record route is a read with no key.** `planOf` is a view call, so
+  `readPlanRecord` checks `PLAN_ANCHOR_ADDRESS` only and never touches
+  `OPERATOR_PRIVATE_KEY`. A deployment that can read but not write still renders
+  step 6, which matters because the Vercel deployment does not need the operator
+  key to show the record.
+- **Six states, two of which are not chain states.** `PlanRecordState` is
+  `unwired | unreadable | unknown | anchored | settled | abandoned`. The first two
+  are local conditions (no address configured, the relay would not answer), the
+  other four mirror `PlanAnchor.Status`. The route narrows the first three into
+  `RecordEmptyState` with a `const` rather than a cast, so adding a state forces a
+  decision at that branch instead of silently falling through.
+- **The masthead figure is gone.** `public/brand/og.png` was a second raster
+  beside the rail's brand mark, flagged as an open question in all three previous
+  handoffs. It is now a bordered register note block carrying the snapshot time,
+  the register source, the partition and the settlement asset, ending in
+  `snapshot.note`. Same treatments the file already used, so no new colour, radius,
+  font or motion value, recorded as a dated line under Amendments in
+  `IDENTITY.md`. `components/operations-console.tsx` no longer imports
+  `next/image`, and `brand/logo.png` in `components/rail.tsx:27` is the only brand
+  raster rendered anywhere.
+- **Touch targets are `min-h`, not `h`.** The button size variants became
+  `min-h-11` / `min-h-12` rather than fixed heights, because several controls sit
+  in grid cells whose content can wrap at 360px; a fixed height would clip. The
+  rail's six section links got `inline-flex min-h-11 items-center`, which is the
+  only way a wide-tracked small-caps label is tappable on the stacked mobile bar.
+- **`NEXT_PUBLIC_SITE_URL` is read in `app/layout.tsx`, not in the config home.**
+  The phase brief specified that line verbatim, and `metadataBase` is evaluated at
+  module scope in the root layout. It breaks the Phase 2 invariant that
+  `lib/config.ts` and `lib/public-config.ts` are the only `process.env` readers, so
+  the exception is written into the comment at the top of `lib/config.ts` rather
+  than left for a reviewer to find by grep. The key has its own line in
+  `.env.example`.
+- **No third bounty.** No `targetTracks` row was dropped: both claimed rows
+  already had their integrations in code, so this phase's cost for them was
+  documentation only. The third slot the event allows stays empty.
+  `🧬 Best Use of ENSv2` (`$4,500, 1st place: $1,500, 2nd place: $1,500, 3rd
+  place: $1,000, Runner-Up: $500`, 4 slots, about 2 marginal hours) was not taken:
+  this phase's budget was 1.7 hours, and naming would be cosmetic in a product
+  whose addresses come from a register rather than from a user, which that row's
+  own wording rejects.
+
+**Failed attempts.** None. No slice needed a second correction pass.
+
+**Files changed.** Added: `DELIVERY.md`, `app/record/[planHash]/page.tsx`,
+`app/record/[planHash]/loading.tsx`, `.farm-commits.json`. Edited: `README.md`,
+`.env.example`, `lib/anchor.ts`, `lib/types.ts`, `lib/schemas.ts`,
+`lib/config.ts` (comment only), `components/console-states.tsx`,
+`components/operations-console.tsx`, `components/rail.tsx`,
+`components/ui/button.tsx`, `components/ui/input.tsx`, `app/layout.tsx`,
+`app/page.tsx`, `DEMO.md`, `IDENTITY.md` (one dated line under Amendments), this
+file.
+
+**Commands run.** None. This phase was file only and the agent had no shell: the
+tools were Write, Edit, Read, Glob and Grep. Every command below is the runner's
+or a human's.
+
+The runner's commands: `npm install`, `npm run build`, the per-slice commit
+replay from `.farm-commits.json` with a closing `faz-4:` commit, then push and the
+Vercel redeploy to the same project.
+
+The human's commands and checks, unchanged from Phase 3 plus the new route:
+
+```bash
+npm test
+npm run build
+cd contracts && forge test
+```
+
+Then walk steps 1 to 6 on the live URL in a private window, check 360px, 768px and
+1280px in devtools, view-source for an absolute `og:image`, and run Lighthouse.
+
+**Acceptance items not met, with evidence.**
+
+- Everything that needs a command is unverified. `npm run build`, `npm test`,
+  `forge test`, the two `forge script` runs, the devtools sweep, the view-source
+  check and Lighthouse were never executed here.
+- The `planOf` struct decode in `readPlanRecord` (`lib/anchor.ts`, the
+  `OnChainPlan` cast in the read path) has never run against a deployed
+  `PlanAnchor`. It reads the struct as an object with named fields, which is what
+  viem returns for a single struct return value; if viem hands back a positional
+  tuple instead, that cast is the one place to change, and the symptom would be
+  every field reading as undefined while `state` fell to `unknown`.
+- The record route's settled state has never been seen on screen. With no
+  `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` the route renders `unwired`, which is the
+  documented degraded state, not a bug.
+- One `shortHex` rendering on the demo path carries no `title`:
+  `components/operations-console.tsx` composes `shortHex(plan.planHash)` into the
+  audit entry's `detail` sentence for the lock event, and that entry is a plain
+  string rather than an element, so there is no single full value to attach. The
+  full plan hash is printed with `break-all` and a `title` in the `#plan` dl on
+  the same page, and the new `/record/[planHash]` page prints it in full again.
+- The live treasury cover in `lib/hedera.ts:189` still has never read a real
+  settlement token, and `installPolicy` / `submitTransaction` have still never run
+  against a real Privy app. Carried forward from Phase 2 and Phase 3, untouched
+  here.
+- `app/page.tsx:3` still imports `getRegisterSnapshot` from `@/lib/register`,
+  which is the Phase 3 seam; the Phase 2 gate about `lib/hedera.ts` is satisfied
+  through it. No client component imports `lib/hedera.ts`.
+- `components/operations-console.tsx` still imports `buildCalldata` into the
+  client bundle to derive the submission key, carried forward from Phase 3. Pure
+  viem encoding, no secret, no network.
+
+**Open questions.**
+
+- Should `/record/[planHash]` also read the token symbol so the record names the
+  security rather than printing an address? It would cost one more relay read on a
+  route whose whole point is that it works with nothing but the anchor address.
+- Nothing reads the anchor status back into the console itself, carried forward
+  from Phase 3. The audit record still shows what the write returned, not what the
+  contract holds now; `readPlanRecord` is the function a later phase would call on
+  load to show a plan as already settled before anything is clicked.
+- `NEXT_PUBLIC_SITE_URL` would be cleaner as `SITE_URL` in
+  `lib/public-config.ts`. One line to move if a second reader appears.
+
+**Next best step.** Fund the testnet account, deploy `PlanAnchor`, run
+`Smoke.s.sol` with `DEPLOYED_CONTRACT` set, paste the contract address and the two
+transaction hashes under "On chain proof" in `README.md`, then set
+`NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and open `/record/<planHash>` after a full walk
+to see step 6 in its settled state for the first time. Then record the video and
+work `DELIVERY.md` top to bottom.

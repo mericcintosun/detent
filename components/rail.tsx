@@ -47,7 +47,9 @@ export function Rail() {
             <a
               key={section.href}
               href={section.href}
-              className="detent-label transition-colors hover:text-foreground"
+              // A wide-tracked small-caps label is three pixels of ink; the hit
+              // area has to be its own thing on the stacked mobile bar.
+              className="detent-label inline-flex min-h-11 items-center transition-colors hover:text-foreground"
             >
               {section.label}
             </a>

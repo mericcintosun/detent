@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { OperationsConsole } from "@/components/operations-console";
+import { Button } from "@/components/ui/button";
 import { getRegisterSnapshot } from "@/lib/register";
 
 /**
@@ -22,6 +23,17 @@ export default async function ConsolePage() {
       <OperationsConsole snapshot={snapshot} />
 
       <section id="brief" className="max-w-[68ch] space-y-6 border-t border-border pt-10">
+        <p className="text-lg leading-relaxed">
+          Detent is the operator console for a tokenized security. It is built for
+          the person who actually presses send on a corporate action: the fund
+          administrator, the transfer agent, the issuer&apos;s ops lead. They read
+          the coupon run line by line on this page, and the plan they accepted
+          becomes the only thing the treasury key is allowed to sign.
+        </p>
+        <Button variant="outline" asChild>
+          <a href="#register">Start at the register</a>
+        </Button>
+
         <h2 className="text-2xl tracking-tight">Why this exists</h2>
         <p className="leading-relaxed text-muted-foreground">
           Whoever runs a tokenized security spends their quarter on operations

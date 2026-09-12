@@ -16,11 +16,13 @@ const buttonVariants = cva(
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      // At least 44px tall on every size, so every control on the demo path is a
+      // real touch target at 360px.
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-none px-3 text-xs",
-        lg: "h-10 rounded-none px-8",
-        icon: "h-9 w-9",
+        default: "min-h-11 px-4 py-2",
+        sm: "min-h-11 rounded-none px-3 text-xs",
+        lg: "min-h-12 rounded-none px-8",
+        icon: "h-11 w-11",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

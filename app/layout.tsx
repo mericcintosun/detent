@@ -19,6 +19,15 @@ const body = Libre_Franklin({
 });
 
 export const metadata: Metadata = {
+  /**
+   * metadataBase is what turns app/opengraph-image.png into an absolute og:image
+   * URL in view-source, which is the only form link previews accept. The raster
+   * is the convention file, so there is no openGraph.images field and no
+   * opengraph-image.tsx.
+   */
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://detent-app.vercel.app"
+  ),
   title: { default: "Detent", template: "%s | Detent" },
   description:
     "Operator console for tokenized securities: preview a coupon run or a forced transfer line by line, then lock the treasury wallet to exactly that transaction.",
@@ -27,6 +36,12 @@ export const metadata: Metadata = {
     description:
       "Preview the corporate action line by line, then lock the treasury key to exactly that transaction.",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Detent",
+    description:
+      "A treasury key can sign anything the contract exposes. Detent narrows it to the one coupon run you just read, line by line.",
   },
 };
 

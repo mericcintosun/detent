@@ -4,6 +4,11 @@
 // values from lib/public-config.ts and adds the block that reads secrets. Every
 // process.env read in the repo lives either here or in lib/public-config.ts, and
 // every name read here has a matching line in .env.example.
+//
+// One exception, added in Phase 4: app/layout.tsx reads NEXT_PUBLIC_SITE_URL
+// inline for metadataBase, because Next evaluates that at module scope in the
+// root layout. It has its own line in .env.example. Move it here if a second
+// reader ever appears.
 
 export type { AdapterMode } from "@/lib/public-config";
 export {
