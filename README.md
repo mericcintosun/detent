@@ -403,13 +403,13 @@ HashScan link.
 live interaction.
 
 **Exactly two commands fill it.** Both run from `contracts/`, with
-`RPC_URL=https://testnet.hashio.io/api` and a funded `FARM_EVM_PRIVATE_KEY`
+`RPC_URL=https://testnet.hashio.io/api` and a funded `DEPLOYER_PRIVATE_KEY`
 exported, and both need `--legacy` because the Hedera relay rejects typed
 transactions:
 
 ```bash
-forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
-DEPLOYED_CONTRACT=0xYourDeployedAnchor forge script script/Smoke.s.sol --rpc-url $RPC_URL --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $DEPLOYER_PRIVATE_KEY --broadcast --legacy
+DEPLOYED_CONTRACT=0xYourDeployedAnchor forge script script/Smoke.s.sol --rpc-url $RPC_URL --private-key $DEPLOYER_PRIVATE_KEY --broadcast --legacy
 ```
 
 The account behind that key needs testnet HBAR from

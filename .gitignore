@@ -6,7 +6,6 @@ out/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
-.farm-scaffold.json
 
 # Foundry build output for contracts/.
 contracts/cache/
@@ -21,6 +20,7 @@ fixtures/register.seed.report.json
 # Local-only working notes. They are not part of the published project.
 HANDOFF.md
 .farm-delta.md
+.farm-scaffold.json
 
 # Secret material. Never commit a key, a certificate or a keystore.
 *.pem
