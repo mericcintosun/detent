@@ -329,6 +329,17 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
     }
   }
 
+  /** The destination contract, to the clipboard. A browser that refuses the
+   *  permission changes nothing: the address is on screen with a title and an
+   *  explorer link beside it. */
+  function copyTarget() {
+    try {
+      navigator.clipboard?.writeText(plan.target).catch(() => undefined);
+    } catch {
+      // Clipboard access is blocked in some contexts. Nothing to recover.
+    }
+  }
+
   function downloadAudit() {
     const auditDocument = {
       product: "Detent",
@@ -403,7 +414,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
               <a
                 href={hashscanToken(snapshot.token.address)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 title={snapshot.token.address}
                 className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
               >
@@ -747,6 +758,37 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
               onRetry={() => send(lastSend?.tampered ?? false)}
             />
 
+            {/* Nobody should have to read calldata to learn what a button is
+                about to do. Same treatment as the register note block, so this
+                adds no colour, radius or motion value. */}
+            <div className="border border-border bg-card p-4">
+              <p className="detent-label">What this send does</p>
+              <p className="max-w-[76ch] pt-3 text-sm leading-relaxed">
+                This asks the treasury wallet to call {plan.signature} on{" "}
+                {snapshot.token.name} for {includedRows.length} rows, drawing{" "}
+                {formatMicros(plan.drawMicros)}{" "}
+                {snapshot.treasury.settlementAsset}, on Hedera testnet chain{" "}
+                {plan.chainId}. Nothing is asked of a browser wallet: Detent
+                installs no wallet connector, and the key that signs is a Privy
+                server wallet held to the policy above.
+              </p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-3">
+                <span className="detent-label">Destination contract</span>
+                <a
+                  href={hashscanToken(plan.target)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={plan.target}
+                  className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
+                >
+                  {shortHex(plan.target, 12, 8)}
+                </a>
+                <Button variant="ghost" size="sm" onClick={copyTarget}>
+                  Copy the address
+                </Button>
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <div className="space-y-2">
                 <label htmlFor="tamper" className="detent-label block">
@@ -833,7 +875,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                   <a
                     href={hashscanTransaction(settlement.transactionHash)}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     title={settlement.transactionHash}
                     className="inline-block text-sm underline decoration-hairline underline-offset-4"
                   >
@@ -897,7 +939,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                       <a
                         href={entry.href}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="inline-block text-sm underline decoration-hairline underline-offset-4"
                       >
                         Open the payout on HashScan
@@ -907,7 +949,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                       <a
                         href={entry.anchorHref}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="inline-block text-sm underline decoration-hairline underline-offset-4"
                       >
                         Open the plan anchor on HashScan
