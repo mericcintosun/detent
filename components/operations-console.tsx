@@ -425,16 +425,16 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
           {/* One mark per page, and the rail already carries it. What the
               masthead needs here is the provenance of the numbers beside it, so
               this is the register note rather than a second raster. */}
-          <div className="detent-enter border border-border bg-card p-4">
+          <div className="detent-enter border-t border-border pt-3">
             <p className="detent-label">Register note</p>
-            <dl className="space-y-2 pt-3 text-sm leading-relaxed">
-              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+            <dl className="divide-y divide-border pt-2 text-xs leading-relaxed">
+              <div className="flex items-baseline justify-between gap-3 py-1.5">
                 <dt className="detent-label">Snapshot</dt>
                 <dd className="text-right tabular-nums">
                   {snapshot.fetchedAt.slice(0, 19).replace("T", " ")} UTC
                 </dd>
               </div>
-              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+              <div className="flex items-baseline justify-between gap-3 py-1.5">
                 <dt className="detent-label">Source</dt>
                 <dd className="text-right">
                   {snapshot.source === "hedera-testnet"
@@ -442,18 +442,18 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                     : "Cached seed register"}
                 </dd>
               </div>
-              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-2">
+              <div className="flex items-baseline justify-between gap-3 py-1.5">
                 <dt className="detent-label">Partition</dt>
                 <dd className="text-right">{snapshot.token.partition}</dd>
               </div>
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex items-baseline justify-between gap-3 py-1.5">
                 <dt className="detent-label">Settles in</dt>
                 <dd className="text-right">
                   {snapshot.treasury.settlementAsset}
                 </dd>
               </div>
             </dl>
-            <p className="pt-3 text-xs leading-relaxed text-muted-foreground">
+            <p className="max-w-[52ch] pt-2 text-xs leading-relaxed text-muted-foreground">
               {snapshot.note}
             </p>
           </div>
@@ -461,22 +461,44 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
       </section>
 
       <section id="plan" className="space-y-6">
-        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-8">
-          <span className="detent-label">Corporate action</span>
-          {actions.map((entry) => (
-            <Button
-              key={entry.kind}
-              variant={entry.kind === kind ? "default" : "outline"}
-              size="sm"
-              onClick={() => resetRun(entry.kind)}
-            >
-              {entry.label}
-            </Button>
-          ))}
+        {/* One control with two states, not two loose buttons: the wide-tracked
+            term sits over the pair, the pair sits on one rule, and the option
+            that is not running carries the gold hairline so it reads as an
+            available alternative rather than as a disabled card. */}
+        <div className="space-y-3 border-t border-border pt-8">
+          <p className="detent-label">Corporate action</p>
+          <div
+            role="group"
+            aria-label="Corporate action"
+            className="flex flex-col gap-2 sm:inline-flex sm:flex-row sm:gap-3"
+          >
+            {actions.map((entry) => {
+              const selected = entry.kind === kind;
+              return (
+                <Button
+                  key={entry.kind}
+                  variant={selected ? "default" : "outline"}
+                  size="sm"
+                  aria-pressed={selected}
+                  onClick={() => resetRun(entry.kind)}
+                  className={
+                    selected
+                      ? "px-5"
+                      : "border-hairline bg-background px-5 text-foreground hover:bg-card"
+                  }
+                >
+                  {entry.label}
+                </Button>
+              );
+            })}
+          </div>
         </div>
 
         <Card className="detent-enter">
-          <CardHeader className="detent-ruled border-b border-border">
+          {/* No ledger rule under running text: the rule is a surface, and a
+              surface under a sentence reads as a strikethrough. */}
+          <CardHeader className="border-b border-border">
+            <p className="detent-label">Plan, as it will be signed</p>
             <CardTitle className="font-display text-2xl">{plan.label}</CardTitle>
             <CardDescription className="max-w-[70ch] leading-relaxed">
               {action.summary} Authority: {plan.authority}. Record date{" "}
