@@ -135,10 +135,28 @@ h2 {
 .detent-stagger > *:nth-child(6) { animation-delay: 200ms; }
 .detent-stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
 
+/* The same wipe, driven by the band's own progress through the viewport rather
+   than by the load. No second keyframe and no new colour: detent-wipe is reused
+   as is. The class is inert on its own, so a browser without scroll-driven
+   animations renders a plain band and never a hidden one. */
+.detent-band {
+  /* Intentionally empty: the whole behaviour lives in the @supports block. */
+}
+
+@supports (animation-timeline: view()) {
+  .detent-band {
+    animation: detent-wipe 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 15% cover 40%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .detent-enter,
-  .detent-stagger > * {
+  .detent-stagger > *,
+  .detent-band {
     animation: none !important;
+    animation-timeline: auto !important;
     clip-path: none !important;
     opacity: 1 !important;
   }

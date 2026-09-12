@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PolicyExplorer } from "@/components/policy-explorer";
 import {
   LedgerEmptyState,
   PlanEmptyState,
@@ -386,21 +387,25 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
     <div className="space-y-12">
       <section id="register" className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-end">
-          <div className="space-y-4">
-            <p className="detent-label">
+          {/* The fold is the first thing the video shows, so it arrives the way
+              the product is read: the window, then the name of the security,
+              then what it holds, then its provenance. One M4 wipe per child on
+              the existing nth-child stagger, no inline delay anywhere. */}
+          <div className="detent-stagger space-y-4">
+            <p className="detent-enter detent-label">
               {snapshot.token.standard} · {couponWindow.reference} window
             </p>
-            <h1 className="max-w-[16ch] text-4xl leading-[1.05] tracking-tight sm:text-5xl">
+            <h1 className="detent-enter max-w-[16ch] text-4xl leading-[1.05] tracking-tight sm:text-5xl">
               {snapshot.token.name}
             </h1>
-            <p className="max-w-[68ch] text-base leading-relaxed text-muted-foreground">
+            <p className="detent-enter max-w-[68ch] text-base leading-relaxed text-muted-foreground">
               {formatTokens(snapshot.token.totalSupply)} tokens across{" "}
               {snapshot.holders.length} holders on partition{" "}
               {snapshot.token.partition}. {heldCount} of them are currently held
               by the compliance module, which is the sort of thing you want to
               read before you sign, not after.
             </p>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="detent-enter flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="border-hairline text-foreground">
                 {snapshot.source === "hedera-testnet"
                   ? "Live read from Hedera testnet"
@@ -727,29 +732,16 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                     {installation.live ? "Installed on Privy" : "Compiled locally"}
                   </Badge>
                 </div>
-                <dl className="space-y-3">
-                  {installation.policy.rules[0].conditions.map((condition) => (
-                    <div
-                      key={`${condition.field}-${condition.operator}`}
-                      className="border-b border-border pb-3 last:border-b-0"
-                    >
-                      <dt className="detent-label">
-                        {condition.field} {condition.operator}
-                      </dt>
-                      <dd className="pt-1 text-sm break-all" title={condition.value}>
-                        {condition.value.length > 66
-                          ? shortHex(condition.value, 34, 12)
-                          : condition.value}
-                      </dd>
-                    </div>
-                  ))}
-                  <div>
-                    <dt className="detent-label">default action</dt>
-                    <dd className="pt-1 text-sm text-bad">
-                      {installation.policy.default_action}
-                    </dd>
-                  </div>
-                </dl>
+                {/* The third interactive moment: the conditions stop being a
+                    list and become a diagram of the call they pin, explorable
+                    with the pointer and with the keyboard alike. */}
+                <PolicyExplorer
+                  conditions={installation.policy.rules[0].conditions}
+                  target={plan.target}
+                  selector={plan.selector}
+                  calldata={plan.calldata}
+                  defaultAction={installation.policy.default_action}
+                />
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {installation.note}
                 </p>

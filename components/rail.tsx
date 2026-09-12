@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SectionProgress } from "@/components/section-progress";
 import { Button } from "@/components/ui/button";
 import { security } from "@/lib/data";
 import { hashscanToken } from "@/lib/hashscan";
@@ -114,27 +115,11 @@ export function Rail() {
           action, then hold the treasury key to exactly that.
         </p>
 
-        {/* The scroll lives in this wrapper, never on the page: the negative
-            margin lets the row bleed to the edges so a half-cut label reads as
-            "there is more", and it is undone at lg where the links stack. */}
-        <nav
-          aria-label="Console sections"
-          className="-mx-5 overflow-x-auto border-t border-border px-5 pt-3 lg:mx-0 lg:overflow-x-visible lg:px-0 lg:pt-6"
-        >
-          <div className="flex w-max gap-x-6 lg:w-auto lg:flex-col lg:gap-y-3">
-            {sections.map((section) => (
-              <a
-                key={section.href}
-                href={section.href}
-                // A wide-tracked small-caps label is three pixels of ink; the hit
-                // area has to be its own thing on the scrolling mobile bar.
-                className="detent-label inline-flex min-h-11 shrink-0 items-center whitespace-nowrap transition-colors hover:text-foreground"
-              >
-                {section.label}
-              </a>
-            ))}
-          </div>
-        </nav>
+        {/* The same six anchors Phase 8 shipped, in the same scrolling row below
+            lg and the same stacked column at lg. What is new is that the rail
+            says which one you are in: components/section-progress.tsx owns the
+            observer, and the markup renders identically with JavaScript off. */}
+        <SectionProgress sections={sections} />
 
         {/* Dropped below lg on purpose: at that width the plan table is already
             the next thing on screen, so a full-bleed gold block would only push
