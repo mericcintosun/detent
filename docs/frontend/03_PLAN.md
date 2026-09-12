@@ -1,85 +1,72 @@
 # 03 Plan
 
-The work breakdown for the frontend pass, adapted from the master prompt to this
-repository. It depends on the four open questions in `00_INTAKE.md` and the
-findings in `02_AUDIT.md`. Nothing below starts before the author's go.
+The execution plan for the master prompt's full track, decided by the author on
+13 September 2026. `00_INTAKE.md` records the decisions and `02_AUDIT.md` the
+baseline. The submission deadline is 16 September 2026; the author accepted the
+risk of a framework upgrade and a redesign inside that window.
 
-## Constraints that shape every wave
+## Sequence
 
-- The submission deadline is 16 September 2026.
-- `IDENTITY.md` is the design contract: one light theme, sharp radius, the
-  fonts it names, one keyframe, and no new colour, font, radius or motion value
-  without a dated amendment.
-- The end to end suite pins section ids (`#register`, `#plan`, `#policy`,
-  `#send`, `#ledger`) and button and text labels listed in `02_AUDIT.md`. A wave
-  that renames one updates `e2e/` in the same change.
-- Both run modes stay first class: the keyless mode on the public URL and the
-  live mode with a token and Privy credentials. The fold's status line names the
-  mode and must keep doing so.
-- `next build`, `npm test`, `npm run test:coverage`, `npm run test:e2e`, lint and
-  typecheck stay green after every merge.
-
-## Two tracks
-
-**Track A, within the identity contract (recommended before the deadline).**
-Close the gaps, complete the state coverage, add the universal pages, build the
-design system documentation and a living style guide from the tokens that
-already exist, add visual regression baselines, and pass the quality gates. No
-dependency is added that ships to the browser, and no contract value changes
-except where a quality gate forces it, recorded as an amendment.
-
-**Track B, the master prompt defaults.** Adopt the shadcn CLI on the Radix
-primitive layer with a sharp style, add Motion, add a dark theme, and upgrade to
-Next.js 16. Each item is a separate decision because each one amends
-`IDENTITY.md` or adds risk in the deadline window. The recommendation is to take
-Track B after the submission, one item at a time, in the order listed in
-`UPGRADE_PLAN.md`.
-
-## Track A waves
-
-| Wave | Agent | Model tier | Owns exclusively |
+| Wave | What | Agents | Gate before the next wave |
 | --- | --- | --- | --- |
-| 1 | design-system | top | `app/globals.css` (documented, not revalued), `components/ui/*`, new `components/design/*` layout and text primitives mapped to existing tokens, `lib/motion.ts` exposing the existing motion tokens, `app/design-system/page.tsx` (development only, noindex), `docs/frontend/04_DESIGN_SYSTEM.md` with computed contrast ratios |
-| 2 | app-shell | top | `app/layout.tsx`, `app/global-error.tsx`, `app/not-found.tsx`, `app/error.tsx`, `components/rail.tsx`, `components/section-progress.tsx` |
-| 2 | page-console | mid | `app/page.tsx`, `components/operations-console.tsx`, `components/console-states.tsx`, `components/policy-explorer.tsx`, `components/plates.tsx`: the states the audit marks missing, with no section id or label change |
-| 2 | page-record | mid | `app/record/**` |
-| 2 | page-legal-seo | fast | `app/privacy/page.tsx`, `app/terms/page.tsx`, `app/sitemap.ts`, `app/robots.ts`, `app/manifest.ts`, `docs/frontend/05_IA.md` |
-| 3 | motion | top | read mostly; `docs/frontend/07_MOTION.md` listing every animated treatment, its purpose, duration, easing and reduced motion path |
-| 3 | a11y | mid | small diffs limited to aria, focus and contrast, coordinated with the owner of the touched file |
-| 3 | perf | mid | read mostly; bundle and Lighthouse findings with proposed diffs handed to the owning agent. First target: mobile LCP measured at 2.5 s against a 2.0 s budget, most likely because the largest text block starts its entrance animation at zero opacity |
-| 4 | qa | top | `tests/visual/**` baselines at 375, 768 and 1440 px, a `test:visual` script, `docs/frontend/QA_REPORT.md` |
-| 5 | assets | mid | `docs/frontend/ASSETS.md`, prompts anchored on the existing engraved plate family |
-| 5 | docs | fast | `docs/frontend/HANDOFF.md`, `docs/frontend/CHANGELOG_FRONTEND.md` |
+| 0 | Next.js 16 upgrade, React Compiler and Cache Components if green, loading boundary and hydration measurements | next-upgrade | every existing gate green on Next 16 |
+| 1 | Design system: shadcn on Base UI with the Lyra style, OKLCH light and dark tokens seeded from the brand palette, typography, spacing, elevation and motion tokens, Motion primitives, design primitives, the `/design-system` route, `04_DESIGN_SYSTEM.md`, the `IDENTITY.md` amendment | design-system | tokens and primitives published; orchestrator writes `06_CONTRACTS.md` |
+| 2 | Shell and pages, in parallel | app-shell, page-console, page-record, page-content, page-legal-seo | each branch green, merged in the order shell, console, record, content, legal |
+| 3 | Polish, read mostly, in parallel | motion, a11y, perf | `07_MOTION.md`, zero serious axe findings, budgets met |
+| 4 | Quality | qa | visual baselines at 375, 768 and 1440 px in light and dark, `QA_REPORT.md` |
+| 5 | Assets and handoff | assets, docs | `ASSETS.md`, `HANDOFF.md`, `CHANGELOG_FRONTEND.md` |
 
-The orchestrator owns `package.json`, the lockfile, `next.config.ts`,
-`playwright.config.ts`, `e2e/**`, `IDENTITY.md` amendments, every merge, and
-`docs/frontend/06_CONTRACTS.md`, published after Wave 1 so Wave 2 builds against
-it. Each agent works in its own git worktree on its own branch and reports in
-the master prompt's format.
+## Ownership
 
-## Gates, adapted
+Ownership is exclusive. Each agent works in its own git worktree on its own
+branch and edits nothing outside its row; anything it needs elsewhere goes into
+its report.
 
-- Typecheck, lint, unit tests with coverage thresholds, production build with no
-  new warnings, the full end to end suite.
-- axe: zero critical and zero serious violations on `/` at rest, `/` in the
-  signed and refused states, the record page and the not found page, at 390 and
-  1440 px, with and without reduced motion. Scans wait for the entrance
-  animation to settle: mid animation, partly transparent text reports a
-  transient contrast failure that is not present at rest.
-- Lighthouse on `/`, mobile: Performance at least 80 for an app page, and
-  Accessibility, Best Practices and SEO at 100. The baseline already scores 97,
-  100, 100 and 100, so the gate protects it rather than chasing it, and LCP must
-  come under 2.0 s.
-- Visual regression at three widths, single theme.
-- Initial JS stays under the 300 KB app budget.
+| Agent | Model tier | Owns |
+| --- | --- | --- |
+| next-upgrade | top | `package.json`, lockfile, `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, caching and segment config in `app/page.tsx` and `app/record/[planHash]/page.tsx`, the worker count in `playwright.config.ts` |
+| design-system | top | `app/globals.css`, `components.json`, `components/ui/**`, `components/design/**`, `components/motion/**`, `lib/motion.ts`, `lib/utils.ts`, `app/design-system/**`, the theme provider and font setup in `app/layout.tsx`, `IDENTITY.md`, `docs/frontend/04_DESIGN_SYSTEM.md`, dependencies it adds |
+| app-shell | top | `app/layout.tsx` after Wave 1, `components/shell/**`, `components/rail.tsx`, `components/section-progress.tsx`, `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`, `app/loading.tsx`, `proxy.ts`, `e2e/routes.spec.ts` |
+| page-console | mid | `app/page.tsx`, `components/operations-console.tsx` and any `components/console/**` it splits into, `components/console-states.tsx`, `components/policy-explorer.tsx`, `components/plates.tsx`, `lib/wallet-state.ts`, `lib/hashscan.ts`, UI helpers in `lib/plan.ts`, a new `lib/fees.ts`, `tests/frontend.test.ts`, `tests/ui-defects.test.ts`, `e2e/console.ts`, `e2e/fixtures.ts`, `e2e/demo-flow.spec.ts`, `e2e/accessibility.spec.ts`, `e2e/mobile.spec.ts` |
+| page-record | mid | `app/record/**`, `components/record/**` |
+| page-content | mid | `app/how-it-works/**`, `app/security/**`, `app/faucet/**`, `components/content/**` |
+| page-legal-seo | fast | `app/privacy/**`, `app/terms/**`, `app/sitemap.ts`, `app/robots.ts`, `app/manifest.ts`, `app/opengraph-image.tsx`, `app/icon.*`, `app/apple-icon.*` |
+| motion | top | `*.motion.tsx` wrappers and motion props, `docs/frontend/07_MOTION.md` |
+| a11y | mid | small aria, focus and contrast diffs, agreed with the file's owner |
+| perf | mid | findings and proposed diffs handed to owners |
+| qa | top | `tests/visual/**`, `playwright.visual.config.ts`, `docs/frontend/QA_REPORT.md` |
+| assets | mid | `docs/frontend/ASSETS.md`, `lib/assets.ts` |
+| docs | fast | `docs/frontend/HANDOFF.md`, `docs/frontend/CHANGELOG_FRONTEND.md`, the frontend section of `README.md` |
+
+The orchestrator owns every merge, `package.json` and the lockfile after Wave 1,
+`next.config.ts` after Wave 0, `playwright.config.ts`, `e2e/api-contract.spec.ts`,
+and `docs/frontend/00`, `01`, `02`, `03`, `05` and `06`. Subagent definitions live
+in `.claude/agents/`.
+
+## Rules every agent follows
+
+- Build against `06_CONTRACTS.md`; never define a token, colour, spacing or motion
+  value outside the design system.
+- Every page: metadata, the states in Section 6.8 of the master prompt, 375, 768,
+  1024 and 1440 px, a keyboard path, a reduced motion path, light and dark.
+- A change that renames a section id, a button or a text the end to end suite
+  asserts updates the owning spec in the same commit.
+- Both run modes keep working and the fold's status line keeps naming the mode.
+- Conventional commits through the pre-commit hook, no push.
+
+## Gates
+
+Typecheck, lint, format, unit tests with coverage thresholds, production build
+with no new warnings, the full end to end suite, visual regression at three
+widths in two themes, axe with zero critical and serious findings after the
+entrance animation settles, Lighthouse on `/` mobile with Performance at least 80
+and Accessibility, Best Practices and SEO at 100, LCP under 2.0 s, and initial JS
+under the 300 KB app budget.
 
 ## Marked SKIP, with the reason
 
 - Marketing, auth, onboarding, settings, dashboard analytics, docs and
-  e-commerce page sets: Detent is one operator console with a record route.
-- Wallet connect modal, portfolio, faucet and token selector: the treasury wallet
-  is a Privy server wallet and the operator never connects a browser wallet.
-- A toast system: the treasury key banner is the feedback surface and is
-  announced through a live region.
-- Dark theme, Motion, the shadcn CLI and Next.js 16: Track B, pending the
-  author's decisions.
+  e-commerce page sets: Detent is an operator console with explanatory pages.
+- Wallet connect modal, portfolio and token selector: the treasury wallet is a
+  Privy server wallet and the operator never connects a browser wallet.
+- `/cookies`: the app sets no cookies.
