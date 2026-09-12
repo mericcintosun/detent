@@ -23,7 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { readPlanRecord } from "@/lib/anchor";
-import { hashscanToken } from "@/lib/hashscan";
+import { tokenExplorerHref } from "@/lib/hashscan";
 import { PLAN_ANCHOR_ADDRESS } from "@/lib/public-config";
 import { planHashSchema } from "@/lib/schemas";
 
@@ -61,6 +61,14 @@ export default async function PlanRecordPage({
   if (!parsed.success) notFound();
 
   const record = await readPlanRecord(parsed.data);
+
+  /**
+   * PlanAnchor itself is the only address on this page that has provably been
+   * deployed: it is the contract the read above just answered from. `token` is
+   * whatever the anchoring call passed in, which on the cached register is the
+   * seed literal, so it stays plain text rather than becoming a link to a 404.
+   */
+  const anchorHref = tokenExplorerHref(PLAN_ANCHOR_ADDRESS, "on-chain");
 
   // Narrowed rather than cast, so adding a state to PlanRecordState forces a
   // decision here instead of falling into the wrong branch.
@@ -129,13 +137,13 @@ export default async function PlanRecordPage({
         <Button variant="outline" asChild>
           <Link href="/#ledger">Back to the audit record</Link>
         </Button>
-        {PLAN_ANCHOR_ADDRESS ? (
+        {anchorHref ? (
           <a
-            href={hashscanToken(PLAN_ANCHOR_ADDRESS)}
+            href={anchorHref}
             target="_blank"
             rel="noopener noreferrer"
             title={PLAN_ANCHOR_ADDRESS}
-            className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
+            className="inline-flex min-h-11 items-center text-sm underline decoration-hairline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Open PlanAnchor on HashScan
           </a>
