@@ -9,6 +9,7 @@
 // list of links into a rail that reports position. With JavaScript off every
 // link still renders and still navigates; nothing is gated behind the effect.
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export interface SectionLink {
@@ -25,7 +26,15 @@ export interface SectionLink {
 const OBSERVED = ["register", "plan", "policy", "send", "ledger"] as const;
 
 export function SectionProgress({ sections }: { sections: SectionLink[] }) {
-  const [current, setCurrent] = useState<string | null>(null);
+  // The rail lives in the shared layout and survives client navigation, so the
+  // marked section is kept per pathname: after moving to /record/[planHash] the
+  // console's last section is not carried over as if it were still on screen.
+  const pathname = usePathname();
+  const [marked, setMarked] = useState<{
+    path: string;
+    id: string | null;
+  } | null>(null);
+  const current = marked?.path === pathname ? marked.id : null;
 
   useEffect(() => {
     const nodes = OBSERVED.map((id) => document.getElementById(id)).filter(
@@ -43,24 +52,26 @@ export function SectionProgress({ sections }: { sections: SectionLink[] }) {
           if (entry.isIntersecting) inBand.add(entry.target.id);
           else inBand.delete(entry.target.id);
         }
-        setCurrent(OBSERVED.find((id) => inBand.has(id)) ?? null);
+        setMarked({
+          path: pathname,
+          id: OBSERVED.find((id) => inBand.has(id)) ?? null,
+        });
       },
       { rootMargin: "-12% 0px -68% 0px", threshold: 0 },
     );
 
     for (const node of nodes) observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [pathname]);
 
   return (
-    // The scroll lives in this wrapper, never on the page: the negative margin
-    // lets the row bleed to the edges so a half-cut label reads as "there is
-    // more", and it is undone at lg where the links stack.
+    // Below lg the six links wrap onto a second line instead of scrolling, so no
+    // label is ever cut in half at the screen edge. At lg they stack.
     <nav
       aria-label="Console sections"
-      className="-mx-5 overflow-x-auto border-t border-border px-5 pt-3 lg:mx-0 lg:overflow-x-visible lg:px-0 lg:pt-6"
+      className="border-t border-border pt-3 lg:pt-6"
     >
-      <div className="flex w-max gap-x-6 lg:w-auto lg:flex-col lg:gap-y-3">
+      <div className="flex flex-wrap gap-x-5 lg:flex-col lg:gap-y-3">
         {sections.map((section) => {
           const active = current !== null && section.href === `#${current}`;
           return (
