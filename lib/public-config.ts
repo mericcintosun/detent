@@ -27,6 +27,14 @@ export const ATS_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_ATS_TOKEN_ADDRESS as
   | undefined;
 
 /**
+ * The testnet settlement token whose balanceOf funds the coupon draw. Empty
+ * means the treasury cover stays on the seed figure in lib/data.ts and the
+ * register note says so.
+ */
+export const SETTLEMENT_TOKEN_ADDRESS = process.env
+  .NEXT_PUBLIC_SETTLEMENT_TOKEN_ADDRESS as `0x${string}` | undefined;
+
+/**
  * PlanAnchor. The contract deploy step writes NEXT_PUBLIC_CONTRACT_ADDRESS, the
  * handoff calls it NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS, so read both and never a
  * literal address.

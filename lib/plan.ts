@@ -76,6 +76,12 @@ export interface PlanInput {
   /** Held holders the operator tried to force back in. */
   forced?: string[];
   holders: Holder[];
+  /**
+   * Settlement asset cover in micro units. The console passes the figure from
+   * the register snapshot, which is read on chain when a settlement token is
+   * configured. Absent falls back to the seed treasury in lib/data.ts.
+   */
+  treasuryMicros?: string;
 }
 
 const HOLD_LABELS: Record<string, string> = {
@@ -141,6 +147,7 @@ export function buildPlan({
   deferred = [],
   forced = [],
   holders,
+  treasuryMicros,
 }: PlanInput): Plan {
   const action = actions.find((entry) => entry.kind === kind) ?? actions[0];
   const rows: PlanRow[] = [];
@@ -189,8 +196,8 @@ export function buildPlan({
     kind === "coupon"
       ? included.reduce((total, row) => total + BigInt(row.amountMicros), 0n)
       : 0n;
-  const treasuryMicros = BigInt(treasury.balanceMicros);
-  const headroom = treasuryMicros - draw;
+  const coverMicros = BigInt(treasuryMicros ?? treasury.balanceMicros);
+  const headroom = coverMicros - draw;
 
   const blockers: string[] = [];
   if (included.length === 0) {
@@ -225,7 +232,7 @@ export function buildPlan({
     reference: couponWindow.reference,
     rows,
     drawMicros: String(draw),
-    treasuryMicros: String(treasuryMicros),
+    treasuryMicros: String(coverMicros),
     headroomMicros: String(headroom),
     blockers,
     calldata:

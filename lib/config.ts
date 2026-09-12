@@ -13,6 +13,7 @@ export {
   HASHSCAN_BASE,
   HEDERA_RPC_URL,
   PLAN_ANCHOR_ADDRESS,
+  SETTLEMENT_TOKEN_ADDRESS,
 } from "@/lib/public-config";
 
 /* --- Privy, server side only ---------------------------------------------- */
@@ -24,6 +25,18 @@ export const PRIVY_TREASURY_WALLET_ID = process.env.PRIVY_TREASURY_WALLET_ID;
 export const PRIVY_TREASURY_WALLET_ADDRESS = process.env
   .PRIVY_TREASURY_WALLET_ADDRESS as `0x${string}` | undefined;
 export const PRIVY_KEY_QUORUM_ID = process.env.PRIVY_KEY_QUORUM_ID;
+
+/* --- PlanAnchor, server side only ----------------------------------------- */
+
+/**
+ * The ECDSA key that deployed PlanAnchor. The contract's onlyOperator modifier
+ * pins the operator to the deployer, so anchoring from the app needs that same
+ * key. No NEXT_PUBLIC_ prefix on purpose: it never reaches a browser bundle, and
+ * lib/anchor.ts is the only module that uses it.
+ */
+export const OPERATOR_PRIVATE_KEY = process.env.OPERATOR_PRIVATE_KEY as
+  | `0x${string}`
+  | undefined;
 
 export type BroadcastMode = "auto" | "rpc" | "signature";
 
@@ -51,6 +64,14 @@ export const RPC_TIMEOUT_MS = 9_000;
 
 /** Exactly one re-attempt on a timeout or a 5xx. Never a loop. */
 export const RETRY_COUNT = 1;
+
+/**
+ * How long one register snapshot is reused. Twelve holders times three reads
+ * over Hashio is not a cost to pay on every navigation, and the demo walks the
+ * page more than once. Paired with `export const revalidate = 30` in
+ * app/page.tsx, so the page cache and the module memo expire together.
+ */
+export const REGISTER_CACHE_MS = 30_000;
 
 /** Gas ceiling for the raw transaction Detent broadcasts through the relay. */
 export const SIGNED_TX_GAS_LIMIT = 1_500_000n;

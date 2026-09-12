@@ -24,12 +24,15 @@ import {
   HASHSCAN_BASE,
   HEDERA_RPC_URL,
   LOG_PREFIX,
+  REGISTER_CACHE_MS,
   RETRY_COUNT,
   RPC_TIMEOUT_MS,
+  SETTLEMENT_TOKEN_ADDRESS,
 } from "@/lib/config";
 import {
   holders as seedHolders,
   security,
+  treasury,
   type ComplianceState,
   type Holder,
 } from "@/lib/data";
@@ -71,6 +74,12 @@ const ATS_ABI = parseAbi([
   "function canTransfer(address to, uint256 value, bytes data) view returns (bool, bytes1, bytes32)",
   "function totalSupply() view returns (uint256)",
   "function decimals() view returns (uint8)",
+]);
+
+// The settlement asset is a plain ERC-20 on the same chain, so its balance read
+// is its own tiny surface rather than another entry on the ATS ABI.
+const SETTLEMENT_ABI = parseAbi([
+  "function balanceOf(address account) view returns (uint256)",
 ]);
 
 /** ERC-1594 reason codes map onto the compliance states the plan engine reads. */
@@ -165,21 +174,64 @@ export const liveRegisterAdapter: RegisterAdapter = {
       throw new Error("Every holder read failed against the relay.");
     }
 
+    // The treasury cover, read on chain so the headroom under the plan totals
+    // is a real number rather than a seed constant. The fallback is here rather
+    // than in a comment: no settlement token configured, or a relay that will
+    // not answer, keeps treasury.balanceMicros from lib/data.ts and says so in
+    // the note.
+    let coverMicros = treasury.balanceMicros;
+    let coverNote =
+      "Treasury cover is the cached figure: NEXT_PUBLIC_SETTLEMENT_TOKEN_ADDRESS is not set.";
+    if (SETTLEMENT_TOKEN_ADDRESS) {
+      try {
+        const balance = await client.readContract({
+          address: SETTLEMENT_TOKEN_ADDRESS,
+          abi: SETTLEMENT_ABI,
+          functionName: "balanceOf",
+          args: [treasury.address],
+        });
+        coverMicros = balance.toString();
+        coverNote = `Treasury cover read from ${SETTLEMENT_TOKEN_ADDRESS}.`;
+      } catch (error) {
+        console.warn(
+          `${LOG_PREFIX} treasury cover unread, keeping the cached figure:`,
+          error instanceof Error ? error.message : "unknown relay failure"
+        );
+        coverNote =
+          "Treasury cover is the cached figure: the settlement token balance could not be read in this snapshot.";
+      }
+    }
+
     const snapshot = await fakeRegisterAdapter.load();
+    const rowNote =
+      unread === 0
+        ? `Live read from ${HEDERA_RPC_URL} at chain ${CHAIN_ID}.`
+        : `Live read from ${HEDERA_RPC_URL} at chain ${CHAIN_ID}. ${unread} of ${results.length} rows could not be read and show their cached values.`;
+
     return {
       ...snapshot,
       source: "hedera-testnet",
       token: { ...security, address: tokenAddress },
+      treasury: { ...treasury, balanceMicros: coverMicros },
       holders: results.map((entry) => entry.holder),
-      note:
-        unread === 0
-          ? `Live read from ${HEDERA_RPC_URL} at chain ${CHAIN_ID}.`
-          : `Live read from ${HEDERA_RPC_URL} at chain ${CHAIN_ID}. ${unread} of ${results.length} rows could not be read and show their cached values.`,
+      note: `${rowNote} ${coverNote}`,
     };
   },
 };
 
+/**
+ * One snapshot is reused for REGISTER_CACHE_MS. Module scope, so it survives
+ * warm invocations only, which is exactly the lifetime it needs: the demo walks
+ * the page several times in a row and must not pay 12 holders times three relay
+ * reads each time. app/page.tsx sets the matching revalidate window.
+ */
+let cached: { at: number; snapshot: RegisterSnapshot } | null = null;
+
 export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
+  if (cached && Date.now() - cached.at < REGISTER_CACHE_MS) {
+    return cached.snapshot;
+  }
+
   const live = useLiveRegister();
   const adapter: RegisterAdapter = live
     ? liveRegisterAdapter
@@ -191,6 +243,7 @@ export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
     console.info(
       `${LOG_PREFIX} register read ok: ${snapshot.holders.length} holders, source ${snapshot.source}, ${Date.now() - startedAt}ms`
     );
+    cached = { at: Date.now(), snapshot };
     return snapshot;
   } catch (error) {
     // The silent fallback is what keeps the demo alive, and it is also what
@@ -200,6 +253,8 @@ export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
       `${LOG_PREFIX} register read failed after ${Date.now() - startedAt}ms, falling back to the cached register:`,
       error instanceof Error ? error.message : "unknown read failure"
     );
+    // Deliberately not cached: a relay that recovers should show on the next
+    // navigation rather than after the full REGISTER_CACHE_MS window.
     const fallback = await fakeRegisterAdapter.load();
     return {
       ...fallback,
