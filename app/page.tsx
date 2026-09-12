@@ -102,10 +102,13 @@ export default async function ConsolePage() {
         {/* The strip wipes in on its own scroll progress where the browser
             supports it, and is a plain band everywhere else. The ledger rule
             sits behind the plates and under no sentence. */}
-        <ol className="detent-band grid gap-6 sm:grid-cols-3">
+        {/* The scroll-driven wipe rides the decorative plate frames only. On the
+            list it held the step labels and sentences at 35 percent opacity
+            until they scrolled into range, which is unreadable contrast. */}
+        <ol className="grid gap-6 sm:grid-cols-3">
           {steps.map((step) => (
             <li key={step.term} className="space-y-3">
-              <div className="detent-ruled flex items-center justify-center border border-border px-4 py-5">
+              <div className="detent-band detent-ruled flex items-center justify-center border border-border px-4 py-5">
                 <Plate
                   name={step.plate}
                   width={160}
