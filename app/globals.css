@@ -1,31 +1,45 @@
 @import "tailwindcss";
 
-/* shadcn-style design tokens. The ONLY place colors live: restyle a project by
-   editing these variables from IDENTITY.md; components never carry hex.
-   TEMPLATE placeholder palette: warm neutral, deliberately NOT the navy ground +
-   teal accent the scaffold rules ban, so a token the scaffold forgets to
-   rewrite cannot reintroduce that look. Every value below is replaced. */
+/* Every colour in Detent comes from IDENTITY.md (D11 museum). Components never
+   carry a raw hex: they use these tokens or the Tailwind classes generated from
+   them below. Ground #f4f1ea, surface #ece7dc, line #e2dccd, ink #191713,
+   accent gold #ad8c3a, second oxide-red #9c3b2a. */
 :root {
-  --background: oklch(0.985 0.004 80);
-  --foreground: oklch(0.2 0.01 60);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.01 60);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.01 60);
-  --primary: oklch(0.45 0.12 40);
-  --primary-foreground: oklch(0.98 0.005 80);
-  --secondary: oklch(0.94 0.008 80);
-  --secondary-foreground: oklch(0.25 0.01 60);
-  --muted: oklch(0.94 0.008 80);
-  --muted-foreground: oklch(0.5 0.01 60);
-  --accent: oklch(0.92 0.02 60);
-  --accent-foreground: oklch(0.2 0.01 60);
-  --destructive: oklch(0.55 0.19 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.88 0.01 80);
-  --input: oklch(0.88 0.01 80);
-  --ring: oklch(0.45 0.12 40);
-  --radius: 0.375rem;
+  --ground: #f4f1ea;
+  --surface: #ece7dc;
+  --surface-deep: #e2dccd;
+  --line: #e2dccd;
+  --ink: #191713;
+  --gold: #ad8c3a;
+  --oxide: #9c3b2a;
+
+  --background: var(--ground);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--gold);
+  --primary-foreground: var(--ground);
+  --secondary: var(--surface-deep);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-deep);
+  --muted-foreground: color-mix(in srgb, var(--ink) 60%, var(--ground));
+  --accent: var(--surface-deep);
+  --accent-foreground: var(--ink);
+  --destructive: var(--oxide);
+  --destructive-foreground: var(--ground);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--gold);
+
+  /* Semantic states. WARN is a 60 percent oxide-red tint over the ground,
+     declared this way in IDENTITY.md because the accent is already warm. */
+  --ok: #2e7d4f;
+  --warn: #bf8477;
+  --bad: #9c3b2a;
+
+  --radius: 0.125rem;
 }
 
 @theme inline {
@@ -48,13 +62,84 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --color-hairline: var(--gold);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+
+  --font-sans: var(--font-franklin), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-display: var(--font-caslon), Georgia, "Times New Roman", serif;
+
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: var(--radius);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-franklin), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+}
+
+/* The display face carries every h1 and h2, per IDENTITY.md. */
+h1,
+h2 {
+  font-family: var(--font-caslon), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+/* Wide-tracked small caps label every column, per IDENTITY.md. */
+.detent-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Gold hairline instead of a border, the register-page treatment. */
+.detent-hairline {
+  border-color: var(--gold);
+}
+
+/* The ruled ledger sheet, drawn once here and reused as a surface. */
+.detent-ruled {
+  background-image: url("/illustrations/ledger-rule.svg");
+  background-repeat: repeat;
+  background-size: auto 2.25rem;
+}
+
+/* MOTION M4 wipe: clip-path inset reveal, 600ms, cubic-bezier(0.65, 0, 0.35, 1).
+   Stagger rides nth-child rules, never an inline delay custom property. */
+@keyframes detent-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.35;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+.detent-enter {
+  animation: detent-wipe 600ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.detent-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.detent-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.detent-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.detent-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.detent-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.detent-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.detent-stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .detent-enter,
+  .detent-stagger > * {
+    animation: none !important;
+    clip-path: none !important;
+    opacity: 1 !important;
+  }
 }
