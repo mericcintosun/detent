@@ -30,10 +30,11 @@ import {
   SIGNED_TX_GAS_LIMIT,
 } from "@/lib/config";
 import { hederaPublicClient, hederaTestnet } from "@/lib/hedera";
+import { anchorGuard, planRecordMemo } from "@/lib/store";
 import type { AnchorReceipt, PlanRecord, PlanRecordState } from "@/lib/types";
 
 const ANCHOR_ABI = parseAbi([
-  "struct Plan { address token; bytes4 selector; address anchoredBy; uint64 anchoredAt; uint64 settledAt; uint8 status; }",
+  "struct Plan { address token; bytes4 selector; uint64 anchoredAt; address anchoredBy; uint64 closedAt; uint8 status; }",
   "function anchor(bytes32 planHash, address token, bytes4 selector)",
   "function settle(bytes32 planHash, bytes32 txReference)",
   "function abandon(bytes32 planHash, string reason)",
@@ -121,9 +122,15 @@ async function statusOf(
 interface OnChainPlan {
   token: `0x${string}`;
   selector: Hex;
-  anchoredBy: `0x${string}`;
   anchoredAt: bigint | number;
-  settledAt: bigint | number;
+  anchoredBy: `0x${string}`;
+  /**
+   * The moment the plan reached a terminal state, settled or abandoned. Zero
+   * while the plan is still open. The field is `closedAt` rather than
+   * `settledAt` because an abandoned plan is closed too, and the struct is
+   * ordered the way PlanAnchor packs it.
+   */
+  closedAt: bigint | number;
   status: number | bigint;
 }
 
@@ -164,6 +171,14 @@ export async function readPlanRecord(planHash: Hex): Promise<PlanRecord> {
     };
   }
 
+  // One relay read per hash per memo window, bounded in lib/store.ts. Without
+  // this, /record/[planHash] turns a page anyone can request into one contract
+  // read per request, for as many distinct hashes as the caller cares to type.
+  // The window is seconds, because a record moves from anchored to settled
+  // during a demo and a stale page is worse than paying for a second read.
+  const memoised = planRecordMemo.recall(planHash);
+  if (memoised) return memoised;
+
   try {
     const result = await hederaPublicClient().readContract({
       address: PLAN_ANCHOR_ADDRESS,
@@ -175,13 +190,15 @@ export async function readPlanRecord(planHash: Hex): Promise<PlanRecord> {
     const state = stateFromStatus(Number(plan.status));
 
     if (state === "unknown") {
-      return {
+      const record: PlanRecord = {
         state,
         note: "PlanAnchor has never seen this plan hash, so there is no record to show yet.",
       };
+      planRecordMemo.remember(planHash, record);
+      return record;
     }
 
-    return {
+    const record: PlanRecord = {
       state,
       note:
         state === "settled"
@@ -193,8 +210,14 @@ export async function readPlanRecord(planHash: Hex): Promise<PlanRecord> {
       selector: plan.selector,
       anchoredBy: plan.anchoredBy,
       anchoredAt: isoFromSeconds(plan.anchoredAt),
-      settledAt: isoFromSeconds(plan.settledAt),
+      closedAt: isoFromSeconds(plan.closedAt),
+      // Deprecated mirror of closedAt, kept for one release so
+      // app/record/[planHash] keeps rendering while the frontend workstream
+      // switches to closedAt. Remove it with that change.
+      settledAt: isoFromSeconds(plan.closedAt),
     };
+    planRecordMemo.remember(planHash, record);
+    return record;
   } catch (error) {
     const detail =
       error instanceof Error ? error.message : "unknown relay failure";
@@ -230,12 +253,32 @@ export async function anchorPlan(
   const setup = configured();
   if (isMissing(setup)) return { anchored: false, note: setup.missing };
 
+  // Idempotent per server derived plan hash, before the relay is touched. The
+  // lock intent writes here, the plan hash is deterministic, and the caller no
+  // longer chooses it: a repeated lock of the same plan reuses this receipt
+  // instead of paying gas again.
+  const remembered = anchorGuard.recall(planHash);
+  if (remembered) return remembered;
+
   try {
     const status = await statusOf(setup, planHash);
     if (status !== STATUS_UNKNOWN) {
-      return {
+      const receipt: AnchorReceipt = {
         anchored: true,
         note: "Already anchored in an earlier run, reusing the existing record.",
+      };
+      anchorGuard.remember(planHash, receipt);
+      return receipt;
+    }
+
+    // The backstop behind the idempotency: a bounded number of anchor writes per
+    // process window, so a caller that keeps producing distinct plan hashes
+    // cannot keep spending the operator account. Per instance only, like every
+    // other limit in this build.
+    if (!anchorGuard.claimWrite()) {
+      return {
+        anchored: false,
+        note: "The anchor write budget for this window is spent, so the plan hash was not written on chain. The lock itself is unaffected.",
       };
     }
 
@@ -248,14 +291,28 @@ export async function anchorPlan(
       gas: SIGNED_TX_GAS_LIMIT,
     });
     console.info(`${LOG_PREFIX} plan anchored: ${planHash} in ${hash}`);
-    return {
+    const receipt: AnchorReceipt = {
       anchored: true,
       transactionHash: hash,
       note: "Plan hash anchored on chain before the policy opened.",
     };
+    anchorGuard.remember(planHash, receipt);
+    return receipt;
   } catch (error) {
     return relayFailure("anchor", error);
   }
+}
+
+/** A real 32 byte transaction hash, which is the only thing settle may carry. */
+export function isTransactionHash(
+  value: string | undefined
+): value is `0x${string}` {
+  return typeof value === "string" && /^0x[0-9a-fA-F]{64}$/.test(value);
+}
+
+/** PlanAnchor reverts with InvalidTxReference on bytes32(0). */
+function isZeroWord(value: string): boolean {
+  return /^0x0{64}$/.test(value);
 }
 
 /** Close the plan as settled once the treasury transaction is in. */
@@ -263,6 +320,18 @@ export async function settlePlan(
   planHash: Hex,
   txReference?: string
 ): Promise<AnchorReceipt> {
+  // The settle argument is a bytes32 reference to the payout transaction, and it
+  // goes on chain as if it were one. Anything that is not a real 32 byte
+  // transaction hash is refused rather than zero padded into something that
+  // reads like one: a send with no broadcast behind it leaves the plan anchored
+  // and open, which is the truth.
+  if (!isTransactionHash(txReference) || isZeroWord(txReference)) {
+    return {
+      anchored: false,
+      note: "No transaction hash came back from this send, so there is nothing to settle with. The plan stays anchored and open rather than closing on a reference that is not a transaction.",
+    };
+  }
+
   const setup = configured();
   if (isMissing(setup)) return { anchored: false, note: setup.missing };
 
@@ -284,13 +353,7 @@ export async function settlePlan(
       };
     }
 
-    // The settle argument is a bytes32 reference to the payout transaction.
-    // A local stub receipt is not 32 bytes, so pad it rather than reverting.
-    const reference = (
-      txReference && /^0x[0-9a-fA-F]{64}$/.test(txReference)
-        ? txReference
-        : `0x${(txReference ?? "").replace(/^0x/, "").padEnd(64, "0").slice(0, 64)}`
-    ) as Hex;
+    const reference: Hex = txReference;
 
     const hash = await walletFor(setup).writeContract({
       address: setup.address,
@@ -311,11 +374,34 @@ export async function settlePlan(
   }
 }
 
+/**
+ * PlanAnchor reverts with InvalidReason on an empty reason or one longer than
+ * 256 bytes, so the reason is clamped here rather than sent to fail on chain.
+ * The count is bytes, not characters: a multi-byte reason must not be cut in the
+ * middle of a code point either.
+ */
+const MAX_ABANDON_REASON_BYTES = 256;
+const DEFAULT_ABANDON_REASON = "closed without a stated reason";
+
+export function clampAbandonReason(reason: string): string {
+  const trimmed = reason.trim();
+  if (trimmed.length === 0) return DEFAULT_ABANDON_REASON;
+
+  const encoded = new TextEncoder().encode(trimmed);
+  if (encoded.length <= MAX_ABANDON_REASON_BYTES) return trimmed;
+
+  const decoder = new TextDecoder("utf-8", { fatal: false });
+  return decoder
+    .decode(encoded.slice(0, MAX_ABANDON_REASON_BYTES))
+    .replace(/\uFFFD+$/, "");
+}
+
 /** Close the plan as abandoned when the policy refused the payload. */
 export async function abandonPlan(
   planHash: Hex,
   reason: string
 ): Promise<AnchorReceipt> {
+  const stated = clampAbandonReason(reason);
   const setup = configured();
   if (isMissing(setup)) return { anchored: false, note: setup.missing };
 
@@ -341,7 +427,7 @@ export async function abandonPlan(
       address: setup.address,
       abi: ANCHOR_ABI,
       functionName: "abandon",
-      args: [planHash, reason],
+      args: [planHash, stated],
       type: "legacy",
       gas: SIGNED_TX_GAS_LIMIT,
     });
@@ -349,7 +435,7 @@ export async function abandonPlan(
     return {
       anchored: true,
       transactionHash: hash,
-      note: `Plan closed as abandoned on chain: ${reason}.`,
+      note: `Plan closed as abandoned on chain: ${stated}.`,
     };
   } catch (error) {
     return relayFailure("abandon", error);

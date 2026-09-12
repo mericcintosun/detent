@@ -9,6 +9,10 @@ export type DetentErrorCode =
   | "invalid_input"
   | "plan_blocked"
   | "quorum_not_met"
+  | "plan_mismatch"
+  | "lock_unknown"
+  | "rate_limited"
+  | "unauthorized"
   | "not_configured"
   | "upstream_timeout"
   | "upstream_error"
@@ -21,7 +25,15 @@ const HINTS: Record<DetentErrorCode, string> = {
   plan_blocked:
     "The plan still carries blockers, so nothing can be locked. Clear the rows listed below and try again.",
   quorum_not_met:
-    "Two distinct signers must approve before the policy is installed on the treasury wallet.",
+    "Two distinct registered officers must approve before the policy is installed on the treasury wallet.",
+  plan_mismatch:
+    "The plan in the request is not the plan this server derives from the register, so nothing was locked. Reload the page and rebuild the plan.",
+  lock_unknown:
+    "This server holds no approved plan for that lock id, so there is no policy to send under. Lock the plan again and send with the lock id the lock returned.",
+  rate_limited:
+    "Too many requests from this address in a short window. Wait for the window to pass and try again.",
+  unauthorized:
+    "This route is gated by an operator token on this deployment. Send the operator token with the request.",
   not_configured:
     "A required environment value is missing on the server, so the live path cannot run.",
   upstream_timeout:
