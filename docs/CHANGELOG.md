@@ -87,3 +87,19 @@ the ids in `docs/AUDIT.md`. Each section is one workstream branch merged into
 | Low | `docs/VIDEO.md` clarifies that 2:05 was the shot plan and the recording runs 3:01 (L6); `DELIVERY.md` checklist item replaced with a check that the video link resolves (L7); `docs/SCREENSHOTS.md` states that no screenshots are captured (M9). | Removed contradictions and a promise the repository did not keep. |
 | Low | `.env.example` verified against every variable the code reads: sixteen listed, none dead, no real values. | Keeps setup honest for a reader cloning the repository. |
 | Note | Deliberately not upgraded: next 16, TypeScript 7, zod 4 (abitype under viem still requires zod 3) and vitest beyond 2.1.x. | All majors with breaking changes, inside a deadline window. |
+
+## Verification round: dry runs, browser exploration and end to end
+
+Findings from executing the project rather than reading it: a real broadcast of
+both Foundry scripts on anvil, a simulation against Hedera testnet, an API
+behaviour matrix against a production build, a mock of the Privy REST API that
+records every request, and a Chromium walk through every page, state and edge
+interaction.
+
+| Severity | Change | Rationale |
+| --- | --- | --- |
+| High | `Deploy.s.sol` no longer reverts after deploying: printing goes through a low-level staticcall to forge's console instead of a typed interface call. | Solidity checks that a high-level call target has code, and the console address has none on anvil, on Hedera or in a test, so the documented deploy command could not have worked anywhere. Found by the deployment dry run and covered by `contracts/test/Scripts.t.sol`, which runs both scripts end to end. |
+| Medium | `Smoke.s.sol` is safe to repeat: it anchors and settles an unknown plan, only settles a plan an interrupted run left anchored, and sends nothing for a closed plan. | A retry after a relay error used to revert with `AlreadyAnchored` and leave the smoke row unsettled. |
+| Low | `contracts/broadcast/` is ignored, the README deploy commands use the keystore flow, and the Foundry suite is 37 tests with 9 of them fuzz. | Broadcast records were untracked but not ignored, and the README still passed the key on the command line. |
+| Note | Dry run evidence: both scripts broadcast on anvil (deploy, smoke, a repeated smoke that sends nothing, one anchored row), and a full simulation against Hedera testnet estimating 1,540,792 gas at 1,200 gwei, about 1.85 HBAR. | Nothing was broadcast to testnet. The only faucet that funds an EVM address without an account requires a reCAPTCHA. |
+| Note | API matrix against a production build: 52 scenarios across both corporate actions, 47 as documented. Of the other five, two are the documented idempotent replay of an identical submit and three are malformed record URLs answering 200 instead of 404. | Lock and submit median latency about 2 ms on localhost; the lock store evicts at its bound and memory returns to baseline after 2,000 distinct locks. |

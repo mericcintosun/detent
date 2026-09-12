@@ -11,7 +11,7 @@ of them has been run against a live service.
 
 | Item | What it needs | What to do once it exists |
 | --- | --- | --- |
-| Deploy `PlanAnchor` to Hedera testnet | A funded Hedera testnet ECDSA account | Follow `contracts/README.md` (keystore flow, `forge script ... --legacy`), run `Smoke.s.sol`, then set `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and verify the contract on HashScan. |
+| Deploy `PlanAnchor` to Hedera testnet | A funded Hedera testnet ECDSA account. The official faucet at portal.hedera.com/faucet funds an EVM address with 100 testnet HBAR a day without an account, but it requires a reCAPTCHA and cannot be automated. Deploy plus smoke costs about 1.85 HBAR. | Follow `contracts/README.md` (keystore flow, `forge script ... --legacy`), run `Smoke.s.sol`, then set `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and verify the contract on HashScan. |
 | Issue an Asset Tokenization Studio token | A Hedera testnet account with ATS access | Issue and configure the equity token, then set `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and `NEXT_PUBLIC_ADAPTER_MODE=real` so the register reads live. |
 | Run the Privy server wallet path live | A Privy app, a server wallet and a key quorum with threshold two | Set `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID` and `PRIVY_KEY_QUORUM_ID`, then run lock and send once and confirm the policy binding against the real API. |
 | Static analysis on the contract | `slither` installed | Run it on `contracts/src/PlanAnchor.sol`. Until then the contract rests on 34 tests, 9 of them fuzz, at 100% branch coverage. |
