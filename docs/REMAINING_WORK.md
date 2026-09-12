@@ -67,5 +67,5 @@ of them has been run against a live service.
 - `docs/SCREENSHOTS.md` specifies ten fallback screenshots that have not been
   captured.
 - Coverage thresholds sit just below today's measured baseline rather than at a
-  target. `lib/privy.ts` and `lib/hedera.ts` stay low because their remaining
-  branches are the live network paths.
+  target. `lib/privy.ts`, `lib/hedera.ts` and `lib/anchor.ts` stay low because
+  their remaining branches are the live network paths.
