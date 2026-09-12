@@ -60,6 +60,13 @@ of them has been run against a live service.
 
 ## Deferred technical work
 
+- An intermittent hydration error, React #418, remains on `/` under parallel
+  cold loads: 2 in 120 loads after the loading boundaries were removed, down from
+  7 in 100. The server HTML body matches the client render and the difference is
+  limited to head preload links, which points at a Next.js 15.5 and React 19.3
+  race rather than application code. The minified production error carries no
+  diff to prove it, so the end to end suite keeps one worker until a development
+  React build confirms the cause.
 - L10: `public/brand/og.png` and `app/opengraph-image.png` are identical 542 KB
   files, and `public/brand/logo.png` is 830 KB for a mark rendered at 44 px. Keep
   one Open Graph copy and export the logo at its render size. Left untouched
