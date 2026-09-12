@@ -3,8 +3,46 @@
 Operator console for tokenized securities: preview a coupon run or a forced
 transfer line by line, then lock the treasury wallet to exactly that transaction.
 
-> Live demo: https://detent-app.vercel.app
-> Video: <ADD_VIDEO_URL>
+A general purpose treasury key can sign anything the token contract exposes, and
+reading an explorer before you press send does not narrow it by one byte. Detent
+turns the preview itself into the signing limit: the plan the operator accepts is
+compiled into a wallet policy that permits that single transaction and nothing
+else, and the policy dies with it.
+
+**Open https://detent-app.vercel.app and press "Distribute quarterly coupon",
+which is DEMO step 2.** Everything after that happens on the same page.
+
+## Deployed artefacts
+
+| Artefact | Value |
+| --- | --- |
+| Live app | https://detent-app.vercel.app |
+| Demo video | `<ADD_VIDEO_URL>` |
+| `PlanAnchor`, Hedera testnet 296 | `<ADD_PLAN_ANCHOR_ADDRESS>` |
+| Smoke transaction, `anchor` | `<ADD_SMOKE_ANCHOR_TX>` |
+| Smoke transaction, `settle` | `<ADD_SMOKE_SETTLE_TX>` |
+
+The angle bracket cells are filled from the deploy output and the recording at
+submission time. `DELIVERY.md` is the checklist that walks a human through it,
+and `docs/VIDEO.md` is the shot list the recording follows.
+
+## Try it in 60 seconds
+
+No keys, no wallet connector, no sign-up. With an empty `.env.local` every step
+below works against the cached register and the locally compiled policy.
+
+1. Open `/`. The register loads: twelve holders on partition CLASS-A, three of
+   them held by the compliance module.
+2. Press **Distribute quarterly coupon**. The plan fills, the three held rows go
+   oxide red with the reason, and the headroom prints under the totals.
+3. Press **Approve** on both officers. That is the key quorum of two.
+4. Press **Lock this plan to the treasury key**. The compiled policy appears with
+   its four pinned conditions over `default_action: DENY`.
+5. Edit one digit of the amount in the send section.
+6. Press **Send edited plan**. The key refuses and names the condition that
+   failed and the byte offset where the payload diverged.
+7. Press **Execute the approved plan**. The untouched plan signs under the same
+   wallet and the same policy, and the policy is revoked.
 
 ## The problem
 
@@ -43,6 +81,39 @@ Defender routes proposals through a multisig or a relayer and carries no
 ERC-1400 semantics for who is eligible to be credited. Detent generates a policy
 for exactly one corporate action, derived from the plan the operator read, and
 throws it away afterwards.
+
+## Architecture
+
+Every box is a file in this repo or a network it talks to. Nothing below is
+aspirational: each module named here is imported by the one above it.
+
+```mermaid
+flowchart TD
+  page["app/page.tsx<br/>server read, revalidate 30"]
+  console["components/operations-console.tsx<br/>plan table, quorum, policy, send"]
+  api["app/api/detent/route.ts<br/>intents: lock, submit"]
+  plan["lib/plan.ts<br/>rows, holds, headroom, calldata, plan hash"]
+  privy["lib/privy.ts<br/>compile, install, evaluate, revoke"]
+  anchor["lib/anchor.ts<br/>anchor, settle, abandon, read back"]
+  hedera["lib/hedera.ts<br/>balanceOfByPartition, canTransfer"]
+  contract["contracts/src/PlanAnchor.sol"]
+  chain["Hedera testnet, chain 296<br/>Hashio JSON-RPC relay"]
+  scan["HashScan<br/>token, payout and anchor receipts"]
+  record["app/record/[planHash]/page.tsx<br/>permanent record"]
+
+  page --> console
+  page --> hedera
+  console --> api
+  api --> plan
+  api --> privy
+  api --> anchor
+  hedera --> chain
+  privy --> chain
+  anchor --> contract
+  contract --> chain
+  chain --> scan
+  record --> anchor
+```
 
 ## How it uses the sponsor tech
 
@@ -298,7 +369,22 @@ the npm scripts, so the contract suite runs from `contracts/`.
 - An importer for existing ATS deployments so an issuer can point Detent at a
   token it did not issue through us.
 
-## AI use
+## Licence
+
+MIT. The full text is in `LICENSE` at the repository root, and it covers the app,
+the contracts and the fixtures alike.
+
+## Pre-existing code and AI use
+
+ETHOnline 2026 publishes no AI policy of its own, so nothing here is claimed
+against one. What the event does require is the declaration of pre-existing code:
+`Varsa önceden yazılmış kodun beyan edilmesi`, which reads in English as "any
+previously written code must be declared".
+
+There is none. Every file in this repository was written during the event, and
+the commit history shows it from the first commit onward. No code was carried in
+from an earlier project, and no part of the product existed before the event
+started.
 
 We used AI coding assistants for scaffolding and boilerplate. Architecture,
-product decisions, and final code review are our own.
+product decisions and final code review are our own.
