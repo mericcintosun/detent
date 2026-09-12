@@ -112,9 +112,14 @@ export const liveRegisterAdapter: RegisterAdapter = {
 
     const client = hederaPublicClient();
 
-    // TODO: swap this hand-rolled multicall for @hashgraph/asset-tokenization-sdk
-    // once the SDK ships a browser-safe read client. The ABI above is the same
-    // surface the SDK calls.
+    // The reads below are hand rolled against the ABI declared above rather than
+    // taken from @hashgraph/asset-tokenization-sdk. That SDK is not a dependency
+    // of this build and was never adopted: it pulls a Hedera SDK client and a
+    // node-only transport into a Next server bundle for two view calls, and the
+    // two functions Detent actually reads, balanceOfByPartition from ERC-1410
+    // and canTransfer from ERC-1594, are standard entry points on the deployed
+    // token. So this is the whole ATS surface the product uses, one viem client,
+    // one partition, one read per holder.
     const partitionBytes = stringToHex(security.partition, { size: 32 });
 
     const results = await Promise.all(
