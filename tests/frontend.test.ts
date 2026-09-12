@@ -313,3 +313,34 @@ describe("failures from the locked contract", () => {
     expect(told.sentence).toBe("Wait 12 seconds and try again.");
   });
 });
+
+describe("a receipt that does not name itself plainly", () => {
+  const hash = `0x${"ab".repeat(32)}` as const;
+
+  it("treats a receipt with an unrecognised kind word as synthetic and never links it", () => {
+    const view = readReceipt({
+      receipt: { kind: "pending", transactionHash: hash },
+    });
+    expect(view.kind).toBe("synthetic");
+    expect(view.href).toBeNull();
+    expect(view.transactionHash).toBeNull();
+    expect(view.reference).toBe(hash);
+  });
+
+  it("shows a stray top level hash beside a synthetic receipt as its reference, unlinked", () => {
+    const view = readReceipt({
+      receipt: { kind: "synthetic", note: "keyless" },
+      transactionHash: hash,
+    });
+    expect(view.kind).toBe("synthetic");
+    expect(view.reference).toBe(hash);
+    expect(view.transactionHash).toBeNull();
+    expect(view.href).toBeNull();
+  });
+
+  it("reads a synthetic receipt that quotes nothing at all as no receipt", () => {
+    expect(
+      readReceipt({ receipt: { kind: "synthetic", note: "keyless" } }).kind,
+    ).toBe("none");
+  });
+});
