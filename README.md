@@ -67,6 +67,106 @@ rule once the transaction is in. `evaluatePolicy` mirrors the same rule
 evaluation locally so the refusal can be explained in words on screen, and so
 the demo runs with no keys configured.
 
+## Bounty ledger
+
+Two bounties are claimed, both opt-in on the ETHOnline 2026 submission form. The
+submission mechanics for each one live in `DELIVERY.md`.
+
+| Bounty | Prize | Slots | Required tech | Code file | DEMO step |
+| --- | --- | --- | --- | --- | --- |
+| `🪙 Tokenization of Anything` | `$6,000, Up to 3 teams: $2,000 each` | 3 | Asset Tokenization Studio, Hedera testnet, HashScan | `lib/hedera.ts`, `lib/anchor.ts`, `contracts/src/PlanAnchor.sol` | 1, 5, 6 |
+| `🏢 Best B2B financial product` | `$2,500` | 1 | Privy SDK, Privy wallet | `lib/privy.ts` | 3, 4, 5 |
+
+### 🪙 Tokenization of Anything, answered
+
+The qualification wording, verbatim: "Asset Tokenization Studio kullanmak (SDK,
+kontratlar, web uygulaması veya bunların birleşimi), Hedera testnet üzerinde
+deploy edip göstermek, kontratları HashScan'de doğrulamak ve beş dakikayı
+geçmeyen videoda "issuance, configuration, and at least one lifecycle operation"
+göstermek."
+
+Where each clause is answered:
+
+- **Asset Tokenization Studio.** `lib/hedera.ts` carries the ATS contract surface
+  in one `parseAbi` block: `balanceOfByPartition(bytes32,address)` from ERC-1410
+  and `canTransfer(address,uint256,bytes)` from ERC-1594. Both are called, not
+  just declared: `liveRegisterAdapter.load()` issues one `readContract` per
+  holder for `balanceOfByPartition` and a second for `canTransfer`, and the
+  `bytes32` reason code the compliance module returns is what turns a row oxide
+  red in the console.
+- **Hedera testnet.** The `hederaTestnet` chain definition in the same file pins
+  chain 296 and the Hashio relay from `HEDERA_RPC_URL`. `hederaPublicClient()` is
+  the only read client in the repo, and `lib/anchor.ts` writes through the same
+  chain definition with `type: "legacy"`, because the relay rejects typed
+  transactions.
+- **HashScan.** `lib/hashscan.ts` builds every explorer link from one constant:
+  `hashscanToken` for the token and the anchor contract, `hashscanTransaction`
+  for the payout and the anchor transactions, `hashscanAccount` for the treasury.
+  No explorer URL is written by hand anywhere else.
+- **On chain record.** `lib/anchor.ts` plus `contracts/src/PlanAnchor.sol` anchor
+  the approved plan hash before the policy opens and settle it after the payout
+  lands. `readPlanRecord` reads `planOf` back with no operator key, which is what
+  `/record/[planHash]` renders as a permanent record.
+- **The lifecycle operation** on screen is the coupon distribution: the Q3
+  quarterly coupon paid to the holder set on partition CLASS-A, replayed off
+  chain as a plan and then executed against the token.
+
+### 🏢 Best B2B financial product, answered
+
+The qualification wording, verbatim: "Privy'yi ürünün çekirdeğine koymak, en az
+bir Privy cüzdanı oluşturmak veya kullanmak, bir işletme senaryosu göstermek ve
+"at least one Privy control, such as policies, signers, key quorums, or intents"
+uygulamak."
+
+Every clause lands in `lib/privy.ts`:
+
+- `compilePolicy` turns the approved plan into a policy with one ALLOW rule
+  pinning `chain_id eq`, `to eq`, `data starts_with <selector>` and
+  `data eq <calldata>`, over `default_action: DENY`.
+- `installPolicy` POSTs that policy to `/v1/policies`, and the request body
+  carries `owner: { key_quorum_id: PRIVY_KEY_QUORUM_ID }`, so the policy is owned
+  by a key quorum rather than by one signer.
+- `submitTransaction` calls `/v1/wallets/{id}/rpc` for `eth_sendTransaction`, and
+  falls back to `eth_signTransaction` plus a Hashio broadcast when Privy will not
+  send to `eip155:296`. The policy governs the signing request either way.
+- `revokePolicy` DELETEs the rule once the transaction is in, so the treasury key
+  gets its general authority back.
+- `evaluatePolicy` mirrors the same rule evaluation locally and runs first, which
+  is why the refusal can name the failed condition and the byte offset where the
+  submitted calldata diverged.
+
+The business scenario is the quarterly coupon run on a tokenized security: a
+treasury operation with a two person approval step, which is the B2B flow the
+prize asks for.
+
+Stated plainly so nobody hunts for a missing package: the Privy surface used here
+is the REST server wallet API with policies and a key quorum of threshold two,
+not the React SDK. `@privy-io/react-auth` is deliberately not installed, because
+the operator never connects a browser wallet; the treasury wallet is a server
+wallet and the policy is the product.
+
+### Depth test
+
+Delete one file and a named demo step dies:
+
+- Delete `lib/hedera.ts` and step 1 has no register, because
+  `getRegisterSnapshot()` lives there and it is the only reader of the ATS
+  contract, and step 6 has no chain client, because `hederaPublicClient()` and
+  `hederaTestnet` are what `lib/anchor.ts` reads `planOf` through.
+- Delete `lib/privy.ts` and step 3 has no policy to compile or install, step 4
+  has no refusal, because `evaluatePolicy` is what produces the failed condition
+  and the byte offset, and step 5 has no signature, because `submitTransaction`
+  is the only path to a transaction hash.
+- Delete `lib/anchor.ts` and step 5 loses the on chain half of the audit record,
+  so the plan hash has no anchoring transaction beside it, and step 6 has nothing
+  to read, because `readPlanRecord` is the route's only data source.
+
+No two bounties occupy the same architectural seat: one chain (Hedera testnet
+296), one wallet and policy provider (Privy), one store (`lib/store.ts` for the
+warm-instance half plus `PlanAnchor` for the durable half), and no model
+provider. The third bounty slot the event allows is left empty on purpose, see
+`DELIVERY.md`.
+
 ## Tech stack
 
 Next.js 15 (App Router), TypeScript strict, Tailwind CSS v4, shadcn primitives,
@@ -177,6 +277,9 @@ the npm scripts, so the contract suite runs from `contracts/`.
    names the condition that failed and the byte where the payload diverged.
 5. Send the untouched plan. It signs, the HashScan link and the plan hash drop
    into the audit record, and the policy is revoked.
+6. Open the permanent record at `/record/<planHash>`. The plan hash is read back
+   off `PlanAnchor` on testnet: state settled, the same token and selector, the
+   anchored and settled timestamps in UTC. Reload it and the chain still says so.
 
 ## What we would build next
 
