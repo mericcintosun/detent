@@ -46,12 +46,20 @@ The fold prints six things, in this order. First the status line, which is the
 one place the page states which mode a viewer is looking at: the register source
 (`Cached register`, or `Live read from Hedera testnet`), the treasury key mode
 (`Treasury key, policy evaluated locally`, or `Privy server wallet`), and
-`Hedera testnet 296`. Once a plan is locked the same line also carries the Privy
-policy id. Then the standard and the coupon window, then the product name
-**Detent**, then its one-sentence promise, then the security name, then the line
-that counts the register: 12 holders on partition CLASS-A, 3 of them held by the
-compliance module. The register source badge and the token address linked to
-HashScan sit under that, and the register note block beside it carries the
+`Hedera testnet 296`. The line ends on the policy slot: `No policy locked yet`
+before step 3, then `Privy policy <id>` when Privy issued the id, or
+`Policy <id>, compiled locally` when the local evaluator compiled it. Then the
+standard and the coupon window, then the product name **Detent**, then its
+one-sentence promise, then the security name, then the line that counts the
+register: 12 holders on partition CLASS-A, 3 of them held by the compliance
+module.
+
+The register source badge sits under that, and what follows it depends on the
+same source. On the cached register the badge beside it reads
+`Seed register address, not on chain` and the token address is plain text, with
+no HashScan link, because that address is a seed literal the explorer has never
+seen. On a live read the address is linked to HashScan and carries the
+`Verified on HashScan` badge. The register note block beside it carries the
 snapshot time, the source, the partition and the settlement asset.
 
 ### Step 2. Build the plan
