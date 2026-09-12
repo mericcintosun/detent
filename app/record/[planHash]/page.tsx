@@ -133,7 +133,7 @@ export default async function PlanRecordPage({
           <a
             href={hashscanToken(PLAN_ANCHOR_ADDRESS)}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             title={PLAN_ANCHOR_ADDRESS}
             className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
           >

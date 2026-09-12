@@ -3,6 +3,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { security } from "@/lib/data";
 import { hashscanToken } from "@/lib/hashscan";
+import { shortHex } from "@/lib/plan";
+import { CHAIN_ID, PLAN_ANCHOR_ADDRESS } from "@/lib/public-config";
+
+/** The security policy, in the shared shell so both routes reach it. */
+const SECURITY_POLICY_URL =
+  "https://github.com/mericcintosun/detent/blob/main/SECURITY.md";
 
 // The five demo steps in DEMO.md land on the first five of these, in order.
 const sections = [
@@ -60,10 +66,13 @@ export function Rail() {
           <a href="#plan">Open the Q3 coupon run</a>
         </Button>
 
+        {/* About and security, in the shared shell so it reaches / and
+            /record/[planHash] alike. Same treatment the network line already
+            had: detent-label terms, small muted text, hairline underlines. */}
         <dl className="space-y-2 border-t border-border pt-5 text-xs leading-relaxed text-muted-foreground">
           <div className="flex items-baseline justify-between gap-3">
             <dt className="detent-label">Network</dt>
-            <dd>Hedera testnet</dd>
+            <dd>Hedera testnet, chain {CHAIN_ID}</dd>
           </div>
           <div className="flex items-baseline justify-between gap-3">
             <dt className="detent-label">Security</dt>
@@ -71,10 +80,41 @@ export function Rail() {
               <a
                 href={hashscanToken(security.address)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="underline decoration-hairline underline-offset-4 hover:text-foreground"
               >
                 {security.symbol} on HashScan
+              </a>
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="detent-label">Anchor</dt>
+            <dd className="text-right">
+              {PLAN_ANCHOR_ADDRESS ? (
+                <a
+                  href={hashscanToken(PLAN_ANCHOR_ADDRESS)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={PLAN_ANCHOR_ADDRESS}
+                  className="underline decoration-hairline underline-offset-4 hover:text-foreground"
+                >
+                  {shortHex(PLAN_ANCHOR_ADDRESS, 8, 6)}
+                </a>
+              ) : (
+                "Not deployed yet"
+              )}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="detent-label">Source</dt>
+            <dd>
+              <a
+                href={SECURITY_POLICY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-hairline underline-offset-4 hover:text-foreground"
+              >
+                Source and security policy
               </a>
             </dd>
           </div>
