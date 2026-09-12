@@ -1210,3 +1210,297 @@ transaction must be paid by that key to break the hollow account trap), deploy
 under "On chain proof" in `README.md` and the address into `SECURITY.md`, set
 `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`, then walk DEMO.md steps 1 to 6 on the live URL
 in a cold private window, once at phone width.
+
+### Phase 9, 2026-09-12. The scene pass and the submission package
+
+**Goal.** Two halves. Make the console read as a funded product on camera: give
+the L6 rail section awareness, stage the fold with the existing M4 wipe, tie the
+four pinned policy conditions to the call they pin, and put an engraved plate
+where the page was blank. Then write the submission package, which is the half
+that cannot be cut: an unsubmittable beautiful site scores zero.
+
+**Status.** All five slices landed. Nothing was cut. Nothing was executed: this
+phase had Write, Edit, Read, Glob and Grep and no shell, so `npm run build`,
+`npm test`, `forge test` and every browser check are unrun here. Every grep
+quoted below was actually run against the working tree in this session and its
+result is quoted verbatim.
+
+The diagnosis, the eight changes and the proof strings live in `.farm-delta.md`
+at the repo root, written before any other file was touched.
+
+**Decisions.**
+
+- **The rail reports position, it does not grow a stepper.** The six section
+  links moved into `components/section-progress.tsx`, a client component, so
+  `components/rail.tsx` stays a server component. An `IntersectionObserver` with
+  `rootMargin: "-12% 0px -68% 0px"` watches the five DEMO section ids and marks
+  whichever is first in document order inside that band; that is stable while a
+  long section like `#plan` scrolls past, where "whichever fired last" is not.
+  The marking is `aria-current="location"`, `text-foreground`, and a gold left
+  border held behind `lg` because a left rule on a horizontal scrolling row reads
+  as a divider rather than as a marker. Every link renders and navigates with
+  JavaScript off: nothing structural is behind the effect. `#brief` is
+  deliberately not observed, and on `/record/[planHash]` none of the five ids
+  exists, so nothing is marked and the rail reads exactly as it did before.
+- **The fold stages on the rules that already existed.** The masthead's four
+  children each took `detent-enter` inside a `detent-stagger` container, so the
+  delays come from the `nth-child` rules in `app/globals.css` and not from an
+  inline `--delay`. The register note keeps its own `detent-enter` and is no
+  longer the only thing on the first screen that moves.
+- **One new class, no second keyframe.** `.detent-band` declares nothing on its
+  own; the whole rule body sits inside `@supports (animation-timeline: view())`
+  and runs the existing `detent-wipe` on the element's own scroll progress
+  (`animation-range: entry 15% cover 40%`). A browser without scroll-driven
+  animations gets a plain band, never a hidden one, which is the failure mode
+  that matters. `app/globals.css` still contains exactly one `@keyframes` block.
+- **Meshy was unavailable, so the plates are hand-authored SVG.** The Meshy tools
+  are not in this session's toolset, so the five-plate family is the documented
+  fallback: `public/brand/plate-plan.svg`, `plate-policy.svg`, `plate-refusal.svg`,
+  `plate-register.svg` and `plate-record.svg`, written by hand as flat matte
+  ledger shapes on IDENTITY's six values, square corners, no gradient, no glow,
+  no circuit or hexagon or orbit motif. They render through one wrapper,
+  `components/plates.tsx`, with `unoptimized` because Next's image optimizer
+  refuses SVG without a `next.config.ts` change and that file is out of fence.
+  Each carries `alt=""` and `aria-hidden="true"`: they are section visuals, and
+  none of them renders in the rail or in the register masthead, so LOGO_POLICY is
+  untouched.
+- **The policy card became a diagram rather than a list.** The call is printed
+  once as one wrapped strip (chain, destination, selector, payload) and each
+  condition is a control that lights the fragment it pins, on hover and on focus
+  alike, with one sentence of plain English under the active row. The controls go
+  through the `Button` primitive with `variant="ghost"`, which renders a real
+  `<button>` and already carries `focus-visible:ring-2 focus-visible:ring-ring`
+  in its cva base; that satisfies the phase brief's "a real `<button>`" and
+  CLAUDE.md's "every interactive element goes through `components/ui/*`" at the
+  same time. The lit and unlit states are a ternary on `className` rather than a
+  `data-lit` attribute with `data-[lit=true]:` variants, because `Button` is typed
+  as `React.ComponentProps<"button">` and TypeScript's `data-*` escape hatch
+  applies to intrinsic elements only, so the attribute form would not have
+  compiled.
+- **The brief lost 450 words and gained three objects.** One lead sentence plus
+  the existing outline Button, then three steps of one sentence each with a plate
+  apiece, then the two "Why this exists" paragraphs kept as they were, then the
+  simulator prose folded into a `<details>` carrying a four row table. The ledger
+  rule sits behind the plates and under no running text, which is the Phase 8
+  open question closed: `detent-ruled` and `public/illustrations/ledger-rule.svg`
+  are referenced again.
+- **The package is written against what the demo actually shows.** Every sponsor
+  write-up in `SUBMISSION.md` ends with a "state of play, stated plainly"
+  sentence naming the seed register and the locally compiled policy as such. No
+  field claims a live Privy install or a live ATS read that has not been run.
+
+**Where every number on screen comes from.** The three interactive moments
+display these and nothing else:
+
+- The rail's section progress displays no number at all.
+- The `#brief` strip contains exactly one counted thing, "Two officers", which is
+  the two entries in `approvers` in `lib/data.ts` and `QUORUM_THRESHOLD` in
+  `lib/config.ts`. Every other sentence in the strip is countless on purpose.
+- The policy explorer displays only live values: the chain id comes from the
+  compiled `chain_id` condition, which `lib/plan.ts` fills from `CHAIN_ID`; the
+  destination is `security.address` in `lib/data.ts`; the selector and the
+  calldata are derived in `lib/plan.ts` from the `signature` in `lib/data.ts`
+  `actions` and the holder rows in `fixtures/register.seed.json`. There is no
+  literal address, hash or amount anywhere in `components/policy-explorer.tsx`.
+
+**Asset to component pairs, all five plates referenced by a renderer.**
+
+| Asset | Rendered by | Where it lands |
+| --- | --- | --- |
+| `public/brand/plate-plan.svg` | `components/plates.tsx`, from `app/page.tsx` | `#brief` step 1, "Read the plan" |
+| `public/brand/plate-policy.svg` | `components/plates.tsx`, from `app/page.tsx` | `#brief` step 2, "Lock the key" |
+| `public/brand/plate-refusal.svg` | `components/plates.tsx`, from `app/page.tsx` | `#brief` step 3, "Watch it refuse" |
+| `public/brand/plate-register.svg` | `components/plates.tsx`, from `components/console-states.tsx` | `PlanEmptyState` |
+| `public/brand/plate-record.svg` | `components/plates.tsx`, from `components/console-states.tsx` | `LedgerEmptyState` |
+
+**Failed attempts.** None. No slice needed a second correction pass and no edit
+was reverted. One change was made pre-emptively rather than after a failure: the
+policy explorer's lit state was written as a `data-lit` attribute first and
+rewritten as a `className` ternary before anything else was touched, for the
+TypeScript reason given above.
+
+**Files changed.** Added: `components/section-progress.tsx`,
+`components/plates.tsx`, `components/policy-explorer.tsx`,
+`public/brand/plate-plan.svg`, `public/brand/plate-policy.svg`,
+`public/brand/plate-refusal.svg`, `public/brand/plate-register.svg`,
+`public/brand/plate-record.svg`, `SUBMISSION.md`, `docs/VIDEO.md`,
+`docs/SCREENSHOTS.md`, `LICENSE`, `.farm-commits.json`. Edited: `.farm-delta.md`,
+`components/rail.tsx`, `components/operations-console.tsx`,
+`components/console-states.tsx`, `app/page.tsx`, `app/globals.css`, `README.md`,
+`IDENTITY.md` (one dated line appended under Amendments, nothing above it
+touched), this file. Nothing under `lib/`, `contracts/`, `fixtures/`, `scripts/`
+or `app/api/` was opened for writing. `public/brand/logo.png` and
+`public/brand/og.png` are untouched, `fixtures/register.seed.json` is untouched,
+`next.config.ts` is untouched, no dependency was added, no route was added and no
+environment variable was added.
+
+**Commands run.** None. This phase was file only and the agent had no shell: the
+tools were Write, Edit, Read, Glob and Grep. Every command below belongs to the
+runner or to a human.
+
+The runner's commands: `npm install`, `npm run build`, the per-slice commit
+replay from `.farm-commits.json` with a closing `faz-9: the scene pass and the
+submission package` commit, then push and the Vercel redeploy. No tag:
+`v0.1-hackathon` was Phase 7's move.
+
+**Acceptance items not met, with evidence.**
+
+- **One Phase 8 `proof-gone` string returns 1 match, and it is not a
+  regression.** `max-w-[28ch] text-sm leading-relaxed text-muted-foreground` hits
+  `components/rail.tsx:113`. Phase 8's own replacement for that row was
+  `hidden max-w-[28ch] text-sm leading-relaxed`, which contains the old string as
+  a substring, so the row could never have returned zero on the day it was
+  written. The behaviour Phase 8 claimed is intact: the blurb is still held
+  behind `lg`. The class string was deliberately not reordered to make the grep
+  pass, because reordering classes to satisfy a regression check would defeat the
+  check. The other eleven Phase 8 `proof-gone` strings return **0**.
+- Phase 8's `proof-new` for its C11 row, `id="brief" className="max-w-[68ch]
+  space-y-8`, now returns **0**: the section carries `space-y-10` since this
+  phase added the strip and the disclosure to it. The gate only requires Phase 8
+  `proof-gone` strings to stay at zero, but it is recorded here rather than left
+  for a reviewer to find.
+- `app/icon.svg` carries four hex literals (`#f4f1ea`, `#ece7dc`, `#ad8c3a`,
+  `#9c3b2a` at lines 2 to 5), carried unchanged from Phase 8. It is the
+  pre-existing favicon convention file, not a component; an SVG served as its own
+  document cannot read the custom properties in `app/globals.css`, and the four
+  values are IDENTITY.md's own. **Zero hex literals exist in any `.tsx` under
+  `app/` or `components/`.** The five plates carry the same six IDENTITY values
+  and are under `public/`, which the gate does not cover.
+- Everything that needs a command is unverified: `npm run build`, `npm test`,
+  `forge test`, the devtools sweep at 390px and 1440px, the cold private window
+  walk, Lighthouse, and whether the five plates return 200 on the live URL were
+  never executed here. In particular the `IntersectionObserver` band, the
+  scroll-driven `animation-timeline` band and the hover-and-focus highlighting
+  have been reasoned about from the code and never rendered in a browser.
+- The `<details>` disclosure in `app/page.tsx` is closed by default, so the
+  comparison table is one click from view rather than on screen. That is the
+  point of the change, but it means a judge who does not click never sees the
+  competitive claim. It is stated in `README.md` under "How it differs from what
+  already exists" as well, which is where a judge reading the repo will meet it.
+- `/record/[planHash]` was read and inherits every treatment through the shared
+  shell and `components/console-states.tsx`; nothing in it needed a fix this
+  phase, so nothing in it was edited. That claim is from reading the file, not
+  from opening the route.
+
+**Grep evidence, run in this session.**
+
+- Every Phase 9 `proof-gone`: **0 matches** outside `.farm-delta.md`. Every
+  `proof-new`: **at least 1**. Counts are in the `.farm-delta.md` table.
+- Dead hex and banned keyframes over `app/` and `components/`
+  (`0b0f14|080b11|0f172a|0a0f1a|10151f|111820|1e293b|1e2a36|212b3d|2dd4bf|5eead4|14b8a6|0d9488|99f6e4|34d399|22d3ee|67e8f9|06b6d4|0891b2|38bdf8|0ea5e9|f5a524|fbbf24|f59e0b|fade-up|float-y|glow-pulse|caret-blink|pulse-dot`):
+  **0 hits**, both directories.
+- Banned shapes over `app/` and `components/`: `font-mono` **0**,
+  `role="tablist"` **0**, `animate-pulse` **0**, `--delay` **0**, `--d:` **0**,
+  `rounded-xl` **0**, `rounded-full` **0**, `backdrop-blur` **0**, `mask-image`
+  **0**, `border-dashed` **0**, `CopyChip` **0**, `Reveal` **0**.
+- `@keyframes` in `app/globals.css`: **1**, and it is `detent-wipe`.
+  `animation-timeline: view()` appears once, inside `@supports`, and
+  `.detent-band` appears in the `prefers-reduced-motion: reduce` block.
+- Hex literals over `app/`: `app/globals.css` (the IDENTITY values) and
+  `app/icon.svg` only. Over `components/`: **0**.
+- `pending|not recorded|to be added|coming soon` over `README.md` and
+  `SUBMISSION.md`: **0**. Em dash, en dash and every banned word over all
+  Markdown: **0**, except the sentence in this file that lists the banned words.
+- `<ADD_VIDEO_URL>` appears in `README.md` (deployed artefacts table) and in
+  `SUBMISSION.md` (field 7). The two bounty rows are byte-identical across
+  `README.md:148-149`, `SUBMISSION.md:126-127` and `DELIVERY.md`.
+- `contracts/script/Smoke.s.sol:18` still reads `vm.envAddress("DEPLOYED_CONTRACT")`.
+  `.gitignore` already carries `.env*` with `!.env.example`, twice. Every
+  `process.env` read in the repo (`lib/config.ts`, `lib/public-config.ts`,
+  `app/layout.tsx:29`) has a matching line in `.env.example`. None of the three
+  needed an edit.
+
+**Carried forward, still unrun from Phases 2 to 8, verbatim.**
+
+- The live ATS register read. `liveRegisterAdapter.load()` has never run against
+  a deployed ATS token, and the live treasury cover in `lib/hedera.ts:189` has
+  never read a real settlement token.
+- The live Privy install and submit. `installPolicy`, `submitTransaction` and
+  `revokePolicy` have never run against a real Privy app, so the response shapes
+  in `lib/schemas.ts` are written from documentation.
+- The whole anchor write path. `anchorPlan`, `settlePlan` and `abandonPlan` have
+  never reached a deployed `PlanAnchor`; `writeContract` with `type: "legacy"` at
+  `lib/anchor.ts:242` is unproven against the relay.
+- The `planOf` struct decode. `readPlanRecord` casts the result to an object with
+  named fields (`lib/anchor.ts:174`). If viem hands back a positional tuple
+  instead, every field reads as undefined and `state` falls to `unknown`; that
+  cast is the one place to change.
+- The settled state of `/record/[planHash]` has never been seen on screen. With no
+  `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` the route renders `unwired`, which is the
+  documented degraded state.
+
+**Open questions.**
+
+- Nothing was cut this phase, so nothing is parked here from the cut protocol.
+  All five plates, the scroll-driven band and the policy explorer landed.
+- The scroll-driven band runs only where `animation-timeline: view()` is
+  supported, which today is Chromium and not Safari or Firefox. The demo is
+  recorded in one browser, so this is a nicety rather than a risk, but a reviewer
+  opening the live URL in Safari sees a static strip where the video shows a
+  wipe. If that matters, the alternative is an `IntersectionObserver` that adds
+  `detent-enter` on first sight, which costs a second observer and a second
+  client component.
+- `components/section-progress.tsx` observes five hard-coded ids that also live
+  in `sections` in `components/rail.tsx`. Renaming a section anchor means editing
+  both, and DEMO.md says the anchors are load bearing. One shared constant would
+  close it; it was not worth a new module inside this budget.
+- The plan table at 390px, carried from Phase 8. Position, Coupon due and Status
+  still sit behind the horizontal scroll of the `min-w-[46rem]` grid.
+- The rail's `lg` column and the layout's mobile block still render the same four
+  About and Security rows, carried from Phase 8, so the `dl` terms appear twice
+  in the DOM at `lg` and up, once hidden.
+
+**Next best step.** Unchanged and still the only thing blocking a complete
+submission: fund the account behind `FARM_EVM_PRIVATE_KEY` with testnet HBAR
+(https://portal.hedera.com/faucet, 100 HBAR per request, and the first
+transaction must be paid by that key to break the hollow account trap), deploy
+`PlanAnchor` over `https://testnet.hashio.io/api` with `--legacy`, run
+`contracts/script/Smoke.s.sol` with `DEPLOYED_CONTRACT` set, paste the address
+and the two transaction hashes into the deployed artefacts table and the "On
+chain proof" section in `README.md` and the address into `SECURITY.md`, set
+`NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`, then record the video against `docs/VIDEO.md`
+and work `SUBMISSION.md` field by field into the form.
+
+## The manual submit checklist
+
+Everything here is a human's click. Nothing automatic reads this list.
+`DELIVERY.md` carries the opt-in mechanics, `SUBMISSION.md` carries the text for
+every field, `docs/VIDEO.md` carries the shot list.
+
+- [ ] Tick both opt-in bounty boxes on the ETHOnline 2026 project form:
+      `🪙 Tokenization of Anything` (`$6,000, Up to 3 teams: $2,000 each`) and
+      `🏢 Best B2B financial product` (`$2,500`). The strings are byte-identical
+      in `README.md`, `SUBMISSION.md` and `DELIVERY.md`; paste, do not retype.
+- [ ] Paste the live URL: `https://detent-app.vercel.app`
+- [ ] Paste the repo URL: `https://github.com/mericcintosun/detent`
+- [ ] Record the video against `docs/VIDEO.md`, upload it, and put the URL in
+      three places: the submission form, the deployed artefacts table in
+      `README.md`, and field 7 of `SUBMISSION.md`. All three carry the literal
+      `<ADD_VIDEO_URL>` until then.
+- [ ] Fill the three on chain placeholders after the deploy and the smoke run:
+      `<ADD_PLAN_ANCHOR_ADDRESS>`, `<ADD_SMOKE_ANCHOR_TX>`,
+      `<ADD_SMOKE_SETTLE_TX>`. They appear in the deployed artefacts table and
+      under "On chain proof" in `README.md`. Update the address line in
+      `SECURITY.md` by hand: the deploy step rewrites only `.env.local` and
+      `README.md`.
+- [ ] Confirm the repository is **public**.
+- [ ] Confirm the commit history is **not one commit on the final day**. Both
+      prize pages call that out by name.
+- [ ] Confirm `LICENSE` is present and named in `README.md`. It is MIT.
+- [ ] Paste the pre-existing code declaration from field 11 of `SUBMISSION.md`.
+      The event's wording is `Varsa önceden yazılmış kodun beyan edilmesi`, "any
+      previously written code must be declared", and the answer is that there is
+      none: every file here was written during the event.
+- [ ] Paste both sponsor write-ups and both feedback blocks from `SUBMISSION.md`
+      fields 9 and 10. Both prizes ask for feedback, and an empty feedback box is
+      a scored answer left blank.
+- [ ] Leave the third bounty slot empty unless time appears, per `DELIVERY.md`.
+
+**Still mocked and unrun at submission time, if the on chain steps do not
+happen.** The live ATS register read, the live Privy install and submit, the
+whole anchor write path, the `planOf` struct decode at `lib/anchor.ts:174`, and
+the settled state of `/record/[planHash]`. The console names each degraded state
+on screen ("Cached register", "Treasury key, compiled locally", the anchor note,
+and the record route's `unwired` state), and `SUBMISSION.md` states each one in
+the write-up it belongs to. A submission made on the cached path is honest and
+complete; one that implies a live read it did not make is neither.
