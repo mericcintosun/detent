@@ -205,7 +205,9 @@ export function SendErrorState({
 export function PlanEmptyState({ partition }: { partition: string }) {
   return (
     <div className="px-6 py-6">
-      <div className="border border-dashed border-border px-6 py-10 text-center">
+      {/* A register with no rows is still a register: hairline rules top and
+          bottom on the surface colour, the way an empty ledger page reads. */}
+      <div className="border-y border-border bg-card px-6 py-10 text-center">
         <p className="detent-label">No rows in this register</p>
         <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
           The register returned no holders for partition {partition}, so there is
@@ -219,7 +221,7 @@ export function PlanEmptyState({ partition }: { partition: string }) {
 
 export function PolicyEmptyState() {
   return (
-    <div className="space-y-3 border border-dashed border-border p-6">
+    <div className="space-y-3 border border-border bg-card p-6">
       <p className="detent-label">No policy installed</p>
       <p className="max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
         Until the plan is locked, the treasury key can sign anything the contract
@@ -232,7 +234,7 @@ export function PolicyEmptyState() {
 
 export function LedgerEmptyState() {
   return (
-    <div className="border border-dashed border-border px-6 py-10 text-center">
+    <div className="border-y border-border bg-card px-6 py-10 text-center">
       <p className="detent-label">Nothing recorded yet</p>
       <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
         Entries land here as the wallet answers. Lock a plan, then send it.
@@ -270,7 +272,7 @@ export function RecordEmptyState({
         : "The Hedera relay was busy, so the planOf call came back with nothing. The record itself is unaffected, it is permanent on chain. Reload to read it again.";
 
   return (
-    <div className="space-y-3 border border-dashed border-border p-6">
+    <div className="space-y-3 border border-border bg-card p-6">
       <p className="detent-label">{label}</p>
       <p className="max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
         {sentence}
