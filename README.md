@@ -252,6 +252,12 @@ the record already on chain and the screen looks identical.
 - Anchor transaction: `<ADD_SMOKE_ANCHOR_TX>`
 - Settle transaction: `<ADD_SMOKE_SETTLE_TX>`
 
+`SECURITY.md` carries the rest: which contract and chain the app touches, which
+wallet permissions it requests (none from a browser wallet, because no connector
+is installed), and why there is no ERC-20 approval anywhere in the repo. Update
+the address line there too after the deploy, because the deploy step rewrites
+only `.env.local` and this file.
+
 ## Tests
 
 ```bash

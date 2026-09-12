@@ -68,6 +68,11 @@ pinned conditions (`chain_id eq`, `to eq`, `data starts_with` the selector,
 
 **Anchor:** `/#send` **File:** `app/page.tsx`
 
+Before either button is pressed, the send section states in plain language what
+the send would do: the function it calls, the destination contract (truncated,
+linked to HashScan, with a copy control), the row count, the exact draw in the
+settlement asset and the chain id. Read that line out loud on camera.
+
 Change the amount on the first row by hand, press "Send edited plan". The wallet
 refuses. The reason names the failed condition and the byte offset where the
 submitted calldata diverged from the approved calldata.
@@ -76,9 +81,12 @@ submitted calldata diverged from the approved calldata.
 
 **Anchor:** `/#ledger` **File:** `app/page.tsx`
 
-Press "Execute the approved plan". It signs, the policy is revoked, the HashScan
-link and the plan hash land in the audit record, and "Download the record"
-writes the JSON audit file.
+The same disclosure line is still on screen, unchanged: same destination
+contract, same draw, same chain. Nothing is asked of a browser wallet at any
+point, because Detent installs no connector; the key that signs is the Privy
+server wallet. Press "Execute the approved plan". It signs, the policy is
+revoked, the HashScan link and the plan hash land in the audit record, and
+"Download the record" writes the JSON audit file.
 
 ### Step 6. Read the record back off the chain
 

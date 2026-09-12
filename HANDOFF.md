@@ -782,3 +782,251 @@ transaction hashes under "On chain proof" in `README.md`, then set
 `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and open `/record/<planHash>` after a full walk
 to see step 6 in its settled state for the first time. Then record the video and
 work `DELIVERY.md` top to bottom.
+
+### Phase 5, 2026-09-12. Security pass, contract audit and wallet trust
+
+**Goal.** Trust on two fronts, with no new feature, route or dependency. Audit
+every state-mutating function in `PlanAnchor` and fix the one real gap. Then make
+the frontend legible to a judge who opens the live URL: say what a send does
+before the button is pressed, fix the `rel` hygiene on every external link, put
+an About and Security block in the shared shell, and write a `SECURITY.md` that
+matches the code rather than a generic template.
+
+**REDEPLOY NOT NEEDED.** `README.md`'s `On chain proof` section still holds the
+`<ADD_PLAN_ANCHOR_ADDRESS>` placeholder, so nothing is deployed and this phase's
+bytecode change owes no redeploy. The first deploy will simply carry the pause.
+Because that step rewrites only `.env.local` and `README.md`, the human must
+update the address line in `SECURITY.md` by hand afterwards.
+
+**Status.** All four slices landed. Nothing was executed: this phase had Write,
+Edit, Read, Glob and Grep and no shell, so `forge test`, `npm run build` and
+`npm test` are all unrun here. The greps below were actually run and their
+results are quoted verbatim.
+
+**Decisions.**
+
+#### The `PlanAnchor` audit ledger
+
+Read against `contracts/src/PlanAnchor.sol` as it stands after this phase.
+
+| Check | Finding | Evidence |
+| --- | --- | --- |
+| Access control | Pass. Every external state-mutating function is `onlyOperator`, and the operator is pinned to the deployer in the constructor: `anchor` at line 71-75, `settle` at 92-96, `abandon` at 107-111, `setPaused` at 65. `modifier onlyOperator` at 48-51, `operator = msg.sender` at 59. | Read, four call sites. |
+| Withdraw and sweep | Not applicable, and deliberately absent. The contract holds no value: no `payable` function, no `receive`, no `fallback`, no `msg.value` read. There is nothing to withdraw or sweep, so adding either would only add an operator-controlled surface. | Grep over `contracts/src/` for `payable\|receive(\|fallback(\|msg.value\|withdraw\|sweep`: no hit. |
+| Reentrancy, checks-effects-interactions | **Vacuous**, not passed by hand. The contract makes no external call at all: no `.call{`, no `delegatecall`, no `staticcall`, no `.transfer(`, no `.send(`, no interface call, no import. Every function writes its own storage and emits. A `nonReentrant` guard would guard nothing, so none was added. | Grep over `contracts/src/` for `transferFrom\|.call{\|delegatecall\|staticcall\|payable\|selfdestruct\|receive(\|fallback(\|withdraw\|sweep\|approve(\|msg.value\|.transfer(\|.send(\|nonReentrant\|import `: exactly one hit, `PlanAnchor.sol:82`, the word "withdrawn" inside a doc comment. |
+| Integer and rounding | **Vacuous.** There is no share, fee, price or balance arithmetic anywhere: no division, no multiplication, no percentage. The only casts are `uint64(block.timestamp)` at lines 82, 101 and 116, which cannot overflow before the year 584942417355. | Read, three casts. |
+| Allowance hygiene | **Vacuous.** Grep over `contracts/` for `type(uint256).max` and `approve`: the only hits are the English word "approved" in comments at `PlanAnchor.sol:5`, `PlanAnchor.sol:54` and `contracts/README.md:11`. No `approve(` call, no infinite allowance, nothing to bound. | Grep, three prose hits. |
+| Event coverage | Pass. Every value-recording function emits: `anchor` emits `PlanAnchored(planHash, token, selector, anchoredBy)`, `settle` emits `PlanSettled(planHash, txReference)`, `abandon` emits `PlanAbandoned(planHash, reason)`, and the new `setPaused` emits `PauseSet(value)`. The app does not depend on events to know state: `lib/anchor.ts` reads `planOf` before every write (`statusOf`, line 102-116) and `readPlanRecord` (line 159) reads `planOf` for the record route, and the write path returns the transaction hash viem gives it rather than assuming success. | Read, four emits plus `lib/anchor.ts:106`, `lib/anchor.ts:168`. |
+| Token flow, deposits | None. No function accepts value and no token is ever received. | Same grep as reentrancy. |
+| Token flow, withdrawals | None. No function sends value or tokens out. | Same grep. |
+| Token flow, `transferFrom` | None. `transferFrom` does not appear anywhere in `contracts/`. | Same grep. |
+| Escape hatch | **The one real gap, now fixed.** There was no way to stop writes to the register short of a redeploy, so a wedged register could wedge the recorded demo. Added `bool public paused`, `error Paused()`, `event PauseSet(bool)`, `modifier whenNotPaused` and `function setPaused(bool) external onlyOperator`, applied to `anchor`, `settle` and `abandon`. `planOf` and `anchoredCount` stay open reads, so a paused register still renders `/record/[planHash]`. | `PlanAnchor.sol:29, 41, 46, 53-56, 62-68, 74, 95, 110`. |
+
+Two tests were added, named after the finding, using the same minimal local `Vm`
+interface already in the file and plain `require`, because forge-std is not
+vendored: `test_pausedBlocksAnchorAndOperatorCanResume` (anchoring while paused
+reverts with `PlanAnchor.Paused.selector`, then the same anchor succeeds after
+unpausing) and `testFuzz_setPausedRejectsNonOperator(address caller)` (mirrors
+`testFuzz_anchorRejectsNonOperator`, including the `caller == address(this)`
+early return). `contracts/script/Smoke.s.sol` was not touched and still reads
+`vm.envAddress("DEPLOYED_CONTRACT")` at line 18.
+
+#### The frontend grep evidence
+
+Every grep below was run against the working tree in this session. Where a grep
+contradicted the brief, the grep is what is written here.
+
+**Browser wallet, the vacuous half.** `eth_requestAccounts`, `window.ethereum`,
+`wallet_switchEthereumChain`, `personal_sign`, `connect(` and
+`@privy-io/react-auth` produce, across the whole repo, exactly four hits and not
+one of them is a call site: `README.md:144` (the sentence saying
+`@privy-io/react-auth` is deliberately not installed), `README.md:130`,
+`HANDOFF.md:394` and `HANDOFF.md:481` (prose about `eth_signTransaction`). The
+only code hits belong to `eth_sign` as a prefix of the server-side method name:
+`lib/privy.ts:356` (the union type `"eth_sendTransaction" | "eth_signTransaction"`)
+and `lib/privy.ts:420`. There is no browser wallet in this product, so every
+browser-wallet hygiene rule verifies vacuously rather than passing.
+
+**Approvals.** There is no approval call site anywhere in the repo, so there is
+no unbounded approval and no EOA spender. The bounded thing is the signing
+surface: `compilePolicy` in `lib/privy.ts:131-169` emits one ALLOW rule with four
+conditions (`chain_id eq 296`, `to eq` the plan target, `data starts_with` the
+selector, `data eq` the whole calldata) over `default_action: DENY`.
+
+**Secrets.** `sk-`, `PRIVATE_KEY`, `APP_SECRET` and `PRIVY_APP_ID` over the
+non-Markdown tree hit only `.env.example` (empty values), `lib/config.ts:27, 28,
+42`, `lib/privy.ts` and `lib/anchor.ts`, plus one comment in `lib/adapter.ts:12`.
+`@/lib/config`, `@/lib/privy`, `@/lib/hedera` and `@/lib/anchor` are imported by
+`lib/*` , `app/api/detent/route.ts`, `app/record/[planHash]/page.tsx` (a server
+component reading `planOf`, which needs no key) and `tests/core.test.ts`. No file
+under `components/` imports any of them. Every `NEXT_PUBLIC_` value is genuinely
+public: adapter mode, chain id, the public Hashio URL, three contract addresses
+and the site origin.
+
+**64-hex and address literals.** `0x[0-9a-fA-F]{40,}` hits five files only:
+`lib/data.ts` and `fixtures/register.seed.json` (the documented seed register
+fixture), and `contracts/test/PlanAnchor.t.sol`, `contracts/script/Smoke.s.sol`,
+`contracts/script/Deploy.s.sol` (the cheatcode address
+`0x7109709ECfa91a80626fF3989D68f67F5b1DD12D`). No contract address literal exists
+outside that fixture.
+
+**Transport.** `http://` hits five files: `CLAUDE.md:10` and `README.md:183`
+(`npm run dev` prose), and the `xmlns="http://www.w3.org/2000/svg"` namespace in
+`public/logo.svg`, `public/illustrations/ledger-rule.svg` and `app/icon.svg`. A
+namespace is not fetched. Nothing in the app fetches an `http://` URL.
+
+**Forms.** `<form` has zero hits in the repo. `fetch(` has three:
+`components/operations-console.tsx:210` and `:280`, both to `/api/detent`, a route
+implemented here at `app/api/detent/route.ts`, and `lib/privy.ts:88`, which is
+server side. So the only data path out of the browser is `/api/detent`.
+
+**Link hygiene.** All six pre-existing `target="_blank"` links carried
+`rel="noreferrer"` alone. They now carry `rel="noopener noreferrer"`, along with
+the three links added this phase. A grep for `rel="noreferrer"` now returns zero
+hits, and all nine `target="_blank"` sites are accounted for:
+`app/record/[planHash]/page.tsx:135`, `components/rail.tsx:82, 96, 113`,
+`components/operations-console.tsx:416, 779, 877, 941, 951`.
+
+#### Other decisions
+
+- **The disclosure block names values already in scope.** It renders
+  `plan.signature`, `snapshot.token.name`, `includedRows.length`,
+  `formatMicros(plan.drawMicros)`, `snapshot.treasury.settlementAsset` and
+  `plan.chainId`, so `components/operations-console.tsx` still imports nothing
+  new and still never touches `lib/config.ts`.
+- **The copy control swallows its own failure.** `copyTarget()` wraps
+  `navigator.clipboard?.writeText(plan.target)` in a `try`/`catch` and attaches a
+  no-op `.catch`, because a browser that refuses clipboard permission must not
+  throw into a React handler. The address is on screen with a `title` and an
+  explorer link beside it, so nothing is lost when the copy fails.
+- **The rail keeps one brand mark.** The About and Security block extends the
+  existing `dl`; no image was added, and `brand/logo.png` in the brand link is
+  still the only raster the shell renders.
+- **`SECURITY.md` states the vacuity rather than inventing a connect flow.** The
+  wallet section says plainly that no connector is installed and lists the greps
+  that prove it, and the approvals section says there is no approval at all
+  rather than implying a bounded one exists.
+
+**Findings found and not fixed**, each with severity and the shortest fix path:
+
+- **Low. `app/record/[planHash]/page.tsx:25` imports `lib/anchor.ts`, which
+  imports `lib/config.ts`, which reads `OPERATOR_PRIVATE_KEY`.** It is a server
+  component and `readPlanRecord` never touches the key (it checks
+  `PLAN_ANCHOR_ADDRESS` only, `lib/anchor.ts:160`), so nothing reaches the
+  browser. It is the same structural shape Phase 2 removed from the client graph,
+  on the server side where it is allowed. Shortest fix: split `readPlanRecord`
+  into a `lib/anchor-read.ts` that imports only `lib/public-config.ts`. Out of
+  fence this phase (a refactor).
+- **Low. `components/operations-console.tsx:26` still imports `buildCalldata`
+  into the client bundle** to derive the submission key. Pure viem encoding, no
+  secret, no network, and the same function already arrives through `buildPlan`.
+  Carried from Phase 3. Shortest fix: derive the submission key server side in
+  `app/api/detent/route.ts`. Not worth the round trip.
+- **Low. `components/rail.tsx` now imports `shortHex` from `@/lib/plan`**, which
+  pulls viem into the shell's server render. The rail is a server component so no
+  client bytes are added, but `lib/plan.ts` is a bigger module than a string
+  helper needs to be. Shortest fix: move `shortHex` into its own
+  `lib/short-hex.ts`. Deliberately not done: it is a refactor, and the fence says
+  ask first.
+- **Informational. `PauseSet(bool paused)` names its parameter after the state
+  variable `paused`.** Solidity may emit a shadowing warning on some compiler
+  versions. It is a warning, not an error, and the event signature was specified.
+  Shortest fix if it ever matters: rename the event parameter to `value`.
+- **Informational. The pause has no on-chain timelock and no second signer.** The
+  operator can pause writes unilaterally. For a testnet demo register that holds
+  no value this is the intended property, not a risk: the worst case is that the
+  audit record stops being written, which `lib/anchor.ts` already reports as a
+  receipt with `anchored: false` and a note rather than a failed send.
+
+**MetaMask and Blockaid.** The question does not arise for a site that never asks
+for a wallet: there is no connect request, no signature request and no
+transaction request from the browser, so there is no prompt for a wallet security
+provider to warn about. The human must still check two things by hand on the live
+URL in a fresh profile with MetaMask installed: that the page loads with no popup
+of any kind, and that the console shows no mixed-content warning over https. If
+any wallet warning does appear it is a finding, and it goes here so the Phase 9
+video plan can show the full flow on screen.
+
+**Failed attempts.** None. No slice needed a second correction pass.
+
+**Files changed.** Added: `SECURITY.md`, `.farm-commits.json`. Edited:
+`contracts/src/PlanAnchor.sol`, `contracts/test/PlanAnchor.t.sol`,
+`contracts/README.md`, `components/operations-console.tsx`, `components/rail.tsx`,
+`app/record/[planHash]/page.tsx`, `README.md`, `DEMO.md`, `IDENTITY.md` (one
+dated line under Amendments), this file. Eleven files, under the fifteen the
+phase allows. No new dependency, no new route, no new env variable, no new
+component file, and `fixtures/register.seed.json` is untouched.
+
+**Commands run.** None. This phase was file only and the agent had no shell: the
+tools were Write, Edit, Read, Glob and Grep. Every command below belongs to the
+runner or to a human.
+
+The runner's commands: `npm install`, `npm run build`, the per-slice commit
+replay from `.farm-commits.json` with a closing `faz-5:` commit, then push and the
+Vercel redeploy.
+
+The human's commands:
+
+```bash
+npm test
+npm run build
+cd contracts && forge test    # includes the two tests added this phase
+```
+
+Then, when the account behind `FARM_EVM_PRIVATE_KEY` holds testnet HBAR (the
+deploy plus the two smoke transactions need only a few; faucet at
+https://portal.hedera.com/faucet, 100 test HBAR per request, and it creates a
+hollow account until that key pays a fee itself, so the first transaction must be
+paid by it):
+
+```bash
+export RPC_URL=https://testnet.hashio.io/api
+forge script script/Deploy.s.sol --rpc-url $RPC_URL \
+  --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+export DEPLOYED_CONTRACT=0xYourDeployedAnchor
+forge script script/Smoke.s.sol --rpc-url $RPC_URL \
+  --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+```
+
+Record the two smoke hashes under `On chain proof` in `README.md`, then update
+the address line in `SECURITY.md` by hand: the deploy step rewrites only
+`.env.local` and `README.md`.
+
+**Carried forward, still unrun from Phases 2 to 4.**
+
+- The live ATS register read. `liveRegisterAdapter.load()` has never run against
+  a deployed ATS token, and the live treasury cover in `lib/hedera.ts:189` has
+  never read a real settlement token.
+- The live Privy install and submit. `installPolicy`, `submitTransaction` and
+  `revokePolicy` have never run against a real Privy app, so the response shapes
+  in `lib/schemas.ts` are written from documentation.
+- The whole anchor write path. `anchorPlan`, `settlePlan` and `abandonPlan` have
+  never reached a deployed `PlanAnchor`; `writeContract` with `type: "legacy"` at
+  `lib/anchor.ts:242` is unproven against the relay.
+- The `planOf` struct decode. `readPlanRecord` casts the result to an object with
+  named fields (`lib/anchor.ts:174`). If viem hands back a positional tuple
+  instead, every field reads as undefined and `state` falls to `unknown`; that
+  cast is the one place to change.
+- The settled state of `/record/[planHash]` has never been seen on screen. With no
+  `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` the route renders `unwired`, which is the
+  documented degraded state.
+
+**Open questions.**
+
+- Should the pause be readable in the console, so an operator can see that the
+  register is stopped rather than discovering it through an anchor note? One
+  `paused()` read on load would do it. Out of fence here: it is an anchor read
+  back into the console, which this phase was told not to add.
+- `SECURITY.md` holds the anchor address as a placeholder. Nothing verifies that
+  it and `README.md` stay in step after the deploy. A line in `DELIVERY.md` would
+  be the cheapest guard.
+- Sourcify verification for chain 296 is named in `contracts/README.md` and in the
+  bounty ledger but has not been run, so HashScan will not show the source until
+  it is.
+
+**Next best step.** Unchanged from Phase 4, and now blocking more than it was:
+fund the testnet account, deploy `PlanAnchor` (the pause ships with it), run
+`Smoke.s.sol`, paste the address and the two hashes into `README.md` and the
+address into `SECURITY.md`, then walk DEMO.md end to end with
+`NEXT_PUBLIC_ADAPTER_MODE=real` and open `/record/<planHash>` to see step 6
+settled for the first time.
