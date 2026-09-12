@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { OperationsConsole } from "@/components/operations-console";
-import { getRegisterSnapshot } from "@/lib/hedera";
+import { getRegisterSnapshot } from "@/lib/register";
+
+/**
+ * Matches REGISTER_CACHE_MS in lib/config.ts. Twelve holders times three relay
+ * reads is not a cost to pay on every navigation during a demo walk.
+ */
+export const revalidate = 30;
 
 export const metadata: Metadata = {
   title: "Coupon run console",

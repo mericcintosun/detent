@@ -73,6 +73,18 @@ export const submitBodySchema = z.object({
   approvedPlan: planSchema,
   submittedRows: z.array(submittedRowSchema),
   tampered: z.boolean(),
+  /**
+   * One key per distinct submission, derived by the console from the policy,
+   * the plan hash, the tampered flag and the calldata. The route answers a
+   * repeated key from lib/store.ts instead of broadcasting a second time.
+   */
+  submissionKey: z.string().min(1),
+  /**
+   * Set by the wrong-network action in components/console-states.tsx to force
+   * the sign and relay path for this one send. Absent means the server's
+   * PRIVY_BROADCAST_MODE decides, which is the normal case.
+   */
+  broadcastPreference: z.enum(["auto", "signature"]).optional(),
 });
 
 export const detentRequestSchema = z.discriminatedUnion("intent", [
