@@ -9,13 +9,20 @@ Read `IDENTITY.md` for the design contract and `DEMO.md` for the demo contract.
 npm install
 npm run dev     # http://localhost:3000
 npm run build   # must pass with zero TypeScript errors before every commit
-npm run lint    # ESLint 9, flat config; next build does not lint
-npm test        # vitest: the edge schemas and the policy evaluator
+npm run lint      # ESLint 9, flat config; next build does not lint
+npm run typecheck # tsc --noEmit, the same check CI runs
+npm test          # vitest: the edge schemas and the policy evaluator
+npm run test:coverage
 npm run seed    # validates fixtures/register.seed.json, writes the report file
 ```
 
 `npm run format` writes Prettier over the tree and has not been run yet, so it
 touches a lot of lines. Run it on its own commit, never inside a feature commit.
+
+`npm install` installs a husky pre-commit hook that runs lint, typecheck and the
+test suite. It is the same gate CI runs, so a commit that passes locally passes
+there. `git commit --no-verify` skips it; do that only for a commit that cannot
+build by design.
 
 Contract commands live in `contracts/README.md`. Foundry is not wired into the
 npm scripts on purpose.

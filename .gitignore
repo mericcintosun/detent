@@ -12,6 +12,9 @@ next-env.d.ts
 contracts/cache/
 contracts/out/
 
+# Coverage output from npm run test:coverage.
+coverage/
+
 # Derived by npm run seed, never committed.
 fixtures/register.seed.report.json
 
