@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { security } from "@/lib/data";
-import { hashscanToken } from "@/lib/hedera";
+import { hashscanToken } from "@/lib/hashscan";
 
 // The five demo steps in DEMO.md land on the first five of these, in order.
 const sections = [

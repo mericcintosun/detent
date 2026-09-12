@@ -25,8 +25,9 @@ import {
   type ActionKind,
   type Holder,
 } from "@/lib/data";
+import { CHAIN_ID } from "@/lib/public-config";
 
-export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 296);
+export { CHAIN_ID };
 
 const COUPON_ABI = parseAbiItem(
   "function distributeCoupon(bytes32 partition, address[] holders, uint256[] amounts)"
