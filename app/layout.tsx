@@ -19,7 +19,7 @@ const body = Libre_Franklin({
 });
 
 export const metadata: Metadata = {
-  title: "Detent",
+  title: { default: "Detent", template: "%s | Detent" },
   description:
     "Operator console for tokenized securities: preview a coupon run or a forced transfer line by line, then lock the treasury wallet to exactly that transaction.",
   openGraph: {

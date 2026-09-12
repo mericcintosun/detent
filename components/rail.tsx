@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { security } from "@/lib/data";
 import { hashscanToken } from "@/lib/hedera";
 
+// The five demo steps in DEMO.md land on the first five of these, in order.
 const sections = [
   { href: "#register", label: "Register" },
   { href: "#plan", label: "Plan" },
+  { href: "#policy", label: "Policy" },
+  { href: "#send", label: "Send" },
   { href: "#ledger", label: "Audit record" },
   { href: "#brief", label: "Why it exists" },
 ];
@@ -17,6 +20,7 @@ export function Rail() {
       <div className="flex h-full flex-col gap-8 px-6 py-6 lg:px-7 lg:py-9">
         <Link
           href="/"
+          aria-current="page"
           className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Image
@@ -35,7 +39,10 @@ export function Rail() {
           action, then hold the treasury key to exactly that.
         </p>
 
-        <nav className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-6 lg:flex-col lg:gap-y-3">
+        <nav
+          aria-label="Console sections"
+          className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-6 lg:flex-col lg:gap-y-3"
+        >
           {sections.map((section) => (
             <a
               key={section.href}
