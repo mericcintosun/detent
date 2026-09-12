@@ -13,6 +13,7 @@
 // nowhere else, infrastructure trouble is muted.
 
 import type { ReactNode } from "react";
+import { Plate } from "@/components/plates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { TreasuryKeyState } from "@/lib/wallet-state";
@@ -206,8 +207,10 @@ export function PlanEmptyState({ partition }: { partition: string }) {
   return (
     <div className="px-6 py-6">
       {/* A register with no rows is still a register: hairline rules top and
-          bottom on the surface colour, the way an empty ledger page reads. */}
-      <div className="border-y border-border bg-card px-6 py-10 text-center">
+          bottom on the surface colour, the way an empty ledger page reads, and
+          the ruled sheet itself above the sentence rather than blank space. */}
+      <div className="flex flex-col items-center gap-4 border-y border-border bg-card px-6 py-10 text-center">
+        <Plate name="register" width={160} height={120} className="h-24 w-auto" />
         <p className="detent-label">No rows in this register</p>
         <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
           The register returned no holders for partition {partition}, so there is
@@ -234,7 +237,9 @@ export function PolicyEmptyState() {
 
 export function LedgerEmptyState() {
   return (
-    <div className="border-y border-border bg-card px-6 py-10 text-center">
+    <div className="flex flex-col items-center gap-4 border-y border-border bg-card px-6 py-10 text-center">
+      {/* The seal on a closed ledger line: what this panel fills up with. */}
+      <Plate name="record" width={160} height={120} className="h-24 w-auto" />
       <p className="detent-label">Nothing recorded yet</p>
       <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
         Entries land here as the wallet answers. Lock a plan, then send it.
