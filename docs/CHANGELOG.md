@@ -9,6 +9,8 @@ the ids in `docs/AUDIT.md`. Each section is one workstream branch merged into
 | Severity | Change | Rationale |
 | --- | --- | --- |
 | Critical | `postcss.config.mjs` switched to the object plugin form (C4). | vite, and therefore vitest, rejected the array form, so `npm test` exited 1 with zero tests on a fresh clone while the README documents that command. Next accepts both forms; the build is unchanged. |
+| Low | Prettier applied once across the code in its own commit after every workstream merged; Markdown excluded through `.prettierignore`. | Formatting in a single commit keeps the behavioural diffs reviewable, and running it after the merges meant parallel branches never conflicted on whitespace. |
+| Low | The deprecated `settledAt` mirror and the never emitted `recompiled-from-approved-plan` member of `SubmitResult.policySource` were removed once the console stopped reading them. | Both existed only to keep the build green while the API changed underneath the console. |
 
 ## Contracts (`refactor/contracts`)
 
@@ -51,6 +53,7 @@ the ids in `docs/AUDIT.md`. Each section is one workstream branch merged into
 | High | The backend fixes are locked by regression tests: `lock_unknown` for a lock the server does not hold (C2), `quorum_not_met` for unregistered approvers (C3), `429` with `Retry-After` on repeated locks (H6), `plan_blocked` on submit when the treasury falls short under an open lock (H7), 500 rows accepted and 501 refused (M1), `plan_mismatch`, a server derived `tampered` flag, a synthetic receipt with no transaction hash, and a lock that survives a refused submit but is consumed by a successful one. | Tests first written to document the open findings were converted into guarantees once the fixes landed, so a regression now fails the suite. |
 | Low | The stack trace assertion matches real frame patterns instead of the substring "at ". | It flagged the legitimate message "The request failed validation at approvals." as a leaked trace. |
 | Low | Coverage thresholds set just below the measured baseline after the backend merge: statements 67, branches 85, functions 76, lines 67. The suite grew from 18 tests to 148. | Honest about the current state rather than aspirational, so regressions fail without inventing a target. |
+| Low | The treasury key state tests assert the receipt kind rules: `tx-confirmed` for on-chain and synthetic receipts, `tx-failed` for an allowed verdict with no receipt, and `wrong-network` only from a failure that names the chain. | The chain refusal flag the old test relied on could only be set by the removed recompile path. |
 
 ## Frontend (`refactor/frontend`)
 
@@ -63,6 +66,10 @@ the ids in `docs/AUDIT.md`. Each section is one workstream branch merged into
 | Medium | Status line, refusal and mode line announced through live regions; plan table, comparison table and policy strip keyboard focusable; a misplaced `aria-current` removed. | The refusal, the moment the product exists for, was not announced to assistive technology. |
 | Low | Unchecked address casts in `lib/public-config.ts` replaced with `parseEvmAddress`; `CHAIN_ID` can no longer be `NaN`; the API response read through `readApiResponse`. | Removed casts that could carry a malformed env value into the UI. |
 | Note | Fonts left on `next/font/google` (L8). | Production builds inline the fonts at build time; the 29 second delay was dev-only, and `display: swap` with fallbacks is already set. |
+| High | The console speaks the fail closed API: `lock` sends the plan selection and registered officer ids, the server issued lock id is held, and `submit` sends only the lock id, the submitted rows and the broadcast preference. The client side submission key and calldata recomputation are gone. | The previous request shape is refused by the hardened route, which would have broken the demo at the refusal step. |
+| Medium | `lock_unknown` returns the operator to the lock step with approvals kept, a "Lock the plan again" prompt and an audit record line; `plan_mismatch`, `plan_blocked`, `quorum_not_met` and `429` each render a titled message beside the step that can act on it, with the `Retry-After` wait shown. | Every new server refusal is explained where the operator can respond, rather than surfacing as a generic failure. |
+| Medium | "Refused by" and the banner's engine label come from `decidedBy`; the fixed "policy source" badge is removed; a synthetic receipt shows its reference as plain text and never links. | `live` no longer means the wallet decided, and a synthetic reference is not a transaction. |
+| Low | The record page reads `closedAt` and labels the row "Closed at". | PlanAnchor closes an abandoned plan with the same field it closes a settled one. |
 
 ## Developer experience, dependencies and docs (`refactor/dx`)
 
