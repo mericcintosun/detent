@@ -1,0 +1,148 @@
+{
+  "holders": [
+    {
+      "id": "h-01",
+      "legalName": "Marmara Pension Fund II",
+      "jurisdiction": "TR",
+      "accountId": "0.0.5842311",
+      "address": "0x7a1f4c0b9e2d8a63c5b0e14f7d2c93ae6b085d41",
+      "partition": "CLASS-A",
+      "balance": 182500,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid, professional investor.",
+      "kycExpiresOn": "2027-04-30"
+    },
+    {
+      "id": "h-02",
+      "legalName": "Adalar Family Office",
+      "jurisdiction": "TR",
+      "accountId": "0.0.5842318",
+      "address": "0x3c9d02b74e8f15a6d0c2b937e418fa6d05c2b8e7",
+      "partition": "CLASS-A",
+      "balance": 96000,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid.",
+      "kycExpiresOn": "2027-01-19"
+    },
+    {
+      "id": "h-03",
+      "legalName": "Kestrel Bridge Capital",
+      "jurisdiction": "GB",
+      "accountId": "0.0.5842324",
+      "address": "0xb40e7f21c609da3b58e417c2f60ab9d38e51c704",
+      "partition": "CLASS-A",
+      "balance": 141250,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid.",
+      "kycExpiresOn": "2026-12-02"
+    },
+    {
+      "id": "h-04",
+      "legalName": "Hanseatic Mutual Insurance",
+      "jurisdiction": "DE",
+      "accountId": "0.0.5842330",
+      "address": "0x5f8c1a09d3e26b47f018ca95d3702b6e14f8a0c3",
+      "partition": "CLASS-A",
+      "balance": 88750,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid.",
+      "kycExpiresOn": "2027-06-11"
+    },
+    {
+      "id": "h-05",
+      "legalName": "Zeytin Sermaye Ortakligi",
+      "jurisdiction": "TR",
+      "accountId": "0.0.5842336",
+      "address": "0x91d47b0e5ca2f6031d847be09c25fa013d6b8e47",
+      "partition": "CLASS-A",
+      "balance": 64500,
+      "compliance": "allowlist-expired",
+      "complianceNote": "Allowlist entry lapsed on 2026-08-31, the transfer hook will revert.",
+      "kycExpiresOn": "2026-08-31"
+    },
+    {
+      "id": "h-06",
+      "legalName": "Northline Endowment Trust",
+      "jurisdiction": "US",
+      "accountId": "0.0.5842342",
+      "address": "0x2e60fb95c1d4830a7e62f19b05d3ca84e720f16b",
+      "partition": "CLASS-A",
+      "balance": 120000,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid, Reg S holder.",
+      "kycExpiresOn": "2027-03-08"
+    },
+    {
+      "id": "h-07",
+      "legalName": "Baltic Rim Credit Union",
+      "jurisdiction": "LT",
+      "accountId": "0.0.5842349",
+      "address": "0xc73a058e196d2fb04a8530e9c1d762f5a80b3492",
+      "partition": "CLASS-A",
+      "balance": 45750,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid.",
+      "kycExpiresOn": "2027-02-14"
+    },
+    {
+      "id": "h-08",
+      "legalName": "Yildiz Varlik Yonetimi",
+      "jurisdiction": "TR",
+      "accountId": "0.0.5842355",
+      "address": "0x486bd0f7a215c3e908b64d70a2f9e35c81b06da4",
+      "partition": "CLASS-A",
+      "balance": 38400,
+      "compliance": "kyc-lapsed",
+      "complianceNote": "KYC refresh overdue since 2026-07-15, compliance module blocks credits.",
+      "kycExpiresOn": "2026-07-15"
+    },
+    {
+      "id": "h-09",
+      "legalName": "Corvid Street Partners",
+      "jurisdiction": "GB",
+      "accountId": "0.0.5842361",
+      "address": "0xa05f3e814d7092c6b35f8e41d07a2cb963f508e1",
+      "partition": "CLASS-A",
+      "balance": 72300,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid.",
+      "kycExpiresOn": "2027-05-27"
+    },
+    {
+      "id": "h-10",
+      "legalName": "Meridian Grain Cooperative",
+      "jurisdiction": "NL",
+      "accountId": "0.0.5842368",
+      "address": "0x6d2907c4fb8e150a3d9725b6ec08f14a70d3928c",
+      "partition": "CLASS-A",
+      "balance": 51600,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid.",
+      "kycExpiresOn": "2026-11-30"
+    },
+    {
+      "id": "h-11",
+      "legalName": "Pera Kurumsal Emeklilik",
+      "jurisdiction": "TR",
+      "accountId": "0.0.5842374",
+      "address": "0xf31b8607ae4c05d29b716a3f80e5d2c917b40a68",
+      "partition": "CLASS-A",
+      "balance": 63950,
+      "compliance": "sanctions-hold",
+      "complianceNote": "Screening hit on 2026-09-02, position frozen pending the court order.",
+      "kycExpiresOn": "2027-08-04"
+    },
+    {
+      "id": "h-12",
+      "legalName": "Falkirk Yard Holdings",
+      "jurisdiction": "GB",
+      "accountId": "0.0.5842380",
+      "address": "0x0c94e7a3d582f10b6c49e3d75a018f26b9c40e73",
+      "partition": "CLASS-A",
+      "balance": 35000,
+      "compliance": "clear",
+      "complianceNote": "Allowlist entry valid.",
+      "kycExpiresOn": "2027-07-22"
+    }
+  ]
+}

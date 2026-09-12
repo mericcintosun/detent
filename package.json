@@ -6,7 +6,7 @@
     "dev": "NODE_ENV=development next dev",
     "build": "NODE_ENV=production next build",
     "start": "NODE_ENV=production next start",
-    "seed": "node -e \"console.log('seed: nothing to do yet')\""
+    "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",

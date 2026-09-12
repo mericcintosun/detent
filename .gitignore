@@ -8,6 +8,9 @@ out/
 next-env.d.ts
 .farm-scaffold.json
 
+# Derived by npm run seed, never committed.
+fixtures/register.seed.report.json
+
 # farm: sır dosyaları (otomatik eklendi)
 *.pem
 *.key
