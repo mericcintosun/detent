@@ -169,7 +169,7 @@ export function buildPlan({
 
   if (kind === "coupon") {
     for (const holder of holders) {
-      const held = holder.compliance !== "clear";
+      const held = isHeldHolder(holder);
       const forcedIn = forced.includes(holder.id);
       rows.push({
         holderId: holder.id,
@@ -286,4 +286,112 @@ export function formatTokens(amount: number): string {
 export function shortHex(value: string, lead = 10, tail = 6): string {
   if (value.length <= lead + tail + 1) return value;
   return `${value.slice(0, lead)}…${value.slice(-tail)}`;
+}
+
+/** A holder the compliance module is holding, whatever action is selected. */
+export function isHeldHolder(holder: Pick<Holder, "compliance">): boolean {
+  return holder.compliance !== "clear";
+}
+
+/**
+ * How many holders the register itself reports as held. The masthead states a
+ * fact about the register, so it counts holders rather than plan rows: the
+ * forced transfer plan carries one row and marks none of them held, which says
+ * nothing about the register.
+ */
+export function registerHeldCount(
+  holders: ReadonlyArray<Pick<Holder, "compliance">>,
+): number {
+  return holders.filter(isHeldHolder).length;
+}
+
+/** Micro units (6 decimals) as the plain decimal string the amount field shows. */
+export function microsToInput(micros: string): string {
+  const value = BigInt(micros);
+  const whole = value / 1_000_000n;
+  const fraction = (value % 1_000_000n)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+export type AmountCheck =
+  { ok: true; micros: string } | { ok: false; message: string };
+
+/**
+ * Read the operator's amount field. Each way the field can be wrong gets the
+ * sentence that names that mistake, so a negative number is never told it has
+ * too many decimal places.
+ */
+export function parseAmountInput(input: string): AmountCheck {
+  const trimmed = input.trim();
+  if (trimmed === "") {
+    return { ok: false, message: "Enter an amount. The field is empty." };
+  }
+  if (trimmed.startsWith("-")) {
+    return {
+      ok: false,
+      message: "An amount cannot be negative. Enter zero or more.",
+    };
+  }
+  if (trimmed.includes(",")) {
+    return {
+      ok: false,
+      message:
+        "Use a dot for decimals and leave out thousands separators, for example 1250.5.",
+    };
+  }
+  if (/^\.\d+$/.test(trimmed)) {
+    return {
+      ok: false,
+      message: "Put a digit before the decimal point, for example 0.5.",
+    };
+  }
+  if (!/^\d+(\.\d*)?$/.test(trimmed)) {
+    return {
+      ok: false,
+      message: "Enter the amount as digits, with at most one decimal point.",
+    };
+  }
+  const [whole, fraction = ""] = trimmed.split(".");
+  if (fraction.length > 6) {
+    return {
+      ok: false,
+      message: "Enter an amount with at most six decimal places.",
+    };
+  }
+  return {
+    ok: true,
+    micros: (
+      BigInt(whole) * 1_000_000n +
+      BigInt(fraction.padEnd(6, "0") || "0")
+    ).toString(),
+  };
+}
+
+export type TamperDecision =
+  | { kind: "invalid"; message: string }
+  | { kind: "unchanged"; message: string }
+  | { kind: "edited"; micros: string };
+
+/**
+ * What "Send edited plan" may do with the field. Only an amount that parses and
+ * differs from the approved one is sent: an unchanged amount would be the
+ * approved calldata, which the policy allows, and the refusal control must
+ * never be the one that spends the lock.
+ */
+export function decideTamperedSend(
+  input: string,
+  approvedMicros: string,
+): TamperDecision {
+  const parsed = parseAmountInput(input);
+  if (!parsed.ok) return { kind: "invalid", message: parsed.message };
+  if (BigInt(parsed.micros) === BigInt(approvedMicros)) {
+    return {
+      kind: "unchanged",
+      message: `This is the approved amount, ${microsToInput(approvedMicros)}, so nothing was sent and the lock is still open. Change a digit to watch the key refuse it, or press Execute the approved plan to send the plan as approved.`,
+    };
+  }
+  return { kind: "edited", micros: parsed.micros };
 }
