@@ -22,17 +22,21 @@ export default async function ConsolePage() {
     <div className="space-y-16">
       <OperationsConsole snapshot={snapshot} />
 
-      <section id="brief" className="max-w-[68ch] space-y-6 border-t border-border pt-10">
-        <p className="text-lg leading-relaxed">
-          Detent is the operator console for a tokenized security. It is built for
-          the person who actually presses send on a corporate action: the fund
-          administrator, the transfer agent, the issuer&apos;s ops lead. They read
-          the coupon run line by line on this page, and the plan they accepted
-          becomes the only thing the treasury key is allowed to sign.
-        </p>
-        <Button variant="outline" asChild>
-          <a href="#register">Start at the register</a>
-        </Button>
+      <section id="brief" className="max-w-[68ch] space-y-8 border-t border-border pt-10">
+        {/* The lead ends in the control rather than carrying it mid-prose, so
+            there is one way into DEMO step 1 from this fold. */}
+        <div className="space-y-5">
+          <p className="text-lg leading-relaxed">
+            Detent is the operator console for a tokenized security. It is built
+            for the person who actually presses send on a corporate action: the
+            fund administrator, the transfer agent, the issuer&apos;s ops lead.
+            They read the coupon run line by line on this page, and the plan they
+            accepted becomes the only thing the treasury key is allowed to sign.
+          </p>
+          <Button variant="outline" asChild>
+            <a href="#register">Start at the register</a>
+          </Button>
+        </div>
 
         <h2 className="text-2xl tracking-tight">Why this exists</h2>
         <p className="leading-relaxed text-muted-foreground">
@@ -71,12 +75,30 @@ export default async function ConsolePage() {
         </p>
       </section>
 
-      <footer className="border-t border-border pt-8 text-sm leading-relaxed text-muted-foreground">
+      <footer className="space-y-4 border-t border-border pt-8 text-sm leading-relaxed text-muted-foreground">
         <p className="max-w-[68ch]">
           Built for ETHOnline 2026 on Hedera testnet, chain 296. Asset
           Tokenization Studio for the security, Privy server wallets, policies
           and key quorums for the treasury key, HashScan for the receipts.
         </p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <a
+            href="https://github.com/mericcintosun/detent"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center underline decoration-hairline underline-offset-4 hover:text-foreground"
+          >
+            Source on GitHub
+          </a>
+          <a
+            href="https://ethglobal.com/events/ethonline2026"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center underline decoration-hairline underline-offset-4 hover:text-foreground"
+          >
+            ETHOnline 2026
+          </a>
+        </div>
       </footer>
     </div>
   );
