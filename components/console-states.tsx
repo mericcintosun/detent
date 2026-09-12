@@ -32,6 +32,12 @@ export interface TreasuryKeyBannerProps {
   onRetry: () => void;
   /** True while a call is in flight, so no branch offers a second one. */
   busy: boolean;
+  /**
+   * Whether the answer on screen came back from the Privy server wallet or from
+   * the local mirror of the same evaluator. The refusal branch names the engine,
+   * because a refusal nobody can attribute proves nothing.
+   */
+  engineLive?: boolean;
 }
 
 function Frame({
@@ -60,6 +66,7 @@ export function TreasuryKeyBanner({
   onSignAndRelay,
   onRetry,
   busy,
+  engineLive = false,
 }: TreasuryKeyBannerProps) {
   switch (state) {
     case "disconnected":
@@ -141,6 +148,11 @@ export function TreasuryKeyBanner({
           <p className="max-w-[72ch] text-sm leading-relaxed text-bad">
             {reason ??
               "The policy refused this payload, so nothing was signed and nothing was broadcast."}
+          </p>
+          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+            {engineLive
+              ? "Refused by the Privy server wallet under the installed policy."
+              : "Refused by the local mirror of the same policy evaluator, before any wallet was asked. With Privy credentials set, the wallet returns this refusal instead."}
           </p>
           <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
             This is the key doing its job. Restore the approved amount and send
