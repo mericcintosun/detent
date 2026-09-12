@@ -211,10 +211,6 @@ export async function readPlanRecord(planHash: Hex): Promise<PlanRecord> {
       anchoredBy: plan.anchoredBy,
       anchoredAt: isoFromSeconds(plan.anchoredAt),
       closedAt: isoFromSeconds(plan.closedAt),
-      // Deprecated mirror of closedAt, kept for one release so
-      // app/record/[planHash] keeps rendering while the frontend workstream
-      // switches to closedAt. Remove it with that change.
-      settledAt: isoFromSeconds(plan.closedAt),
     };
     planRecordMemo.remember(planHash, record);
     return record;

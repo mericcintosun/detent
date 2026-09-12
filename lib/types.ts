@@ -83,11 +83,6 @@ export interface PlanRecord {
    * plan with the same field it closes a settled one.
    */
   closedAt?: string;
-  /**
-   * @deprecated Mirror of `closedAt`, kept for one release so
-   * app/record/[planHash] keeps rendering. Read `closedAt` instead.
-   */
-  settledAt?: string;
 }
 
 /**
@@ -219,13 +214,11 @@ export interface SubmitResult extends ExecutionResult {
    */
   tampered: boolean;
   /**
-   * Where the policy this send was judged against came from. Only
-   * "held-from-lock" is ever emitted now: the recompile-from-request-body path is
-   * gone, and a submit the server holds no lock for is refused rather than
-   * rebuilt. The second member stays in the type for one release so the console
-   * keeps compiling while it drops its own reference to it.
+   * Where the policy this send was judged against came from. The only source is
+   * the policy held under the lock: a submit the server holds no lock for is
+   * refused rather than rebuilt from the request body.
    */
-  policySource: "held-from-lock" | "recompiled-from-approved-plan";
+  policySource: "held-from-lock";
   planHash: `0x${string}`;
   anchor?: AnchorReceipt;
 }

@@ -127,9 +127,9 @@ export default async function PlanRecordPage({
               <Row label="Selector">{record.selector ?? "not set"}</Row>
               <Row label="Anchored by">{record.anchoredBy ?? "not set"}</Row>
               <Row label="Anchored at">{utc(record.anchoredAt)}</Row>
-              {/* closedAt, not the deprecated settledAt mirror: PlanAnchor
-                  closes an abandoned plan with the same field it closes a
-                  settled one, so the label names the event, not one outcome. */}
+              {/* PlanAnchor closes an abandoned plan with the same field it
+                  closes a settled one, so the label names the event, not one
+                  outcome. */}
               <Row label="Closed at">{utc(record.closedAt)}</Row>
             </dl>
           </CardContent>

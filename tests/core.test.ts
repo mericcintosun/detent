@@ -171,12 +171,7 @@ describe("the treasury key state", () => {
     failure: null,
   };
 
-  const settled = {
-    allowed: true,
-    transactionHash: "0xfeed",
-    policySource: "held-from-lock" as const,
-    chainRefused: false,
-  };
+  const settled = { allowed: true, receiptKind: "synthetic" } as const;
 
   it("reads disconnected with no live credentials", () => {
     expect(deriveTreasuryKeyState({ ...resting, privyLive: false })).toBe(
@@ -190,13 +185,7 @@ describe("the treasury key state", () => {
     );
   });
 
-  it("reads wrong-network when the chain is refused", () => {
-    expect(
-      deriveTreasuryKeyState({
-        ...resting,
-        settlement: { ...settled, transactionHash: undefined, chainRefused: true },
-      })
-    ).toBe("wrong-network");
+  it("reads wrong-network only from a failure that names the chain", () => {
     expect(
       deriveTreasuryKeyState({
         ...resting,
@@ -206,6 +195,12 @@ describe("the treasury key state", () => {
         },
       })
     ).toBe("wrong-network");
+    expect(
+      deriveTreasuryKeyState({
+        ...resting,
+        failure: { code: "not_configured", hint: "PRIVY_KEY_QUORUM_ID is not set." },
+      })
+    ).not.toBe("wrong-network");
   });
 
   it("reads idle when the key is live and nothing is in flight", () => {
@@ -218,10 +213,26 @@ describe("the treasury key state", () => {
     ).toBe("tx-pending");
   });
 
-  it("reads tx-confirmed on an allowed verdict with a hash", () => {
+  it("reads tx-confirmed on an allowed verdict with a receipt of either kind", () => {
+    for (const receiptKind of ["on-chain", "synthetic"] as const) {
+      expect(
+        deriveTreasuryKeyState({
+          ...resting,
+          locked: true,
+          settlement: { ...settled, receiptKind },
+        })
+      ).toBe("tx-confirmed");
+    }
+  });
+
+  it("reads tx-failed on an allowed verdict that came back with no receipt", () => {
     expect(
-      deriveTreasuryKeyState({ ...resting, locked: true, settlement: settled })
-    ).toBe("tx-confirmed");
+      deriveTreasuryKeyState({
+        ...resting,
+        locked: true,
+        settlement: { ...settled, receiptKind: "none" },
+      })
+    ).toBe("tx-failed");
   });
 
   it("reads tx-rejected when the policy refused the payload", () => {
@@ -229,7 +240,7 @@ describe("the treasury key state", () => {
       deriveTreasuryKeyState({
         ...resting,
         locked: true,
-        settlement: { ...settled, allowed: false, transactionHash: undefined },
+        settlement: { ...settled, allowed: false, receiptKind: "none" },
       })
     ).toBe("tx-rejected");
   });
