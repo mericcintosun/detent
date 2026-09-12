@@ -44,10 +44,10 @@ export default defineConfig({
       // Raise them when a workstream adds tests; never lower them to make a run
       // pass.
       thresholds: {
-        statements: 67,
-        branches: 85,
-        functions: 76,
-        lines: 67,
+        statements: 69,
+        branches: 87,
+        functions: 82,
+        lines: 69,
       },
     },
   },
