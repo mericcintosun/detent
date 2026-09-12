@@ -8,11 +8,18 @@ out/
 next-env.d.ts
 .farm-scaffold.json
 
+# Foundry build output for contracts/.
+contracts/cache/
+contracts/out/
+
 # Derived by npm run seed, never committed.
 fixtures/register.seed.report.json
 
-# farm: sır dosyaları (otomatik eklendi)
+# Local-only working notes. They are not part of the published project.
+HANDOFF.md
+.farm-delta.md
+
+# Secret material. Never commit a key, a certificate or a keystore.
 *.pem
 *.key
 id_rsa
-!.env.example
