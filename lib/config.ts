@@ -32,6 +32,21 @@ export const PRIVY_TREASURY_WALLET_ADDRESS = process.env
   .PRIVY_TREASURY_WALLET_ADDRESS as `0x${string}` | undefined;
 export const PRIVY_KEY_QUORUM_ID = process.env.PRIVY_KEY_QUORUM_ID;
 
+/**
+ * Authorization private keys, `wallet-auth:` prefix included, comma separated.
+ * Each one signs the wallet update, the wallet rpc and the policy delete, and the
+ * signatures travel comma separated in privy-authorization-signature, which is
+ * how a wallet or policy owned by a key quorum is satisfied. Empty means no
+ * request is signed, which only works for resources without an owner. No
+ * NEXT_PUBLIC_ prefix: these are keys and never reach a browser bundle.
+ */
+export const PRIVY_AUTHORIZATION_KEYS: readonly string[] = (
+  process.env.PRIVY_AUTHORIZATION_KEYS ?? ""
+)
+  .split(",")
+  .map((entry) => entry.trim())
+  .filter((entry) => entry.length > 0);
+
 /* --- The lock gate, server side only -------------------------------------- */
 
 /**
@@ -98,7 +113,21 @@ export const SIGNED_TX_GAS_LIMIT = 1_500_000n;
  * approved calldata, so this is also how long a policy can sit attached to the
  * treasury wallet before the operator has to approve the plan again.
  */
-export const LOCK_TTL_MS = 15 * 60_000;
+export const LOCK_TTL_MS: number = (() => {
+  const ceiling = 15 * 60_000;
+  const configured = Number(process.env.DETENT_LOCK_TTL_MS);
+  // Only ever shorter than the default, never below five seconds: a rehearsal of
+  // the expiry cleanup should not need a fifteen minute wait.
+  return Number.isFinite(configured) && configured >= 5_000
+    ? Math.min(configured, ceiling)
+    : ceiling;
+})();
+
+/**
+ * How often expired locks are swept, so an abandoned lock's policy is detached
+ * and revoked on time rather than on the next request that touches the vault.
+ */
+export const LOCK_SWEEP_INTERVAL_MS = Math.min(60_000, LOCK_TTL_MS);
 
 /** Hard ceiling on held locks. The oldest entry is evicted past this. */
 export const LOCK_VAULT_MAX_ENTRIES = 200;
@@ -115,6 +144,12 @@ export const RATE_LIMIT_MAX_REQUESTS = 30;
 
 /** The tighter budget for the lock intent, which is the intent that can write. */
 export const LOCK_RATE_LIMIT_MAX_REQUESTS = 6;
+
+/**
+ * The coarse budget counted before the body is parsed, so a malformed or invalid
+ * request spends budget too instead of slipping past the per intent limiter.
+ */
+export const EDGE_RATE_LIMIT_MAX_REQUESTS = 60;
 
 /** How many distinct client addresses the limiter tracks before it evicts. */
 export const RATE_LIMIT_MAX_CLIENTS = 2_000;

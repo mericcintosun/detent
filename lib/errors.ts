@@ -50,16 +50,35 @@ export function hintFor(code: DetentErrorCode): string {
   return HINTS[code];
 }
 
+export interface DetentErrorDetails {
+  /** The HTTP status the provider answered with, for the server log only. */
+  providerStatus?: number;
+  /**
+   * True when the failure already detached and revoked the policy behind a
+   * lock, so the route must release the lock rather than offer it again.
+   */
+  lockSpent?: boolean;
+}
+
 /** An error that is safe to show: it carries a code and one human sentence. */
 export class DetentError extends Error {
   readonly code: DetentErrorCode;
   readonly hint: string;
+  readonly providerStatus?: number;
+  readonly lockSpent: boolean;
 
-  constructor(code: DetentErrorCode, message?: string, hint?: string) {
+  constructor(
+    code: DetentErrorCode,
+    message?: string,
+    hint?: string,
+    details: DetentErrorDetails = {},
+  ) {
     super(message ?? code);
     this.name = "DetentError";
     this.code = code;
     this.hint = hint ?? hintFor(code);
+    this.providerStatus = details.providerStatus;
+    this.lockSpent = details.lockSpent ?? false;
   }
 }
 

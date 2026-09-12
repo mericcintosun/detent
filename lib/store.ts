@@ -37,6 +37,7 @@ import {
   ANCHOR_BUDGET_WINDOW_MS,
   ANCHOR_MEMO_MS,
   ANCHOR_WRITE_BUDGET,
+  LOCK_SWEEP_INTERVAL_MS,
   LOCK_TTL_MS,
   LOCK_VAULT_MAX_ENTRIES,
   PLAN_RECORD_MEMO_MAX_ENTRIES,
@@ -56,17 +57,26 @@ import type {
 
 /* --- The primitive --------------------------------------------------------- */
 
-export interface BoundedStoreOptions {
+export interface BoundedStoreOptions<T = unknown> {
   ttlMs: number;
   maxEntries: number;
   /** Injected in tests so expiry can be exercised without waiting. */
   now?: () => number;
+  /**
+   * Called once for every entry that leaves the store without an explicit
+   * delete: expired, or evicted past the ceiling. A throwing callback is logged
+   * by the caller's own code, never allowed to break the store.
+   */
+  onEvict?: (key: string, value: T, reason: "expired" | "capacity") => void;
 }
 
 export interface BoundedStore<T> {
   get(key: string): T | undefined;
   set(key: string, value: T): void;
+  /** Explicit removal. Does not call onEvict. */
   delete(key: string): void;
+  /** Drop every expired entry now, calling onEvict for each. */
+  sweep(): void;
   readonly size: number;
 }
 
@@ -75,15 +85,24 @@ export interface BoundedStore<T> {
  * guarantees, so the eviction victim is the oldest key without a second index.
  */
 export function createBoundedStore<T>(
-  options: BoundedStoreOptions,
+  options: BoundedStoreOptions<T>,
 ): BoundedStore<T> {
   const entries = new Map<string, { value: T; expiresAt: number }>();
   const now = options.now ?? (() => Date.now());
 
+  function evict(key: string, value: T, reason: "expired" | "capacity") {
+    entries.delete(key);
+    try {
+      options.onEvict?.(key, value, reason);
+    } catch {
+      // The store stays consistent whatever the callback does.
+    }
+  }
+
   function purge(): void {
     const at = now();
     for (const [key, entry] of entries) {
-      if (entry.expiresAt <= at) entries.delete(key);
+      if (entry.expiresAt <= at) evict(key, entry.value, "expired");
     }
   }
 
@@ -92,7 +111,7 @@ export function createBoundedStore<T>(
       const entry = entries.get(key);
       if (!entry) return undefined;
       if (entry.expiresAt <= now()) {
-        entries.delete(key);
+        evict(key, entry.value, "expired");
         return undefined;
       }
       return entry.value;
@@ -102,13 +121,16 @@ export function createBoundedStore<T>(
       entries.delete(key);
       entries.set(key, { value, expiresAt: now() + options.ttlMs });
       while (entries.size > options.maxEntries) {
-        const oldest = entries.keys().next();
+        const oldest = entries.entries().next();
         if (oldest.done) break;
-        entries.delete(oldest.value);
+        evict(oldest.value[0], oldest.value[1].value, "capacity");
       }
     },
     delete(key: string): void {
       entries.delete(key);
+    },
+    sweep(): void {
+      purge();
     },
     get size(): number {
       return entries.size;
@@ -144,10 +166,32 @@ export interface LockRecord {
 
 export type NewLock = Omit<LockRecord, "lockId" | "createdAt" | "expiresAt">;
 
+/**
+ * What runs when a lock leaves the vault without being spent: expired, or
+ * pushed out past the ceiling. The route registers the Privy cleanup here, so
+ * this file stays free of provider code. One handler, replaced on registration,
+ * so a module reload never stacks two cleanups.
+ */
+let expiryHandler: ((lock: LockRecord) => void) | undefined;
+
 const locks = createBoundedStore<LockRecord>({
   ttlMs: LOCK_TTL_MS,
   maxEntries: LOCK_VAULT_MAX_ENTRIES,
+  onEvict: (_key, lock) => expiryHandler?.(lock),
 });
+
+let sweeper: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * Sweep on a timer once the first lock exists. Unreferenced, so it never keeps a
+ * process alive; on a serverless instance that is frozen between requests it
+ * runs when the instance wakes, which is a mitigation and not a guarantee.
+ */
+function ensureSweeper(): void {
+  if (sweeper) return;
+  sweeper = setInterval(() => locks.sweep(), LOCK_SWEEP_INTERVAL_MS);
+  sweeper.unref?.();
+}
 
 /** 24 random bytes, minted here. The client never chooses a key in this file. */
 function mintLockId(): string {
@@ -164,7 +208,16 @@ export const lockVault = {
       expiresAt: createdAt + LOCK_TTL_MS,
     };
     locks.set(held.lockId, held);
+    ensureSweeper();
     return held;
+  },
+  /** Register the cleanup for a lock that expires or is evicted unspent. */
+  onExpire(handler: (lock: LockRecord) => void): void {
+    expiryHandler = handler;
+  },
+  /** Run the expiry sweep now. The timer calls this; tests call it directly. */
+  sweep(): void {
+    locks.sweep();
   },
   recall(lockId: string): LockRecord | undefined {
     return locks.get(lockId);
