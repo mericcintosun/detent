@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { OperationsConsole } from "@/components/operations-console";
+import { Plate, type PlateName } from "@/components/plates";
 import { Button } from "@/components/ui/button";
 import { getRegisterSnapshot } from "@/lib/register";
 
@@ -15,6 +16,56 @@ export const metadata: Metadata = {
     "Read the BMEQ quarterly coupon distribution line by line, then lock the treasury key to exactly that payout.",
 };
 
+/**
+ * The whole product in three steps, one sentence each. No number appears here
+ * that is not already in lib/data.ts: the two approvals are the two entries in
+ * `approvers`, and nothing else is counted.
+ */
+const steps: { plate: PlateName; term: string; sentence: string }[] = [
+  {
+    plate: "plan",
+    term: "Read the plan",
+    sentence:
+      "Every holder the coupon reaches, every one the compliance module is holding, and what the treasury has left once the draw clears.",
+  },
+  {
+    plate: "policy",
+    term: "Lock the key",
+    sentence:
+      "Two officers approve, and the plan's own calldata is compiled into a wallet policy that allows that transaction and nothing else.",
+  },
+  {
+    plate: "refusal",
+    term: "Watch it refuse",
+    sentence:
+      "Edit one amount by hand and send it. The key names the condition that failed, and the untouched plan still signs.",
+  },
+];
+
+/** The comparison the prose used to make, in a form a judge can check. */
+const comparison: { tool: string; does: string; stops: string }[] = [
+  {
+    tool: "Tenderly and Safe",
+    does: "Simulates the outcome before you sign.",
+    stops: "The simulation and the signature are separate events.",
+  },
+  {
+    tool: "Fireblocks",
+    does: "An administrator authors policy up front.",
+    stops: "The rules persist across every transaction.",
+  },
+  {
+    tool: "OpenZeppelin Defender",
+    does: "Routes proposals through a multisig or a relayer.",
+    stops: "No ERC-1400 semantics for who may be credited.",
+  },
+  {
+    tool: "Detent",
+    does: "Compiles the plan you read into the signing limit.",
+    stops: "One corporate action, then the policy is revoked.",
+  },
+];
+
 export default async function ConsolePage() {
   const snapshot = await getRegisterSnapshot();
 
@@ -22,21 +73,36 @@ export default async function ConsolePage() {
     <div className="space-y-16">
       <OperationsConsole snapshot={snapshot} />
 
-      <section id="brief" className="max-w-[68ch] space-y-8 border-t border-border pt-10">
-        {/* The lead ends in the control rather than carrying it mid-prose, so
-            there is one way into DEMO step 1 from this fold. */}
+      <section id="brief" className="max-w-[68ch] space-y-10 border-t border-border pt-10">
+        {/* One sentence, then the way in. The four paragraphs this fold used to
+            carry are now a three step strip and a disclosure. */}
         <div className="space-y-5">
           <p className="text-lg leading-relaxed">
-            Detent is the operator console for a tokenized security. It is built
-            for the person who actually presses send on a corporate action: the
-            fund administrator, the transfer agent, the issuer&apos;s ops lead.
-            They read the coupon run line by line on this page, and the plan they
-            accepted becomes the only thing the treasury key is allowed to sign.
+            Detent is built for the person who actually presses send on a
+            corporate action, and the plan they accept on this page becomes the
+            only thing the treasury key can sign.
           </p>
           <Button variant="outline" asChild>
             <a href="#register">Start at the register</a>
           </Button>
         </div>
+
+        {/* The strip wipes in on its own scroll progress where the browser
+            supports it, and is a plain band everywhere else. The ledger rule
+            sits behind the plates and under no sentence. */}
+        <ol className="detent-band grid gap-6 sm:grid-cols-3">
+          {steps.map((step) => (
+            <li key={step.term} className="space-y-3">
+              <div className="detent-ruled flex items-center justify-center border border-border px-4 py-5">
+                <Plate name={step.plate} width={160} height={120} className="h-20 w-auto" />
+              </div>
+              <p className="detent-label">{step.term}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {step.sentence}
+              </p>
+            </li>
+          ))}
+        </ol>
 
         <h2 className="text-2xl tracking-tight">Why this exists</h2>
         <p className="leading-relaxed text-muted-foreground">
@@ -60,26 +126,41 @@ export default async function ConsolePage() {
           bytes, and nothing else. A key quorum of two opens the policy, and the
           policy is revoked once the transaction is in.
         </p>
-        <h2 className="text-2xl tracking-tight">How it differs from a simulator</h2>
-        <p className="leading-relaxed text-muted-foreground">
-          Tenderly and the Safe integration built on it show you the outcome
-          before you sign, but the simulation and the signature are two separate
-          events, so what you previewed and what you signed can differ. The
-          Fireblocks policy engine is written up front by an administrator and
-          the rules persist across every transaction. OpenZeppelin Defender puts
-          proposals through an approval flow on a multisig or a relayer, without
-          any ERC-1400 semantics for who is eligible to receive a coupon. Detent
-          takes the narrow slice none of them cover: the preview itself becomes
-          the signing limit, it exists for exactly one corporate action, and it
-          is gone afterwards.
-        </p>
+
+        <details className="border-t border-border pt-6">
+          <summary className="detent-label cursor-pointer py-2 hover:text-foreground">
+            How it differs from a simulator
+          </summary>
+          <div className="overflow-x-auto pt-4">
+            <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="detent-label py-2 pr-4 font-normal">Tool</th>
+                  <th className="detent-label py-2 pr-4 font-normal">What it does</th>
+                  <th className="detent-label py-2 font-normal">Where it stops</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.map((row) => (
+                  <tr key={row.tool} className="border-b border-border last:border-b-0">
+                    <td className="py-3 pr-4 align-top leading-relaxed">{row.tool}</td>
+                    <td className="py-3 pr-4 align-top leading-relaxed text-muted-foreground">
+                      {row.does}
+                    </td>
+                    <td className="py-3 align-top leading-relaxed text-muted-foreground">
+                      {row.stops}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       </section>
 
       <footer className="space-y-4 border-t border-border pt-8 text-sm leading-relaxed text-muted-foreground">
         <p className="max-w-[68ch]">
-          Built for ETHOnline 2026 on Hedera testnet, chain 296. Asset
-          Tokenization Studio for the security, Privy server wallets, policies
-          and key quorums for the treasury key, HashScan for the receipts.
+          Built for ETHOnline 2026 on Hedera testnet, chain 296.
         </p>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <a
