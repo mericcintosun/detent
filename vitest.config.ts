@@ -27,5 +27,31 @@ export default defineConfig({
       PRIVY_APP_ID: "",
       PRIVY_APP_SECRET: "",
     },
+    coverage: {
+      provider: "v8",
+      // The product surface only: the libraries and the one API route. React
+      // components are the frontend workstream's ground and carry no
+      // assertions here, so counting them would describe that workstream
+      // rather than this one. lib/types.ts is excluded because it compiles to
+      // nothing at all.
+      include: ["lib/**/*.ts", "app/api/**/*.ts"],
+      exclude: ["lib/types.ts"],
+      reporter: ["text", "lcov"],
+      // Measured, not aspirational. The run that produced them is
+      // `npx vitest run --coverage` on 77 tests: 62.97 statements, 79.20
+      // branches, 64.51 functions, 62.97 lines. The floors sit just under
+      // those, so a regression fails and a normal edit does not. Raise them
+      // when a workstream adds tests; never lower them to make a run pass.
+      //
+      // The provider itself, @vitest/coverage-v8, is not in package.json yet,
+      // so `--coverage` only works where it has been installed. Plain
+      // `npm test` is unaffected: coverage runs on request.
+      thresholds: {
+        statements: 62,
+        branches: 78,
+        functions: 64,
+        lines: 62,
+      },
+    },
   },
 });
