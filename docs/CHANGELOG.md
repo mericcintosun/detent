@@ -23,6 +23,22 @@ the ids in `docs/AUDIT.md`. Each section is one workstream branch merged into
 | Low | Deploy docs use `cast wallet import` and `--account` instead of `--private-key`; `Smoke.s.sol` refuses to broadcast against an empty or codeless `DEPLOYED_CONTRACT`. | Keeps the operator key out of shell history and prevents a smoke run against nothing. |
 | Note | Interface change: the `Plan` struct field order and the `closedAt` name change the `planOf` return ABI. No function signature changed. | The contract has never been deployed, so no live consumer is affected; `lib/anchor.ts` is updated in the backend workstream. |
 
+## Backend and API (`refactor/backend`)
+
+| Severity | Change | Rationale |
+| --- | --- | --- |
+| Critical | The compiled policy is bound to the treasury wallet: the wallet is read, the policy is created with `POST /v1/policies`, bound with `PATCH /v1/wallets/{id}` carrying `policy_ids`, and after the send the previous list is restored before the policy is revoked. The lock is refused when binding fails. The local mirror now explains decisions and never makes them on the live path (C1). | Nothing in Privy constrained the treasury key; the policy was created and never attached. Privy allows one policy per wallet and the PATCH replaces the whole list, which is why the previous list is saved and restored. |
+| Critical | The server derives the plan itself on both intents and rejects a mismatch with `plan_mismatch`. `lock` returns a server generated lock id; `submit` accepts only that id, and a lock the instance does not hold is refused with `lock_unknown`. The policy is never compiled from request data (C2). | On a cold instance the route rebuilt the policy from the request body, so every condition came from the caller and evaluation always allowed. |
+| Critical | Approvals resolve against a server side registry of officers; each must be a distinct registered signer, and the approvers are stored in the lock record (C3). | Any two distinct strings satisfied the quorum. This is still not cryptographic without real authentication, and `SECURITY.md` states that limit. |
+| High | A keyless send returns a typed synthetic receipt with a reference and no `transactionHash`; an on-chain receipt carries the hash and the broadcast path (H2). | A stub derived from the calldata was returned in the field a real transaction hash occupies. |
+| High | `lock` accepts an optional operator token header, is rate limited per IP, and anchor writes are idempotent per server derived plan hash and capped per hour (H6). | Unauthenticated repeated locks could drain the operator account through anchor transactions. |
+| High | Blockers are enforced on both `lock` and `submit`, from the server derived plan (H7). | A compliance held row could reach payout calldata through a direct submit. |
+| High | Cross-request state lives in a bounded store with server minted keys, a TTL and size eviction (H8). | Client chosen deterministic keys with no bound let one visitor overwrite another's record on a warm instance. |
+| Medium | Request arrays and strings are capped: 500 rows and 8 approvals (M1); a fixed window per-IP limiter answers 429 with `Retry-After` (M2); contract reads are memoized briefly with a bounded cache (M3); settle refuses a zero or non 32 byte reference (M4); `tampered` is derived on the server from the calldata (M6); the response names the deciding engine in `decidedBy`, and `live` now only reports whether credentials are configured (M7). | Each closed an unbounded input, an abuse path, or a client controlled value written into the audit record. |
+| Medium | The three `TODO` comments are gone; `lib/hedera.ts` now states plainly that the Asset Tokenization Studio reads are hand written viem ABI calls (M10). | Shipped TODOs, one of them stating the SDK was never adopted. |
+| Note | `lib/anchor.ts` decodes the new `PlanAnchor` struct with `closedAt`, and the plan target reads `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` in real mode. | Follows the contract interface change and makes the destination link able to match a live token. |
+| Note | Intentional behaviour changes: a submit reaching an instance that does not hold the lock is refused; a successful submit consumes the lock while a refused one keeps it open; a synthetic receipt does not settle a plan on chain; only registered officers can approve. | Each is the fail closed consequence of the fixes above and is documented in `SECURITY.md`. |
+
 ## Testing and CI (`refactor/testing`)
 
 | Severity | Change | Rationale |
@@ -32,7 +48,9 @@ the ids in `docs/AUDIT.md`. Each section is one workstream branch merged into
 | Medium | `lib/anchor.ts` and `lib/hedera.ts` covered without network: unwired branches, unusable operator key, chain definition, step naming, dead relay error mapping with a stubbed fetch, adapter mode gate. | Both modules had no tests. |
 | Medium | Hold detection moved from the seed script into the suite; zod boundaries covered for formats, widths, checksums, missing and mistyped fields, and error path naming. | Compliance holds were asserted only by a script nobody runs in CI. |
 | Medium | `.github/workflows/ci.yml`: install, typecheck, test and build for the app, plus `forge build` and `forge test` for the contracts, as two parallel jobs with read-only permissions and per-ref concurrency. | The repository had no CI. |
-| Low | Coverage thresholds set just below the measured baseline: statements 62, branches 78, functions 64, lines 62. | Honest about the current state rather than aspirational, so regressions fail without inventing a target. |
+| High | The backend fixes are locked by regression tests: `lock_unknown` for a lock the server does not hold (C2), `quorum_not_met` for unregistered approvers (C3), `429` with `Retry-After` on repeated locks (H6), `plan_blocked` on submit when the treasury falls short under an open lock (H7), 500 rows accepted and 501 refused (M1), `plan_mismatch`, a server derived `tampered` flag, a synthetic receipt with no transaction hash, and a lock that survives a refused submit but is consumed by a successful one. | Tests first written to document the open findings were converted into guarantees once the fixes landed, so a regression now fails the suite. |
+| Low | The stack trace assertion matches real frame patterns instead of the substring "at ". | It flagged the legitimate message "The request failed validation at approvals." as a leaked trace. |
+| Low | Coverage thresholds set just below the measured baseline after the backend merge: statements 67, branches 85, functions 76, lines 67. The suite grew from 18 tests to 148. | Honest about the current state rather than aspirational, so regressions fail without inventing a target. |
 
 ## Frontend (`refactor/frontend`)
 

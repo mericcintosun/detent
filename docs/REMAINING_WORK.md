@@ -34,6 +34,25 @@ of them has been run against a live service.
   credential steps above rather than edited before them.
 - Nothing has been pushed. `refactor/main` exists only locally.
 
+## Limits of the backend fixes
+
+- A treasury wallet that has an owner requires a `privy-authorization-signature`
+  header on the policy binding `PATCH`. That signature is not produced here,
+  because the signing algorithm is not published in the REST documentation and
+  Privy directs integrators to its SDK. With an owned wallet the lock therefore
+  stays closed and the error says so. Closing this means adopting the Privy
+  server SDK for the authorization signature.
+- The lock record, the rate limiter and the idempotency store live in the memory
+  of one serverless instance. When a lock and its submit land on different
+  instances the submit is refused with `lock_unknown`, and the limiter is a
+  mitigation rather than a guarantee. A shared store such as Redis would make
+  both correct across instances.
+- The approval quorum checks registered, distinct officers but is not
+  cryptographic. Real operator authentication is required before the quorum
+  can be trusted.
+- `OPERATOR_API_TOKEN` is optional. Without it `lock` is public and bounded only
+  by the rate limit.
+
 ## Deferred technical work
 
 - L10: `public/brand/og.png` and `app/opengraph-image.png` are identical 542 KB
