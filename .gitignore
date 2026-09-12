@@ -10,6 +10,7 @@ next-env.d.ts
 # Foundry build output for contracts/.
 contracts/cache/
 contracts/out/
+contracts/broadcast/
 
 # Coverage output from npm run test:coverage.
 coverage/
