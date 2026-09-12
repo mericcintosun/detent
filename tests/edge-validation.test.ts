@@ -134,57 +134,86 @@ describe("the hint path", () => {
   });
 });
 
+describe("the lock body", () => {
+  it("caps the approvals at eight and refuses an empty list", () => {
+    const nine = Array.from({ length: 9 }, (_, index) => `officer-${index}`);
+
+    expect(pathFor({ intent: "lock", plan, approvals: nine })).toBe("approvals");
+    expect(pathFor({ intent: "lock", plan, approvals: [] })).toBe("approvals");
+  });
+
+  it("closes the selection to the two action kinds", () => {
+    expect(
+      pathFor({
+        intent: "lock",
+        plan,
+        selection: { kind: "mint", deferred: [], forced: [] },
+        approvals,
+      })
+    ).toBe("selection.kind");
+  });
+});
+
 describe("the submit body", () => {
   const base = {
     intent: "submit" as const,
-    policyId: "pol_local_b43da729",
-    approvedPlan: plan,
+    lockId: "lock_opaque_handle",
     submittedRows: [{ address: plan.rows[0].address, amountMicros: "1" }],
-    tampered: false,
-    submissionKey: "key-1",
   };
 
-  it("parses the shape the console sends", () => {
+  it("parses the shape the console sends: a lock id and the rows, nothing else", () => {
     expect(submitBodySchema.safeParse(base).success).toBe(true);
   });
 
-  it("requires an idempotency key, so a retry cannot broadcast twice by omission", () => {
-    expect(pathFor({ ...base, submissionKey: undefined })).toBe("submissionKey");
-    expect(pathFor({ ...base, submissionKey: "" })).toBe("submissionKey");
+  it("requires a lock id and bounds its length", () => {
+    expect(pathFor({ ...base, lockId: undefined })).toBe("lockId");
+    expect(pathFor({ ...base, lockId: "" })).toBe("lockId");
+    expect(pathFor({ ...base, lockId: "x".repeat(201) })).toBe("lockId");
   });
 
-  it("requires the tampered flag to be a boolean and the policy id to be present", () => {
-    expect(pathFor({ ...base, tampered: "yes" })).toBe("tampered");
-    expect(pathFor({ ...base, policyId: "" })).toBe("policyId");
+  it("drops a client supplied tampered flag, approved plan and policy id", () => {
+    const result = submitBodySchema.safeParse({
+      ...base,
+      tampered: false,
+      policyId: "pol_forged",
+      approvedPlan: plan,
+    });
+
+    if (!result.success) throw new Error("the legacy fields must not break the parse");
+    expect(Object.keys(result.data).sort()).toEqual(["intent", "lockId", "submittedRows"]);
   });
 
   it("treats the broadcast preference as optional and closed to unknown values", () => {
-    expect(submitBodySchema.safeParse({ ...base, broadcastPreference: "signature" }).success).toBe(
-      true
-    );
+    expect(
+      submitBodySchema.safeParse({ ...base, broadcastPreference: "signature" }).success
+    ).toBe(true);
     expect(pathFor({ ...base, broadcastPreference: "carrier-pigeon" })).toBe(
       "broadcastPreference"
     );
   });
 
   it("accepts an empty row set, which is the send-nothing case the route encodes as 0x", () => {
-    expect(submitBodySchema.safeParse({ ...base, submittedRows: [] }).success).toBe(
-      true
-    );
+    expect(submitBodySchema.safeParse({ ...base, submittedRows: [] }).success).toBe(true);
   });
 
-  // Audit M1. Neither rows nor submittedRows carries a maximum, so a large
-  // payload reaches encodeFunctionData and keccak256 unbounded. This test
-  // records the boundary that is missing; when a .max() lands on the arrays,
-  // it must be rewritten to expect a refusal at that limit.
-  it("puts no ceiling on the row count today (audit M1, open)", () => {
-    const many = Array.from({ length: 5_000 }, () => ({
-      address: plan.rows[0].address,
-      amountMicros: "1",
-    }));
+  // Regression for audit M1: the row arrays were unbounded, so a request could
+  // drive encodeFunctionData and keccak256 with any payload size it liked.
+  it("refuses more than 500 submitted rows and accepts exactly 500 (audit M1)", () => {
+    const rows = (count: number) =>
+      Array.from({ length: count }, () => ({
+        address: plan.rows[0].address,
+        amountMicros: "1",
+      }));
 
-    expect(submitBodySchema.safeParse({ ...base, submittedRows: many }).success).toBe(
+    expect(submitBodySchema.safeParse({ ...base, submittedRows: rows(500) }).success).toBe(
       true
     );
+    expect(pathFor({ ...base, submittedRows: rows(501) })).toBe("submittedRows");
+  });
+
+  it("refuses a plan with more than 500 rows on the lock", () => {
+    const wide = { ...plan, rows: Array.from({ length: 501 }, () => plan.rows[0]) };
+
+    expect(pathFor({ intent: "lock", plan: wide, approvals })).toBe("plan.rows");
   });
 });

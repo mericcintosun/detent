@@ -24,6 +24,10 @@ const TEST_ANCHOR_ADDRESS = "0x00000000000000000000000000000000000004d2";
 
 const planHash = buildPlan({ kind: "coupon", holders }).planHash;
 
+/** Shaped like a real 32 byte transaction hash, which is all settle accepts. */
+const PAYOUT_TX_HASH =
+  "0x1111111111111111111111111111111111111111111111111111111111111111";
+
 /** Re-import a module with a patched environment, one test at a time. */
 async function withEnv<T>(
   env: Record<string, string>,
@@ -62,7 +66,7 @@ describe("the anchor when nothing is wired", () => {
 
     const receipts = [
       await anchorPlan(planHash, TEST_ANCHOR_ADDRESS, "0xca4ead79"),
-      await settlePlan(planHash, "0xdeadbeef"),
+      await settlePlan(planHash, PAYOUT_TX_HASH),
       await abandonPlan(planHash, "policy refused the submitted payload"),
     ];
 
@@ -110,6 +114,40 @@ describe("the anchor when nothing is wired", () => {
     expect(receipt.note).toContain("not a usable ECDSA key");
     expect(relay).not.toHaveBeenCalled();
   });
+
+  // Regression for audit M4: a reference that was not 32 bytes used to be zero
+  // padded and written on chain as if it were a payout transaction.
+  it("refuses to settle on anything that is not a real 32 byte transaction hash", async () => {
+    const relay = stubDeadRelay();
+    const { settlePlan } = await withEnv(
+      {
+        NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS: TEST_ANCHOR_ADDRESS,
+        OPERATOR_PRIVATE_KEY: TEST_OPERATOR_KEY,
+      },
+      () => import("@/lib/anchor")
+    );
+
+    for (const reference of [undefined, "0xdeadbeef", `0x${"0".repeat(64)}`]) {
+      const receipt = await settlePlan(planHash, reference);
+      expect(receipt.anchored).toBe(false);
+      expect(receipt.transactionHash).toBeUndefined();
+      expect(receipt.note).toContain("nothing to settle with");
+    }
+    expect(relay).not.toHaveBeenCalled();
+  });
+
+  it("clamps the abandon reason to between 1 and 256 bytes without splitting a character", async () => {
+    const { clampAbandonReason } = await import("@/lib/anchor");
+    const encoded = (value: string) => new TextEncoder().encode(value).length;
+
+    expect(encoded(clampAbandonReason("   "))).toBeGreaterThan(0);
+    expect(clampAbandonReason("refused")).toBe("refused");
+    expect(encoded(clampAbandonReason("a".repeat(300)))).toBe(256);
+
+    const multibyte = clampAbandonReason("\u00e7".repeat(200));
+    expect(encoded(multibyte)).toBeLessThanOrEqual(256);
+    expect(multibyte).not.toContain("\uFFFD");
+  });
 });
 
 describe("the anchor when the relay will not answer", () => {
@@ -141,7 +179,7 @@ describe("the anchor when the relay will not answer", () => {
       () => import("@/lib/anchor")
     );
 
-    expect((await settlePlan(planHash, "0xdeadbeef")).note).toContain(
+    expect((await settlePlan(planHash, PAYOUT_TX_HASH)).note).toContain(
       "settle call did not reach"
     );
     expect((await abandonPlan(planHash, "refused")).note).toContain(
