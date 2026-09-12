@@ -33,6 +33,19 @@ export interface PrivyPolicy {
   default_action: "DENY";
 }
 
+/* --- On chain anchor ------------------------------------------------------ */
+
+/**
+ * What PlanAnchor did, or why it did nothing. Every anchor call degrades into
+ * one of these rather than throwing, because a missing operator key or a busy
+ * relay must never fail a send.
+ */
+export interface AnchorReceipt {
+  anchored: boolean;
+  transactionHash?: `0x${string}`;
+  note: string;
+}
+
 export interface PolicyInstallation {
   policyId: string;
   policy: PrivyPolicy;
@@ -40,6 +53,7 @@ export interface PolicyInstallation {
   quorumThreshold: number;
   live: boolean;
   note: string;
+  anchor?: AnchorReceipt;
 }
 
 export interface SignatureVerdict {
@@ -75,6 +89,7 @@ export interface SubmitResult extends ExecutionResult {
   tampered: boolean;
   policySource: "held-from-lock" | "recompiled-from-approved-plan";
   planHash: `0x${string}`;
+  anchor?: AnchorReceipt;
 }
 
 export type ApiResponse<T> =
