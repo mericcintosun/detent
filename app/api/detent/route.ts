@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import { LOG_PREFIX } from "@/lib/config";
+import {
+  hintFor,
+  isDetentError,
+  type DetentErrorCode,
+} from "@/lib/errors";
 import { buildCalldata, type Plan } from "@/lib/plan";
 import {
   compilePolicy,
@@ -6,6 +12,7 @@ import {
   quorumSatisfied,
   submitTransaction,
 } from "@/lib/privy";
+import { detentRequestSchema, firstIssuePath } from "@/lib/schemas";
 import type {
   ApiResponse,
   PolicyInstallation,
@@ -24,54 +31,64 @@ export const runtime = "nodejs";
 // once the treasury wallet is live, then the fallback disappears.
 const vault = new Map<string, { policy: PrivyPolicy; plan: Plan }>();
 
-interface LockBody {
-  intent: "lock";
-  plan: Plan;
-  approvals: string[];
-}
-
-interface SubmitBody {
-  intent: "submit";
-  policyId: string;
-  approvedPlan: Plan;
-  submittedRows: Array<{ address: `0x${string}`; amountMicros: string }>;
-  tampered: boolean;
-}
-
-type Body = LockBody | SubmitBody;
-
-/** Every response from this route carries the same envelope. */
-function fail(error: string, status: number, blockers?: string[]) {
-  const payload: ApiResponse<never> = blockers
-    ? { ok: false, error, blockers }
-    : { ok: false, error };
+/** Every failure from this route carries the same envelope: a code and a hint. */
+function fail(
+  error: DetentErrorCode,
+  status: number,
+  options?: { hint?: string; blockers?: string[] }
+) {
+  const payload: ApiResponse<never> = {
+    ok: false,
+    error,
+    hint: options?.hint ?? hintFor(error),
+    ...(options?.blockers ? { blockers: options.blockers } : {}),
+  };
   return NextResponse.json(payload, { status });
 }
 
+/** A thrown DetentError keeps its own code; anything else is an upstream error. */
+function failFromThrown(thrown: unknown) {
+  if (isDetentError(thrown)) {
+    return fail(thrown.code, thrown.code === "upstream_timeout" ? 504 : 502, {
+      hint: thrown.hint,
+    });
+  }
+  console.error(
+    `${LOG_PREFIX} unexpected failure on the core path:`,
+    thrown instanceof Error ? thrown.message : "non-error thrown"
+  );
+  return fail("upstream_error", 502);
+}
+
 export async function POST(request: Request) {
-  let body: Body;
+  let raw: unknown;
   try {
-    body = (await request.json()) as Body;
+    raw = await request.json();
   } catch {
-    return fail("Malformed request body.", 400);
+    return fail("invalid_input", 400, {
+      hint: "The request body was not valid JSON.",
+    });
   }
 
+  const parsed = detentRequestSchema.safeParse(raw);
+  if (!parsed.success) {
+    return fail("invalid_input", 400, {
+      hint: `The request failed validation at ${firstIssuePath(parsed.error)}. Reload the page and rebuild the plan.`,
+    });
+  }
+
+  const body = parsed.data;
+
   if (body.intent === "lock") {
-    const { plan, approvals } = body;
+    const plan: Plan = body.plan;
+    const approvals = body.approvals;
 
     if (plan.blockers.length > 0) {
-      return fail(
-        "The plan still has blockers, nothing can be locked.",
-        409,
-        plan.blockers
-      );
+      return fail("plan_blocked", 409, { blockers: plan.blockers });
     }
 
     if (!quorumSatisfied(approvals)) {
-      return fail(
-        "Key quorum not met. Two distinct signers must approve before the policy is installed.",
-        409
-      );
+      return fail("quorum_not_met", 409);
     }
 
     try {
@@ -86,52 +103,44 @@ export async function POST(request: Request) {
       };
       return NextResponse.json(response);
     } catch (error) {
-      return fail(
-        error instanceof Error ? error.message : "Policy install failed.",
-        502
-      );
+      return failFromThrown(error);
     }
   }
 
-  if (body.intent === "submit") {
-    const { policyId, approvedPlan, submittedRows, tampered } = body;
-    const held = vault.get(policyId);
-    const policy = held?.policy ?? compilePolicy(approvedPlan);
+  const { policyId, tampered } = body;
+  const approvedPlan: Plan = body.approvedPlan;
+  const submittedRows = body.submittedRows;
+  const held = vault.get(policyId);
+  const policy = held?.policy ?? compilePolicy(approvedPlan);
 
-    const calldata: `0x${string}` =
-      submittedRows.length > 0
-        ? buildCalldata(approvedPlan.kind, submittedRows)
-        : "0x";
+  const calldata: `0x${string}` =
+    submittedRows.length > 0
+      ? buildCalldata(approvedPlan.kind, submittedRows)
+      : "0x";
 
-    try {
-      const result = await submitTransaction({
-        policy,
-        policyId,
-        to: approvedPlan.target,
-        chainId: approvedPlan.chainId,
-        data: calldata,
-      });
+  try {
+    const result = await submitTransaction({
+      policy,
+      policyId,
+      to: approvedPlan.target,
+      chainId: approvedPlan.chainId,
+      data: calldata,
+    });
 
-      if (result.verdict.allowed) {
-        vault.delete(policyId);
-      }
-
-      const data: SubmitResult = {
-        ...result,
-        calldata,
-        tampered,
-        policySource: held ? "held-from-lock" : "recompiled-from-approved-plan",
-        planHash: approvedPlan.planHash,
-      };
-      const response: ApiResponse<SubmitResult> = { ok: true, data };
-      return NextResponse.json(response);
-    } catch (error) {
-      return fail(
-        error instanceof Error ? error.message : "Submission failed.",
-        502
-      );
+    if (result.verdict.allowed) {
+      vault.delete(policyId);
     }
-  }
 
-  return fail("Unknown intent.", 400);
+    const data: SubmitResult = {
+      ...result,
+      calldata,
+      tampered,
+      policySource: held ? "held-from-lock" : "recompiled-from-approved-plan",
+      planHash: approvedPlan.planHash,
+    };
+    const response: ApiResponse<SubmitResult> = { ok: true, data };
+    return NextResponse.json(response);
+  } catch (error) {
+    return failFromThrown(error);
+  }
 }

@@ -7,6 +7,7 @@
 // straight from this file.
 
 import type { Holder, SecurityToken, TreasuryAccount } from "@/lib/data";
+import type { DetentErrorCode } from "@/lib/errors";
 
 /* --- Privy policy shapes -------------------------------------------------- */
 
@@ -78,4 +79,9 @@ export interface SubmitResult extends ExecutionResult {
 
 export type ApiResponse<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; blockers?: string[] };
+  | {
+      ok: false;
+      error: DetentErrorCode;
+      hint: string;
+      blockers?: string[];
+    };

@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { actions, approvers, couponWindow, type ActionKind } from "@/lib/data";
-import type { RegisterSnapshot } from "@/lib/hedera";
-import { hashscanToken, hashscanTransaction } from "@/lib/hedera";
+import type { DetentErrorCode } from "@/lib/errors";
+import { hashscanToken, hashscanTransaction } from "@/lib/hashscan";
 import {
   buildPlan,
   formatMicros,
@@ -25,8 +25,17 @@ import {
 import type {
   ApiResponse,
   PolicyInstallation,
+  RegisterSnapshot,
   SubmitResult,
 } from "@/lib/types";
+
+/** What the console keeps from a failed call: the code it switches on, the
+ *  sentence it prints, and the blockers that belong under it. */
+interface ConsoleFailure {
+  code: DetentErrorCode;
+  hint: string;
+  blockers?: string[];
+}
 
 interface AuditEntry {
   id: string;
@@ -65,7 +74,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
   );
   const [settlement, setSettlement] = useState<SubmitResult | null>(null);
   const [pending, setPending] = useState<"lock" | "send" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ConsoleFailure | null>(null);
   const [tamperInput, setTamperInput] = useState<string | null>(null);
   const [log, setLog] = useState<AuditEntry[]>([]);
 
@@ -98,7 +107,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
     setInstallation(null);
     setSettlement(null);
     setTamperInput(null);
-    setError(null);
+    setFailure(null);
   }
 
   function toggleRow(row: PlanRow) {
@@ -131,7 +140,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
 
   async function lockPlan() {
     setPending("lock");
-    setError(null);
+    setFailure(null);
     try {
       const response = await fetch("/api/detent", {
         method: "POST",
@@ -140,7 +149,11 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
       });
       const payload = (await response.json()) as ApiResponse<PolicyInstallation>;
       if (!payload.ok) {
-        setError(payload.error);
+        setFailure({
+          code: payload.error,
+          hint: payload.hint,
+          blockers: payload.blockers,
+        });
         return;
       }
       setInstallation(payload.data);
@@ -150,7 +163,10 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
         tone: "neutral",
       });
     } catch {
-      setError("The console could not reach the policy endpoint.");
+      setFailure({
+        code: "upstream_error",
+        hint: "The console could not reach the policy endpoint.",
+      });
     } finally {
       setPending(null);
     }
@@ -159,7 +175,7 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
   async function send(tampered: boolean) {
     if (!installation) return;
     setPending("send");
-    setError(null);
+    setFailure(null);
 
     let submittedRows = includedRows.map((row) => ({
       address: row.address,
@@ -169,7 +185,10 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
     if (tampered && firstRow) {
       const micros = inputToMicros(tamperValue);
       if (micros === null) {
-        setError("Enter an amount with at most six decimal places.");
+        setFailure({
+          code: "invalid_input",
+          hint: "Enter an amount with at most six decimal places.",
+        });
         setPending(null);
         return;
       }
@@ -192,7 +211,11 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
       });
       const payload = (await response.json()) as ApiResponse<SubmitResult>;
       if (!payload.ok) {
-        setError(payload.error);
+        setFailure({
+          code: payload.error,
+          hint: payload.hint,
+          blockers: payload.blockers,
+        });
         return;
       }
       const result = payload.data;
@@ -214,7 +237,10 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
         });
       }
     } catch {
-      setError("The console could not reach the wallet endpoint.");
+      setFailure({
+        code: "upstream_error",
+        hint: "The console could not reach the wallet endpoint.",
+      });
     } finally {
       setPending(null);
     }
@@ -651,10 +677,24 @@ export function OperationsConsole({ snapshot }: { snapshot: RegisterSnapshot }) 
                 : "Execute the approved plan"}
             </Button>
 
-            {error ? (
-              <p className="border border-bad px-4 py-3 text-sm leading-relaxed text-bad">
-                {error}
-              </p>
+            {failure ? (
+              <div className="space-y-2">
+                <p className="border border-bad px-4 py-3 text-sm leading-relaxed text-bad">
+                  {failure.hint}
+                </p>
+                {failure.code === "plan_blocked" && failure.blockers ? (
+                  <ul className="space-y-1 px-4">
+                    {failure.blockers.map((blocker) => (
+                      <li
+                        key={blocker}
+                        className="text-sm leading-relaxed text-bad"
+                      >
+                        {blocker}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             ) : null}
 
             {settlement ? (
