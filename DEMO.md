@@ -40,11 +40,19 @@ when that transaction lands.
 ### Step 1. Read the register
 
 **Anchor:** `/#register` **File:** `app/page.tsx` (renders
-`components/operations-console.tsx`)
+`components/operations-console.tsx`, where the masthead markup itself lives)
 
-The masthead prints the security name, the token address linked to HashScan, the
-register source badge, 12 holders on partition CLASS-A and 3 of them held by the
-compliance module.
+The fold prints six things, in this order. First the status line, which is the
+one place the page states which mode a viewer is looking at: the register source
+(`Cached register`, or `Live read from Hedera testnet`), the treasury key mode
+(`Treasury key, policy evaluated locally`, or `Privy server wallet`), and
+`Hedera testnet 296`. Once a plan is locked the same line also carries the Privy
+policy id. Then the standard and the coupon window, then the product name
+**Detent**, then its one-sentence promise, then the security name, then the line
+that counts the register: 12 holders on partition CLASS-A, 3 of them held by the
+compliance module. The register source badge and the token address linked to
+HashScan sit under that, and the register note block beside it carries the
+snapshot time, the source, the partition and the settlement asset.
 
 ### Step 2. Build the plan
 
