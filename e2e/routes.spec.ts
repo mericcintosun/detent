@@ -40,7 +40,7 @@ test.describe("record and not found routes", () => {
     }
   });
 
-  test.fixme("a malformed plan hash renders the not found page without a React error", async ({
+  test("a malformed plan hash renders the not found page without a React error", async ({
     page,
   }) => {
     // Bug: notFound() streams inside the record loading.tsx boundary and intermittently throws React error #419 on hydration.
@@ -55,9 +55,7 @@ test.describe("record and not found routes", () => {
     }
   });
 
-  test.fixme("a malformed plan hash answers with HTTP 404", async ({
-    page,
-  }) => {
+  test("a malformed plan hash answers with HTTP 404", async ({ page }) => {
     // Bug: record route returns 200 for a malformed hash, see coordinator fix.
     for (const malformed of ["0x1234", "nothex"]) {
       const response = await page.goto(`/record/${malformed}`);

@@ -16,6 +16,9 @@ export type ComplianceState =
   | "allowlist-expired"
   | "kyc-lapsed"
   | "sanctions-hold"
+  // A refusal from the compliance contract bound to an ATS token. ATS has no
+  // sanctions specific error, so Detent does not call this a sanctions hold.
+  | "compliance-refused"
   | "paused"
   | "unrecognised";
 

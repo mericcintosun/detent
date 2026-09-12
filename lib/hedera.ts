@@ -190,7 +190,7 @@ const HOLD_BY_ERROR: Record<string, { state: ComplianceState; note: string }> =
       note: "The ATS token is paused, so no credit can settle to any holder",
     },
     ComplianceNotAllowed: {
-      state: "sanctions-hold",
+      state: "compliance-refused",
       note: "The ERC-3643 compliance contract bound to the token refused a test credit",
     },
   };

@@ -101,6 +101,7 @@ const HOLD_LABELS: Record<string, string> = {
   "allowlist-expired": "Allowlist entry expired",
   "kyc-lapsed": "KYC refresh overdue",
   "sanctions-hold": "Sanctions screening hold",
+  "compliance-refused": "Compliance contract hold",
 };
 
 const partitionBytes32 = stringToHex(security.partition, { size: 32 });
@@ -190,7 +191,9 @@ export function buildPlan({
     }
   } else {
     const subject = holders.find(
-      (holder) => holder.compliance === "sanctions-hold",
+      (holder) =>
+        holder.compliance === "sanctions-hold" ||
+        holder.compliance === "compliance-refused",
     );
     if (subject) {
       rows.push({

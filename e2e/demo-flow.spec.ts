@@ -78,7 +78,7 @@ test.describe("README seven step demo", () => {
     ).toHaveCount(0);
   });
 
-  test.fixme("the audit record only claims a revocation the server reported", async ({
+  test("the audit record only claims a revocation the server reported", async ({
     page,
   }) => {
     // Bug: the keyless audit entry says "Policy ... revoked" while the server returns policyRevoked false.

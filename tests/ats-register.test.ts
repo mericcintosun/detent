@@ -21,6 +21,7 @@ import {
 } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { holders } from "@/lib/data";
+import { buildPlan } from "@/lib/plan";
 import {
   ATS_COMPLIANCE_ERRORS,
   ATS_DEFAULT_PARTITION,
@@ -273,7 +274,7 @@ describe("the verdict decoder", () => {
         DISALLOWED,
         reasonFor("ComplianceNotAllowed"),
       ]).compliance,
-    ).toBe("sanctions-hold");
+    ).toBe("compliance-refused");
     const recovered = decodeTransferVerdict([
       false,
       "0x16",
@@ -349,5 +350,42 @@ describe("configuration errors", () => {
     );
     expect(relay).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("a live compliance contract refusal", () => {
+  const refusedNote =
+    "The ERC-3643 compliance contract bound to the token refused a test credit.";
+  const liveHolders = holders.map((holder) =>
+    holder.compliance === "sanctions-hold"
+      ? {
+          ...holder,
+          compliance: "compliance-refused" as const,
+          complianceNote: refusedNote,
+        }
+      : holder,
+  );
+  const refused = liveHolders.find(
+    (holder) => holder.compliance === "compliance-refused",
+  );
+
+  it("is labelled a compliance contract hold, never a sanctions hold", () => {
+    expect(refused).toBeDefined();
+    const plan = buildPlan({ kind: "coupon", holders: liveHolders });
+    const row = plan.rows.find(
+      (candidate) => candidate.holderId === refused?.id,
+    );
+    expect(row?.held).toBe(true);
+    expect(row?.holdReason?.startsWith("Compliance contract hold.")).toBe(true);
+    expect(
+      plan.rows.some((candidate) =>
+        candidate.holdReason?.includes("Sanctions screening hold"),
+      ),
+    ).toBe(false);
+  });
+
+  it("is still the subject of the forced transfer", () => {
+    const plan = buildPlan({ kind: "forced-transfer", holders: liveHolders });
+    expect(plan.rows[0]?.holderId).toBe(refused?.id);
   });
 });
