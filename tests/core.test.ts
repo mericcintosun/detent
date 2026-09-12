@@ -145,6 +145,8 @@ describe("the submission ledger", () => {
       verdict: { allowed: true, ruleName: "test", reason: "matched" },
       transactionHash: "0xabc",
       policyRevoked: true,
+      policyDetached: false,
+      decidedBy: "local-mirror",
       live: false,
       note: "first call",
       calldata: plan.calldata,
