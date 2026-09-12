@@ -78,3 +78,33 @@ Commands:
 - The `components.json` style format is not a single `{base}-{style}` axis: it is three axes (`radix-`, `base-`, `aria-`) times eight style names, plus two legacy values (`default`, `new-york`).
 - "framer-motion deprecated alias" is true in spirit (same version, install-time redirect, publicly discouraged for new code) but the literal word "deprecated" was not found verbatim on the motion.dev upgrade guide page fetched: flagged as a minor wording overstatement, not a factual error.
 - "Instant Navigations & Partial Prefetching in 16.3+": true, but note the primary source (nextjs.org/blog/next-16-3-instant-navigations) is dated as a 16.3 **Preview** post (June 25, 2026); by the registry's `latest` of 16.3.5 today the feature should be in a stable minor, but this was not independently re-verified against the 16.3.5 stable changelog: treat the exact stabilization point as UNVERIFIED down to the patch version.
+
+## 4. Dependencies
+
+Added in Wave 1 (design system), 13 September 2026. Versions are the ones in
+`package.json` after install.
+
+| Package | Version | Why |
+| --- | --- | --- |
+| `@base-ui/react` | 1.8.0 | The primitive layer under every shadcn `base-*` component: dialog, menu, tooltip, toast, tabs, switch, toggle, scroll area. The default shadcn base since July 2026 |
+| `@phosphor-icons/react` | 2.1.10 | The icon library the `base-lyra` style generates against. It has a server safe entry (`/ssr`), so icons in server components add no client code |
+| `cmdk` | 1.1.1 | The shadcn `command` component, the Cmd K palette in `05_IA.md` |
+| `motion` | 13.2.0 | Motion for React, imported from `motion/react`. Loaded through `LazyMotion` with `domAnimation` on a dynamic import, so only the `m` components ship up front |
+| `next-themes` | 0.4.6 | Light, dark and system themes with no flash: it writes the theme class before hydration |
+| `tw-animate-css` | 1.4.0 | CSS only. The enter and exit utilities (`animate-in`, `fade-in-0`, `zoom-in-95`) the shadcn overlays use |
+
+Removed: `@radix-ui/react-slot`, which only served `asChild` on the hand written
+button.
+
+Considered and not added:
+
+- `cn` 0.3.0, which `shadcn init` now writes into `lib/utils.ts` as a replacement
+  for clsx plus tailwind-merge. It was published the day before and is at 0.3.
+  `lib/utils.ts` keeps clsx and tailwind-merge, which were already installed and
+  are what every shadcn component expects from `cn()`.
+- `sonner` 2.0.8. The Base UI Toast covers the same needs (types, actions,
+  promises, stacking, swipe) on the same primitive layer as the other overlays,
+  with no extra package.
+- `shadcn` as a runtime dependency. `init` adds it for `shadcn/tailwind.css`;
+  `shadcn eject` inlined the part the components use (the `data-*` state
+  variants and `no-scrollbar`) into `app/globals.css` and removed the package.
