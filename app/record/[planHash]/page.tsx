@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { RecordEmptyState } from "@/components/console-states";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Card,
   CardContent,
@@ -150,9 +150,12 @@ export default async function PlanRecordPage({
           audit record are still in the tab you came from; the link below opens
           a fresh console.
         </p>
-        <Button variant="outline" asChild>
-          <Link href="/#ledger">Back to the audit record</Link>
-        </Button>
+        <Link
+          href="/#ledger"
+          className={buttonVariants({ variant: "outline" })}
+        >
+          Back to the audit record
+        </Link>
         {anchorHref ? (
           <a
             href={anchorHref}

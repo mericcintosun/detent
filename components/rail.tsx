@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SectionProgress } from "@/components/section-progress";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { security } from "@/lib/data";
 import { tokenExplorerHref } from "@/lib/hashscan";
 import { shortHex } from "@/lib/plan";
@@ -168,13 +168,15 @@ export function Rail() {
         {/* Dropped below lg on purpose: at that width the plan table is already
             the next thing on screen, so a full-bleed gold block would only push
             the product down. */}
-        <Button
-          asChild
-          size="lg"
-          className="hidden w-full lg:mt-auto lg:inline-flex"
+        <a
+          href="#plan"
+          className={buttonVariants({
+            size: "lg",
+            className: "hidden w-full lg:mt-auto lg:inline-flex",
+          })}
         >
-          <a href="#plan">Open the Q3 coupon run</a>
-        </Button>
+          Open the Q3 coupon run
+        </a>
 
         <div className="hidden border-t border-border pt-5 lg:block">
           <AboutSecurity />

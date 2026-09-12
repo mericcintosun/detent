@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
-import { Libre_Caslon_Text, Libre_Franklin } from "next/font/google";
+import {
+  JetBrains_Mono,
+  Libre_Caslon_Text,
+  Libre_Franklin,
+} from "next/font/google";
+import { MotionProvider } from "@/components/motion/motion-provider";
 import { AboutSecurity, Rail } from "@/components/rail";
+import { ThemeProvider } from "@/components/theme-provider";
+import { cn } from "@/lib/utils";
 import "./globals.css";
 
 const display = Libre_Caslon_Text({
@@ -16,6 +23,26 @@ const body = Libre_Franklin({
   display: "swap",
   variable: "--font-franklin",
   fallback: ["ui-sans-serif", "system-ui", "Segoe UI", "sans-serif"],
+});
+
+/**
+ * Hashes, addresses, amounts and code. JetBrains Mono is a variable face with a
+ * slashed zero and distinct 1, l and I, which is what a reader comparing two
+ * 64 character hashes needs. Not preloaded: no mono text is the largest element
+ * on any first screen, so it must not compete with the display face for LCP.
+ */
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  preload: false,
+  variable: "--font-jetbrains",
+  fallback: [
+    "ui-monospace",
+    "SFMono-Regular",
+    "Menlo",
+    "Consolas",
+    "monospace",
+  ],
 });
 
 export const metadata: Metadata = {
@@ -51,26 +78,37 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
+    // suppressHydrationWarning: next-themes adds the theme class and
+    // color-scheme to <html> before React hydrates. It applies to this element's
+    // own attributes only, never to its children.
+    <html
+      lang="en"
+      className={cn(display.variable, body.variable, mono.variable)}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen antialiased">
-        <div className="lg:flex lg:items-start">
-          <Rail />
-          <div className="min-w-0 flex-1">
-            <main className="px-5 py-8 sm:px-6 lg:px-12 lg:py-14">
-              {children}
-            </main>
-            {/* The about and security rows the rail used to spend the phone's
+        <ThemeProvider>
+          <MotionProvider>
+            <div className="lg:flex lg:items-start">
+              <Rail />
+              <div className="min-w-0 flex-1">
+                <main className="px-5 py-8 sm:px-6 lg:px-12 lg:py-14">
+                  {children}
+                </main>
+                {/* The about and security rows the rail used to spend the phone's
                 first screen on. Rendered once here so they reach / and
                 /record/[planHash] alike; the rail shows the same block again
                 from lg up, where the column has the height for it. */}
-            <section
-              aria-label="About and security"
-              className="border-t border-border px-5 py-8 sm:px-6 lg:hidden"
-            >
-              <AboutSecurity />
-            </section>
-          </div>
-        </div>
+                <section
+                  aria-label="About and security"
+                  className="border-t border-border px-5 py-8 sm:px-6 lg:hidden"
+                >
+                  <AboutSecurity />
+                </section>
+              </div>
+            </div>
+          </MotionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
