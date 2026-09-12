@@ -8,13 +8,13 @@ import {
   QUORUM_THRESHOLD,
   RATE_LIMIT_MAX_REQUESTS,
 } from "@/lib/config";
-import {
-  hintFor,
-  isDetentError,
-  type DetentErrorCode,
-} from "@/lib/errors";
+import { hintFor, isDetentError, type DetentErrorCode } from "@/lib/errors";
 import { buildCalldata, buildPlan, type Plan } from "@/lib/plan";
-import { installPolicy, resolveApprovals, submitTransaction } from "@/lib/privy";
+import {
+  installPolicy,
+  resolveApprovals,
+  submitTransaction,
+} from "@/lib/privy";
 import { getRegisterSnapshot } from "@/lib/register";
 import {
   detentRequestSchema,
@@ -50,7 +50,7 @@ export const runtime = "nodejs";
 function fail(
   error: DetentErrorCode,
   status: number,
-  options?: { hint?: string; blockers?: string[]; headers?: HeadersInit }
+  options?: { hint?: string; blockers?: string[]; headers?: HeadersInit },
 ) {
   const payload: ApiResponse<never> = {
     ok: false,
@@ -73,7 +73,7 @@ function failFromThrown(thrown: unknown) {
   }
   console.error(
     `${LOG_PREFIX} unexpected failure on the core path:`,
-    thrown instanceof Error ? thrown.message : "non-error thrown"
+    thrown instanceof Error ? thrown.message : "non-error thrown",
   );
   return fail("upstream_error", 502);
 }
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
       : RATE_LIMIT_MAX_REQUESTS;
   const verdict = rateLimiter.consume(
     `${body.intent}:${clientAddress(request)}`,
-    limit
+    limit,
   );
   if (!verdict.allowed) {
     return fail("rate_limited", 429, {
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
 
       if (!planMatches(plan, body.plan)) {
         console.warn(
-          `${LOG_PREFIX} plan mismatch on lock: client ${body.plan.planHash}, server ${plan.planHash}`
+          `${LOG_PREFIX} plan mismatch on lock: client ${body.plan.planHash}, server ${plan.planHash}`,
         );
         return fail("plan_mismatch", 409, { hint: MISMATCH_HINT });
       }
@@ -221,7 +221,11 @@ export async function POST(request: Request) {
       // never fails the lock, it just says what did not happen. The write is
       // idempotent per plan hash and bounded per process window, both in
       // lib/anchor.ts, because this route pays for it with the operator key.
-      const anchor = await anchorPlan(plan.planHash, plan.target, plan.selector);
+      const anchor = await anchorPlan(
+        plan.planHash,
+        plan.target,
+        plan.selector,
+      );
 
       const installed = await installPolicy(plan, approvals.signers);
 
@@ -239,7 +243,7 @@ export async function POST(request: Request) {
       });
 
       console.info(
-        `${LOG_PREFIX} plan locked: ${lock.lockId} holds policy ${installed.policyId} for plan ${plan.planHash}, attached ${installed.policyAttached}, approved by ${approvals.signers.map((signer) => signer.id).join(" and ")}`
+        `${LOG_PREFIX} plan locked: ${lock.lockId} holds policy ${installed.policyId} for plan ${plan.planHash}, attached ${installed.policyAttached}, approved by ${approvals.signers.map((signer) => signer.id).join(" and ")}`,
       );
 
       const response: ApiResponse<PolicyInstallation> = {
@@ -277,13 +281,13 @@ export async function POST(request: Request) {
     toHex(
       submittedRows
         .map((row) => `${row.address.toLowerCase()}:${row.amountMicros}`)
-        .join("|")
-    )
+        .join("|"),
+    ),
   )}`;
   const replayed = submissionLedger.recall(submissionKey);
   if (replayed) {
     console.info(
-      `${LOG_PREFIX} submission replayed from the ledger, nothing broadcast`
+      `${LOG_PREFIX} submission replayed from the ledger, nothing broadcast`,
     );
     const response: ApiResponse<SubmitResult> = { ok: true, data: replayed };
     return NextResponse.json(response);
@@ -291,7 +295,9 @@ export async function POST(request: Request) {
 
   const lock = lockVault.recall(lockId);
   if (!lock) {
-    console.info(`${LOG_PREFIX} submit refused: no lock held for the presented id`);
+    console.info(
+      `${LOG_PREFIX} submit refused: no lock held for the presented id`,
+    );
     return fail("lock_unknown", 409);
   }
 
@@ -302,7 +308,8 @@ export async function POST(request: Request) {
 
   // Derived here, never read from the request body: the submitted payload either
   // is the approved calldata byte for byte or it is not.
-  const tampered = calldata.toLowerCase() !== lock.approvedCalldata.toLowerCase();
+  const tampered =
+    calldata.toLowerCase() !== lock.approvedCalldata.toLowerCase();
 
   try {
     // Re-derived on this intent too, from the same register and the selection
@@ -311,7 +318,7 @@ export async function POST(request: Request) {
     const plan = await deriveServerPlan(lock.selection);
     if (plan.planHash !== lock.plan.planHash) {
       console.warn(
-        `${LOG_PREFIX} plan mismatch on submit: locked ${lock.plan.planHash}, server ${plan.planHash}`
+        `${LOG_PREFIX} plan mismatch on submit: locked ${lock.plan.planHash}, server ${plan.planHash}`,
       );
       return fail("plan_mismatch", 409, { hint: MISMATCH_HINT });
     }
@@ -352,11 +359,11 @@ export async function POST(request: Request) {
           plan.planHash,
           result.receipt?.kind === "on-chain"
             ? result.receipt.transactionHash
-            : undefined
+            : undefined,
         )
       : await abandonPlan(
           plan.planHash,
-          "policy refused the submitted payload"
+          "policy refused the submitted payload",
         );
 
     const data: SubmitResult = {

@@ -23,7 +23,8 @@ export {
 
 /* --- Privy, server side only ---------------------------------------------- */
 
-export const PRIVY_API_URL = process.env.PRIVY_API_URL ?? "https://api.privy.io";
+export const PRIVY_API_URL =
+  process.env.PRIVY_API_URL ?? "https://api.privy.io";
 export const PRIVY_APP_ID = process.env.PRIVY_APP_ID;
 export const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET;
 export const PRIVY_TREASURY_WALLET_ID = process.env.PRIVY_TREASURY_WALLET_ID;
@@ -52,8 +53,7 @@ export const OPERATOR_API_TOKEN = process.env.OPERATOR_API_TOKEN;
  * lib/anchor.ts is the only module that uses it.
  */
 export const OPERATOR_PRIVATE_KEY = process.env.OPERATOR_PRIVATE_KEY as
-  | `0x${string}`
-  | undefined;
+  `0x${string}` | undefined;
 
 export type BroadcastMode = "auto" | "rpc" | "signature";
 

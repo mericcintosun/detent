@@ -31,7 +31,7 @@ const PAYOUT_TX_HASH =
 /** Re-import a module with a patched environment, one test at a time. */
 async function withEnv<T>(
   env: Record<string, string>,
-  load: () => Promise<T>
+  load: () => Promise<T>,
 ): Promise<T> {
   for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
   vi.resetModules();
@@ -62,7 +62,8 @@ afterEach(() => {
 
 describe("the anchor when nothing is wired", () => {
   it("says which variable is missing rather than throwing, on all three writes", async () => {
-    const { abandonPlan, anchorPlan, settlePlan } = await import("@/lib/anchor");
+    const { abandonPlan, anchorPlan, settlePlan } =
+      await import("@/lib/anchor");
 
     const receipts = [
       await anchorPlan(planHash, TEST_ANCHOR_ADDRESS, "0xca4ead79"),
@@ -89,10 +90,14 @@ describe("the anchor when nothing is wired", () => {
   it("names the operator key when the contract address is set and the key is not", async () => {
     const { anchorPlan } = await withEnv(
       { NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS: TEST_ANCHOR_ADDRESS },
-      () => import("@/lib/anchor")
+      () => import("@/lib/anchor"),
     );
 
-    const receipt = await anchorPlan(planHash, TEST_ANCHOR_ADDRESS, "0xca4ead79");
+    const receipt = await anchorPlan(
+      planHash,
+      TEST_ANCHOR_ADDRESS,
+      "0xca4ead79",
+    );
 
     expect(receipt.anchored).toBe(false);
     expect(receipt.note).toContain("OPERATOR_PRIVATE_KEY");
@@ -105,10 +110,14 @@ describe("the anchor when nothing is wired", () => {
         NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS: TEST_ANCHOR_ADDRESS,
         OPERATOR_PRIVATE_KEY: "0xnot-a-key",
       },
-      () => import("@/lib/anchor")
+      () => import("@/lib/anchor"),
     );
 
-    const receipt = await anchorPlan(planHash, TEST_ANCHOR_ADDRESS, "0xca4ead79");
+    const receipt = await anchorPlan(
+      planHash,
+      TEST_ANCHOR_ADDRESS,
+      "0xca4ead79",
+    );
 
     expect(receipt.anchored).toBe(false);
     expect(receipt.note).toContain("not a usable ECDSA key");
@@ -124,7 +133,7 @@ describe("the anchor when nothing is wired", () => {
         NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS: TEST_ANCHOR_ADDRESS,
         OPERATOR_PRIVATE_KEY: TEST_OPERATOR_KEY,
       },
-      () => import("@/lib/anchor")
+      () => import("@/lib/anchor"),
     );
 
     for (const reference of [undefined, "0xdeadbeef", `0x${"0".repeat(64)}`]) {
@@ -158,10 +167,14 @@ describe("the anchor when the relay will not answer", () => {
         NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS: TEST_ANCHOR_ADDRESS,
         OPERATOR_PRIVATE_KEY: TEST_OPERATOR_KEY,
       },
-      () => import("@/lib/anchor")
+      () => import("@/lib/anchor"),
     );
 
-    const receipt = await anchorPlan(planHash, TEST_ANCHOR_ADDRESS, "0xca4ead79");
+    const receipt = await anchorPlan(
+      planHash,
+      TEST_ANCHOR_ADDRESS,
+      "0xca4ead79",
+    );
 
     expect(receipt.anchored).toBe(false);
     expect(receipt.transactionHash).toBeUndefined();
@@ -176,14 +189,14 @@ describe("the anchor when the relay will not answer", () => {
         NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS: TEST_ANCHOR_ADDRESS,
         OPERATOR_PRIVATE_KEY: TEST_OPERATOR_KEY,
       },
-      () => import("@/lib/anchor")
+      () => import("@/lib/anchor"),
     );
 
     expect((await settlePlan(planHash, PAYOUT_TX_HASH)).note).toContain(
-      "settle call did not reach"
+      "settle call did not reach",
     );
     expect((await abandonPlan(planHash, "refused")).note).toContain(
-      "abandon call did not reach"
+      "abandon call did not reach",
     );
   });
 
@@ -191,7 +204,7 @@ describe("the anchor when the relay will not answer", () => {
     stubDeadRelay();
     const { readPlanRecord } = await withEnv(
       { NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS: TEST_ANCHOR_ADDRESS },
-      () => import("@/lib/anchor")
+      () => import("@/lib/anchor"),
     );
 
     const record = await readPlanRecord(planHash);
@@ -210,7 +223,7 @@ describe("the Hedera chain definition", () => {
     expect(hederaTestnet.nativeCurrency.symbol).toBe("HBAR");
     expect(hederaTestnet.nativeCurrency.decimals).toBe(18);
     expect(hederaTestnet.blockExplorers?.default.url).toBe(
-      "https://hashscan.io/testnet"
+      "https://hashscan.io/testnet",
     );
     expect(hederaTestnet.rpcUrls.default.http[0]).toBe(HEDERA_RPC_URL);
   });
@@ -232,7 +245,7 @@ describe("the register adapter", () => {
     const { liveRegisterAdapter } = await import("@/lib/hedera");
 
     await expect(liveRegisterAdapter.load()).rejects.toThrow(
-      "NEXT_PUBLIC_ATS_TOKEN_ADDRESS is not set."
+      "NEXT_PUBLIC_ATS_TOKEN_ADDRESS is not set.",
     );
     expect(relay).not.toHaveBeenCalled();
   });
@@ -262,8 +275,9 @@ describe("the register adapter", () => {
     const fake = await import("@/lib/adapter");
     expect(fake.useLiveRegister()).toBe(false);
 
-    const halfWired = await withEnv({ NEXT_PUBLIC_ADAPTER_MODE: "real" }, () =>
-      import("@/lib/adapter")
+    const halfWired = await withEnv(
+      { NEXT_PUBLIC_ADAPTER_MODE: "real" },
+      () => import("@/lib/adapter"),
     );
     expect(halfWired.useLiveRegister()).toBe(false);
 
@@ -272,7 +286,7 @@ describe("the register adapter", () => {
         NEXT_PUBLIC_ADAPTER_MODE: "real",
         NEXT_PUBLIC_ATS_TOKEN_ADDRESS: TEST_ANCHOR_ADDRESS,
       },
-      () => import("@/lib/adapter")
+      () => import("@/lib/adapter"),
     );
     expect(wired.useLiveRegister()).toBe(true);
   });

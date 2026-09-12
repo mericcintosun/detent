@@ -26,7 +26,7 @@ export const metadata: Metadata = {
    * opengraph-image.tsx.
    */
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://detent-app.vercel.app"
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://detent-app.vercel.app",
   ),
   title: { default: "Detent", template: "%s | Detent" },
   description:
@@ -45,7 +45,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="min-h-screen antialiased">

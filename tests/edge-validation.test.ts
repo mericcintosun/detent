@@ -72,14 +72,17 @@ describe("the hex widths", () => {
 
   it("accepts a checksummed address, because the wire carries both cases", () => {
     expect(
-      addressSchema.safeParse("0x7A1F4c0B9e2D8a63C5b0E14f7D2C93Ae6b085D41").success
+      addressSchema.safeParse("0x7A1F4c0B9e2D8a63C5b0E14f7D2C93Ae6b085D41")
+        .success,
     ).toBe(true);
   });
 
   it("holds the plan hash to exactly 32 bytes, which is what the record route parses", () => {
     expect(planHashSchema.safeParse(plan.planHash).success).toBe(true);
     expect(planHashSchema.safeParse(`${plan.planHash}00`).success).toBe(false);
-    expect(planHashSchema.safeParse(plan.planHash.slice(0, -2)).success).toBe(false);
+    expect(planHashSchema.safeParse(plan.planHash.slice(0, -2)).success).toBe(
+      false,
+    );
     expect(planHashSchema.safeParse("0xzz").success).toBe(false);
   });
 
@@ -96,11 +99,11 @@ describe("the hint path", () => {
         plan: {
           ...plan,
           rows: plan.rows.map((row, index) =>
-            index === 4 ? { ...row, amountMicros: "1.5" } : row
+            index === 4 ? { ...row, amountMicros: "1.5" } : row,
           ),
         },
         approvals,
-      })
+      }),
     ).toBe("plan.rows.4.amountMicros");
   });
 
@@ -115,11 +118,11 @@ describe("the hint path", () => {
         plan: {
           ...plan,
           rows: plan.rows.map((row, index) =>
-            index === 0 ? { ...row, balance: "182500" } : row
+            index === 0 ? { ...row, balance: "182500" } : row,
           ),
         },
         approvals,
-      })
+      }),
     ).toBe("plan.rows.0.balance");
   });
 
@@ -138,7 +141,9 @@ describe("the lock body", () => {
   it("caps the approvals at eight and refuses an empty list", () => {
     const nine = Array.from({ length: 9 }, (_, index) => `officer-${index}`);
 
-    expect(pathFor({ intent: "lock", plan, approvals: nine })).toBe("approvals");
+    expect(pathFor({ intent: "lock", plan, approvals: nine })).toBe(
+      "approvals",
+    );
     expect(pathFor({ intent: "lock", plan, approvals: [] })).toBe("approvals");
   });
 
@@ -149,7 +154,7 @@ describe("the lock body", () => {
         plan,
         selection: { kind: "mint", deferred: [], forced: [] },
         approvals,
-      })
+      }),
     ).toBe("selection.kind");
   });
 });
@@ -179,21 +184,29 @@ describe("the submit body", () => {
       approvedPlan: plan,
     });
 
-    if (!result.success) throw new Error("the legacy fields must not break the parse");
-    expect(Object.keys(result.data).sort()).toEqual(["intent", "lockId", "submittedRows"]);
+    if (!result.success)
+      throw new Error("the legacy fields must not break the parse");
+    expect(Object.keys(result.data).sort()).toEqual([
+      "intent",
+      "lockId",
+      "submittedRows",
+    ]);
   });
 
   it("treats the broadcast preference as optional and closed to unknown values", () => {
     expect(
-      submitBodySchema.safeParse({ ...base, broadcastPreference: "signature" }).success
+      submitBodySchema.safeParse({ ...base, broadcastPreference: "signature" })
+        .success,
     ).toBe(true);
     expect(pathFor({ ...base, broadcastPreference: "carrier-pigeon" })).toBe(
-      "broadcastPreference"
+      "broadcastPreference",
     );
   });
 
   it("accepts an empty row set, which is the send-nothing case the route encodes as 0x", () => {
-    expect(submitBodySchema.safeParse({ ...base, submittedRows: [] }).success).toBe(true);
+    expect(
+      submitBodySchema.safeParse({ ...base, submittedRows: [] }).success,
+    ).toBe(true);
   });
 
   // Regression for audit M1: the row arrays were unbounded, so a request could
@@ -205,15 +218,22 @@ describe("the submit body", () => {
         amountMicros: "1",
       }));
 
-    expect(submitBodySchema.safeParse({ ...base, submittedRows: rows(500) }).success).toBe(
-      true
+    expect(
+      submitBodySchema.safeParse({ ...base, submittedRows: rows(500) }).success,
+    ).toBe(true);
+    expect(pathFor({ ...base, submittedRows: rows(501) })).toBe(
+      "submittedRows",
     );
-    expect(pathFor({ ...base, submittedRows: rows(501) })).toBe("submittedRows");
   });
 
   it("refuses a plan with more than 500 rows on the lock", () => {
-    const wide = { ...plan, rows: Array.from({ length: 501 }, () => plan.rows[0]) };
+    const wide = {
+      ...plan,
+      rows: Array.from({ length: 501 }, () => plan.rows[0]),
+    };
 
-    expect(pathFor({ intent: "lock", plan: wide, approvals })).toBe("plan.rows");
+    expect(pathFor({ intent: "lock", plan: wide, approvals })).toBe(
+      "plan.rows",
+    );
   });
 });

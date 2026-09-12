@@ -77,7 +77,10 @@ export default async function ConsolePage() {
     <div className="space-y-16">
       <OperationsConsole snapshot={snapshot} signerLive={signerLive} />
 
-      <section id="brief" className="max-w-[68ch] space-y-10 border-t border-border pt-10">
+      <section
+        id="brief"
+        className="max-w-[68ch] space-y-10 border-t border-border pt-10"
+      >
         {/* One sentence, then the way in. The four paragraphs this fold used to
             carry are now a three step strip and a disclosure. */}
         <div className="space-y-5">
@@ -98,7 +101,12 @@ export default async function ConsolePage() {
           {steps.map((step) => (
             <li key={step.term} className="space-y-3">
               <div className="detent-ruled flex items-center justify-center border border-border px-4 py-5">
-                <Plate name={step.plate} width={160} height={120} className="h-20 w-auto" />
+                <Plate
+                  name={step.plate}
+                  width={160}
+                  height={120}
+                  className="h-20 w-auto"
+                />
               </div>
               <p className="detent-label">{step.term}</p>
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -113,11 +121,11 @@ export default async function ConsolePage() {
           Whoever runs a tokenized security spends their quarter on operations
           that cannot be taken back: coupon distributions, court ordered
           transfers, freezing a screened address, redemptions. The register is
-          live, the amounts are real, and the key that signs is a general purpose
-          key with rights over the whole contract. Today the step before signing
-          is either reading an explorer or trusting a script. A wrong parameter,
-          a lapsed allowlist entry or a thin treasury shows up after the
-          transaction lands, which is the worst possible time.
+          live, the amounts are real, and the key that signs is a general
+          purpose key with rights over the whole contract. Today the step before
+          signing is either reading an explorer or trusting a script. A wrong
+          parameter, a lapsed allowlist entry or a thin treasury shows up after
+          the transaction lands, which is the worst possible time.
         </p>
         <p className="leading-relaxed text-muted-foreground">
           Detent puts one step in that gap. It reads the holder set and the
@@ -151,14 +159,23 @@ export default async function ConsolePage() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="detent-label py-2 pr-4 font-normal">Tool</th>
-                  <th className="detent-label py-2 pr-4 font-normal">What it does</th>
-                  <th className="detent-label py-2 font-normal">Where it stops</th>
+                  <th className="detent-label py-2 pr-4 font-normal">
+                    What it does
+                  </th>
+                  <th className="detent-label py-2 font-normal">
+                    Where it stops
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {comparison.map((row) => (
-                  <tr key={row.tool} className="border-b border-border last:border-b-0">
-                    <td className="py-3 pr-4 align-top leading-relaxed">{row.tool}</td>
+                  <tr
+                    key={row.tool}
+                    className="border-b border-border last:border-b-0"
+                  >
+                    <td className="py-3 pr-4 align-top leading-relaxed">
+                      {row.tool}
+                    </td>
                     <td className="py-3 pr-4 align-top leading-relaxed text-muted-foreground">
                       {row.does}
                     </td>

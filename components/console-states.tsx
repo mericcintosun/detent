@@ -63,7 +63,11 @@ function Frame({
   children: ReactNode;
 }) {
   const border =
-    tone === "bad" ? "border-bad" : tone === "ok" ? "border-ok" : "border-border";
+    tone === "bad"
+      ? "border-bad"
+      : tone === "ok"
+        ? "border-ok"
+        : "border-border";
   return (
     <div
       role={tone === "bad" ? "alert" : "status"}
@@ -93,8 +97,8 @@ export function TreasuryKeyBanner({
         <Frame tone="neutral" label="Treasury key, compiled locally">
           <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
             No Privy credentials are configured on the server, so the policy is
-            compiled and evaluated here and the receipt is a stub. The refusal is
-            the same one the wallet returns, which is why this path is the
+            compiled and evaluated here and the receipt is a stub. The refusal
+            is the same one the wallet returns, which is why this path is the
             rehearsal path.
           </p>
         </Frame>
@@ -140,8 +144,8 @@ export function TreasuryKeyBanner({
         <Frame tone="neutral" label="Treasury key, asking the wallet">
           <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
             The payload is with the wallet. The policy is evaluated before any
-            signature is produced, so this either comes back signed or comes back
-            refused.
+            signature is produced, so this either comes back signed or comes
+            back refused.
           </p>
         </Frame>
       );
@@ -265,12 +269,17 @@ export function PlanEmptyState({ partition }: { partition: string }) {
           bottom on the surface colour, the way an empty ledger page reads, and
           the ruled sheet itself above the sentence rather than blank space. */}
       <div className="flex flex-col items-center gap-4 border-y border-border bg-card px-6 py-10 text-center">
-        <Plate name="register" width={160} height={120} className="h-24 w-auto" />
+        <Plate
+          name="register"
+          width={160}
+          height={120}
+          className="h-24 w-auto"
+        />
         <p className="detent-label">No rows in this register</p>
         <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
-          The register returned no holders for partition {partition}, so there is
-          nothing to preview and nothing to sign. Pick the coupon run to rebuild
-          the plan against the current snapshot.
+          The register returned no holders for partition {partition}, so there
+          is nothing to preview and nothing to sign. Pick the coupon run to
+          rebuild the plan against the current snapshot.
         </p>
       </div>
     </div>
@@ -282,9 +291,9 @@ export function PolicyEmptyState() {
     <div className="space-y-3 border border-border bg-card p-6">
       <p className="detent-label">No policy installed</p>
       <p className="max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-        Until the plan is locked, the treasury key can sign anything the contract
-        exposes. That is the state this product exists to end. Collect both
-        approvals to install the policy.
+        Until the plan is locked, the treasury key can sign anything the
+        contract exposes. That is the state this product exists to end. Collect
+        both approvals to install the policy.
       </p>
     </div>
   );

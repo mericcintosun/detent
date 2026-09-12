@@ -36,7 +36,7 @@ export function isExplorerAddress(value: unknown): value is `0x${string}` {
 }
 
 export function isExplorerTransactionHash(
-  value: unknown
+  value: unknown,
 ): value is `0x${string}` {
   return typeof value === "string" && TX_HASH_PATTERN.test(value);
 }
@@ -64,7 +64,7 @@ export function hashscanTransaction(hash: string): string {
  */
 export function tokenExplorerHref(
   address: string | undefined | null,
-  provenance: ValueProvenance
+  provenance: ValueProvenance,
 ): string | null {
   if (provenance !== "on-chain") return null;
   if (!isExplorerAddress(address)) return null;
@@ -74,7 +74,7 @@ export function tokenExplorerHref(
 /** The same rule for a transaction hash. */
 export function transactionExplorerHref(
   hash: string | undefined | null,
-  provenance: ValueProvenance
+  provenance: ValueProvenance,
 ): string | null {
   if (provenance !== "on-chain") return null;
   if (!isExplorerTransactionHash(hash)) return null;
@@ -102,7 +102,7 @@ export function registerProvenance(source: string): ValueProvenance {
 export function callTargetProvenance(
   target: string,
   registerTokenAddress: string,
-  source: string
+  source: string,
 ): ValueProvenance {
   if (registerProvenance(source) !== "on-chain") return "fixture";
   return target.toLowerCase() === registerTokenAddress.toLowerCase()
@@ -179,7 +179,7 @@ function kindFromWord(value: unknown): "on-chain" | "synthetic" | null {
 }
 
 function kindFromRecord(
-  record: Record<string, unknown>
+  record: Record<string, unknown>,
 ): "on-chain" | "synthetic" | null {
   for (const key of KIND_KEYS) {
     const named = kindFromWord(record[key]);
@@ -192,7 +192,7 @@ function kindFromRecord(
 
 function stringField(
   record: Record<string, unknown>,
-  keys: readonly string[]
+  keys: readonly string[],
 ): string | null {
   for (const key of keys) {
     const candidate = record[key];
@@ -231,7 +231,8 @@ export function readReceipt(value: unknown): ReceiptView {
   if (nested) {
     const kind = kindFromRecord(nested) ?? "synthetic";
     if (kind === "on-chain") {
-      const hash = stringField(nested, HASH_KEYS) ?? stringField(value, HASH_KEYS);
+      const hash =
+        stringField(nested, HASH_KEYS) ?? stringField(value, HASH_KEYS);
       if (hash === null) return none;
       return {
         kind,
@@ -270,7 +271,7 @@ export function readReceipt(value: unknown): ReceiptView {
  * hash from an earlier run reports `anchored: true` with no hash of its own.
  */
 export function anchorExplorerHref(
-  anchor: { anchored: boolean; transactionHash?: string } | null | undefined
+  anchor: { anchored: boolean; transactionHash?: string } | null | undefined,
 ): string | null {
   if (!anchor || !anchor.anchored) return null;
   return transactionExplorerHref(anchor.transactionHash, "on-chain");

@@ -9,8 +9,8 @@ export default function NotFound() {
         There is no page here
       </h1>
       <p className="leading-relaxed text-muted-foreground">
-        Detent is one console on one route. Every step of the coupon run lives on
-        that page, under its own section.
+        Detent is one console on one route. Every step of the coupon run lives
+        on that page, under its own section.
       </p>
       <Button asChild variant="outline">
         <Link href="/">Back to the console</Link>

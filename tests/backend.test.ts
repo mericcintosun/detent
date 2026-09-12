@@ -28,11 +28,7 @@ import {
   walletReadRequest,
   compilePolicy,
 } from "@/lib/privy";
-import {
-  MAX_ROWS,
-  detentRequestSchema,
-  submitBodySchema,
-} from "@/lib/schemas";
+import { MAX_ROWS, detentRequestSchema, submitBodySchema } from "@/lib/schemas";
 import {
   anchorGuard,
   createBoundedStore,
@@ -40,7 +36,11 @@ import {
   planRecordMemo,
   rateLimiter,
 } from "@/lib/store";
-import type { ApiResponse, PolicyInstallation, SubmitResult } from "@/lib/types";
+import type {
+  ApiResponse,
+  PolicyInstallation,
+  SubmitResult,
+} from "@/lib/types";
 
 const plan = buildPlan({ kind: "coupon", holders });
 const approvals = ["ops-controller", "risk-officer"];
@@ -59,15 +59,12 @@ function post(body: unknown, address: string): Promise<Response> {
         "x-forwarded-for": address,
       },
       body: JSON.stringify(body),
-    })
+    }),
   );
 }
 
 async function lock(address: string): Promise<PolicyInstallation> {
-  const response = await post(
-    { intent: "lock", plan, approvals },
-    address
-  );
+  const response = await post({ intent: "lock", plan, approvals }, address);
   const payload = (await response.json()) as ApiResponse<PolicyInstallation>;
   if (!payload.ok) {
     throw new Error(`lock failed: ${payload.error} ${payload.hint}`);
@@ -128,7 +125,7 @@ describe("C2, the server holds the authority", () => {
         lockId: "lok_never_issued_by_this_server",
         submittedRows: includedRows,
       },
-      "10.0.0.1"
+      "10.0.0.1",
     );
     const payload = (await response.json()) as ApiResponse<SubmitResult>;
 
@@ -176,7 +173,7 @@ describe("C2, the server holds the authority", () => {
     expect(installation.lockId).not.toContain(installation.policyId);
     expect(installation.planHash).toBe(plan.planHash);
     expect(lockVault.recall(installation.lockId)?.approvedCalldata).toBe(
-      plan.calldata
+      plan.calldata,
     );
     expect(lockVault.recall("lok_not_this_one")).toBeUndefined();
   });
@@ -188,7 +185,7 @@ describe("C2, the server holds the authority", () => {
     };
     const response = await post(
       { intent: "lock", plan: forged, approvals },
-      "10.0.0.3"
+      "10.0.0.3",
     );
     const payload = (await response.json()) as ApiResponse<PolicyInstallation>;
 
@@ -205,7 +202,7 @@ describe("C2, the server holds the authority", () => {
     };
     const response = await post(
       { intent: "lock", plan: forged, approvals },
-      "10.0.0.4"
+      "10.0.0.4",
     );
     const payload = (await response.json()) as ApiResponse<PolicyInstallation>;
 
@@ -255,7 +252,7 @@ describe("C3, the signer set is server side", () => {
   it("refuses the lock and stores who approved when it opens", async () => {
     const refused = await post(
       { intent: "lock", plan, approvals: ["a", "b"] },
-      "10.0.0.5"
+      "10.0.0.5",
     );
     const payload = (await refused.json()) as ApiResponse<PolicyInstallation>;
     expect(refused.status).toBe(409);
@@ -269,7 +266,7 @@ describe("C3, the signer set is server side", () => {
       "risk-officer",
     ]);
     expect(
-      lockVault.recall(installation.lockId)?.approvedBy.map((s) => s.keyId)
+      lockVault.recall(installation.lockId)?.approvedBy.map((s) => s.keyId),
     ).toEqual(["key_quorum_signer_a", "key_quorum_signer_b"]);
   });
 });
@@ -293,7 +290,7 @@ describe("H2, the keyless receipt says it is synthetic", () => {
     if (result.receipt?.kind === "synthetic") {
       expect("transactionHash" in result.receipt).toBe(false);
       expect(result.receipt.reference).toBe(
-        syntheticReference(plan.planHash, plan.calldata)
+        syntheticReference(plan.planHash, plan.calldata),
       );
       expect(result.receipt.note).toContain("No key signed this");
     }
@@ -350,7 +347,7 @@ describe("the send, end to end with no credentials", () => {
         submittedRows: includedRows,
         tampered: true,
       },
-      "10.0.1.1"
+      "10.0.1.1",
     );
     const payload = (await response.json()) as ApiResponse<SubmitResult>;
 
@@ -369,7 +366,7 @@ describe("the send, end to end with no credentials", () => {
     const altered = includedRows.map((row, index) =>
       index === 0
         ? { ...row, amountMicros: String(BigInt(row.amountMicros) + 1n) }
-        : row
+        : row,
     );
 
     const response = await post(
@@ -379,7 +376,7 @@ describe("the send, end to end with no credentials", () => {
         submittedRows: altered,
         tampered: false,
       },
-      "10.0.1.2"
+      "10.0.1.2",
     );
     const payload = (await response.json()) as ApiResponse<SubmitResult>;
 
@@ -401,7 +398,7 @@ describe("the send, end to end with no credentials", () => {
           lockId: installation.lockId,
           submittedRows: includedRows,
         },
-        "10.0.1.3"
+        "10.0.1.3",
       );
 
     const first = (await (await send()).json()) as ApiResponse<SubmitResult>;
@@ -433,7 +430,7 @@ describe("H7, blockers are enforced on both intents", () => {
         selection: { kind: "coupon", deferred: [], forced: [held?.id ?? ""] },
         approvals,
       },
-      "10.0.2.1"
+      "10.0.2.1",
     );
     const payload = (await response.json()) as ApiResponse<PolicyInstallation>;
 
@@ -477,7 +474,7 @@ describe("H7, blockers are enforced on both intents", () => {
             amountMicros: row.amountMicros,
           })),
       },
-      "10.0.2.2"
+      "10.0.2.2",
     );
     const payload = (await response.json()) as ApiResponse<SubmitResult>;
 
@@ -597,7 +594,10 @@ describe("M1, request arrays are capped", () => {
     const flooded = {
       intent: "submit",
       lockId: "lok_abc",
-      submittedRows: Array.from({ length: MAX_ROWS + 1 }, () => includedRows[0]),
+      submittedRows: Array.from(
+        { length: MAX_ROWS + 1 },
+        () => includedRows[0],
+      ),
     };
 
     expect(detentRequestSchema.safeParse(flooded).success).toBe(false);
@@ -680,7 +680,7 @@ describe("the abandon reason the contract will accept", () => {
 
   it("passes a normal reason through untouched", () => {
     expect(clampAbandonReason("policy refused the submitted payload")).toBe(
-      "policy refused the submitted payload"
+      "policy refused the submitted payload",
     );
   });
 });
@@ -693,7 +693,7 @@ describe("the plan target follows the live token", () => {
 
   it("targets the seed token on the cached register", () => {
     expect(plan.target.toLowerCase()).toBe(
-      "0x4b7d0e91c358af260d1e7b04c93f5a68d20e17bc"
+      "0x4b7d0e91c358af260d1e7b04c93f5a68d20e17bc",
     );
   });
 

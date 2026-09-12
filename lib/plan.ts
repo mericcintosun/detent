@@ -25,11 +25,7 @@ import {
   type ActionKind,
   type Holder,
 } from "@/lib/data";
-import {
-  ADAPTER_MODE,
-  ATS_TOKEN_ADDRESS,
-  CHAIN_ID,
-} from "@/lib/public-config";
+import { ADAPTER_MODE, ATS_TOKEN_ADDRESS, CHAIN_ID } from "@/lib/public-config";
 
 export { CHAIN_ID };
 
@@ -47,11 +43,11 @@ export function planTarget(): `0x${string}` {
 }
 
 const COUPON_ABI = parseAbiItem(
-  "function distributeCoupon(bytes32 partition, address[] holders, uint256[] amounts)"
+  "function distributeCoupon(bytes32 partition, address[] holders, uint256[] amounts)",
 );
 
 const FORCED_TRANSFER_ABI = parseAbiItem(
-  "function operatorTransferByPartition(bytes32 partition, address from, address to, uint256 value, bytes data, bytes operatorData) returns (bytes32)"
+  "function operatorTransferByPartition(bytes32 partition, address from, address to, uint256 value, bytes data, bytes operatorData) returns (bytes32)",
 );
 
 export interface PlanRow {
@@ -111,7 +107,7 @@ const partitionBytes32 = stringToHex(security.partition, { size: 32 });
 
 export function buildCalldata(
   kind: ActionKind,
-  rows: Array<{ address: `0x${string}`; amountMicros: string }>
+  rows: Array<{ address: `0x${string}`; amountMicros: string }>,
 ): Hex {
   if (kind === "coupon") {
     return encodeFunctionData({
@@ -140,13 +136,15 @@ export function buildCalldata(
 }
 
 export function selectorFor(kind: ActionKind): Hex {
-  return toFunctionSelector(kind === "coupon" ? COUPON_ABI : FORCED_TRANSFER_ABI);
+  return toFunctionSelector(
+    kind === "coupon" ? COUPON_ABI : FORCED_TRANSFER_ABI,
+  );
 }
 
 function hashPlan(
   kind: ActionKind,
   target: string,
-  rows: Array<{ address: string; amountMicros: string }>
+  rows: Array<{ address: string; amountMicros: string }>,
 ): Hex {
   const canonical = [
     `detent.v1`,
@@ -180,7 +178,9 @@ export function buildPlan({
         accountId: holder.accountId,
         address: holder.address,
         balance: holder.balance,
-        amountMicros: String(BigInt(holder.balance) * BigInt(couponMicrosPerToken)),
+        amountMicros: String(
+          BigInt(holder.balance) * BigInt(couponMicrosPerToken),
+        ),
         held,
         holdReason: held
           ? `${HOLD_LABELS[holder.compliance] ?? "Compliance hold"}. ${holder.complianceNote}`
@@ -189,7 +189,9 @@ export function buildPlan({
       });
     }
   } else {
-    const subject = holders.find((holder) => holder.compliance === "sanctions-hold");
+    const subject = holders.find(
+      (holder) => holder.compliance === "sanctions-hold",
+    );
     if (subject) {
       rows.push({
         holderId: subject.id,
@@ -199,7 +201,7 @@ export function buildPlan({
         address: subject.address,
         balance: subject.balance,
         amountMicros: String(
-          BigInt(subject.balance) * BigInt(10) ** BigInt(security.decimals)
+          BigInt(subject.balance) * BigInt(10) ** BigInt(security.decimals),
         ),
         held: false,
         holdReason: null,
@@ -223,13 +225,13 @@ export function buildPlan({
   for (const row of included) {
     if (row.held) {
       blockers.push(
-        `${row.legalName} is held by the compliance module and cannot be credited.`
+        `${row.legalName} is held by the compliance module and cannot be credited.`,
       );
     }
   }
   if (kind === "coupon" && headroom < 0n) {
     blockers.push(
-      `Treasury is short ${formatMicros(String(-headroom))} ${treasury.settlementAsset} for this draw.`
+      `Treasury is short ${formatMicros(String(-headroom))} ${treasury.settlementAsset} for this draw.`,
     );
   }
 

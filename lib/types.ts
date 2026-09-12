@@ -61,12 +61,7 @@ export interface AnchorReceipt {
  * seen. Everything past `state` is present only once the record exists.
  */
 export type PlanRecordState =
-  | "unwired"
-  | "unreadable"
-  | "unknown"
-  | "anchored"
-  | "settled"
-  | "abandoned";
+  "unwired" | "unreadable" | "unknown" | "anchored" | "settled" | "abandoned";
 
 export interface PlanRecord {
   state: PlanRecordState;

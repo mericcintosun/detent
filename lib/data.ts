@@ -9,10 +9,7 @@
 import registerSeed from "@/fixtures/register.seed.json";
 
 export type ComplianceState =
-  | "clear"
-  | "allowlist-expired"
-  | "kyc-lapsed"
-  | "sanctions-hold";
+  "clear" | "allowlist-expired" | "kyc-lapsed" | "sanctions-hold";
 
 export interface Holder {
   id: string;

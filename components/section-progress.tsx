@@ -29,7 +29,7 @@ export function SectionProgress({ sections }: { sections: SectionLink[] }) {
 
   useEffect(() => {
     const nodes = OBSERVED.map((id) => document.getElementById(id)).filter(
-      (node): node is HTMLElement => node !== null
+      (node): node is HTMLElement => node !== null,
     );
     if (nodes.length === 0) return;
 
@@ -45,7 +45,7 @@ export function SectionProgress({ sections }: { sections: SectionLink[] }) {
         }
         setCurrent(OBSERVED.find((id) => inBand.has(id)) ?? null);
       },
-      { rootMargin: "-12% 0px -68% 0px", threshold: 0 }
+      { rootMargin: "-12% 0px -68% 0px", threshold: 0 },
     );
 
     for (const node of nodes) observer.observe(node);

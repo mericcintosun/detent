@@ -83,7 +83,7 @@ function configured(): Configured | { missing: string } {
 }
 
 function isMissing(
-  value: Configured | { missing: string }
+  value: Configured | { missing: string },
 ): value is { missing: string } {
   return "missing" in value;
 }
@@ -100,10 +100,7 @@ function walletFor(setup: Configured) {
   });
 }
 
-async function statusOf(
-  setup: Configured,
-  planHash: Hex
-): Promise<number> {
+async function statusOf(setup: Configured, planHash: Hex): Promise<number> {
   const record = await hederaPublicClient().readContract({
     address: setup.address,
     abi: ANCHOR_ABI,
@@ -244,7 +241,7 @@ function relayFailure(step: string, error: unknown): AnchorReceipt {
 export async function anchorPlan(
   planHash: Hex,
   token: `0x${string}`,
-  selector: Hex
+  selector: Hex,
 ): Promise<AnchorReceipt> {
   const setup = configured();
   if (isMissing(setup)) return { anchored: false, note: setup.missing };
@@ -301,7 +298,7 @@ export async function anchorPlan(
 
 /** A real 32 byte transaction hash, which is the only thing settle may carry. */
 export function isTransactionHash(
-  value: string | undefined
+  value: string | undefined,
 ): value is `0x${string}` {
   return typeof value === "string" && /^0x[0-9a-fA-F]{64}$/.test(value);
 }
@@ -314,7 +311,7 @@ function isZeroWord(value: string): boolean {
 /** Close the plan as settled once the treasury transaction is in. */
 export async function settlePlan(
   planHash: Hex,
-  txReference?: string
+  txReference?: string,
 ): Promise<AnchorReceipt> {
   // The settle argument is a bytes32 reference to the payout transaction, and it
   // goes on chain as if it were one. Anything that is not a real 32 byte
@@ -395,7 +392,7 @@ export function clampAbandonReason(reason: string): string {
 /** Close the plan as abandoned when the policy refused the payload. */
 export async function abandonPlan(
   planHash: Hex,
-  reason: string
+  reason: string,
 ): Promise<AnchorReceipt> {
   const stated = clampAbandonReason(reason);
   const setup = configured();

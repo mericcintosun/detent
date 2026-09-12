@@ -67,7 +67,8 @@ export function PolicyExplorer({
   // one part under the light. No new colour.
   function tone(fragment: Fragment, alsoWhen?: Fragment): string {
     if (active === null) return "";
-    const lit = active === fragment || (alsoWhen !== undefined && active === alsoWhen);
+    const lit =
+      active === fragment || (alsoWhen !== undefined && active === alsoWhen);
     return lit ? "bg-secondary text-foreground" : "text-muted-foreground";
   }
 
@@ -101,8 +102,8 @@ export function PolicyExplorer({
       </div>
 
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Four conditions, one ALLOW rule. Take any of them with the pointer or the
-        keyboard and the part of the call it pins lights up above.
+        Four conditions, one ALLOW rule. Take any of them with the pointer or
+        the keyboard and the part of the call it pins lights up above.
       </p>
 
       <ul className="divide-y divide-border border-y border-border">

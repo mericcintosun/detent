@@ -47,8 +47,8 @@ describe("H1, explorer links on fixture addresses", () => {
     expect(
       tokenExplorerHref(
         snapshot.token.address,
-        registerProvenance(snapshot.source)
-      )
+        registerProvenance(snapshot.source),
+      ),
     ).toBeNull();
   });
 
@@ -76,33 +76,33 @@ describe("H1, explorer links on fixture addresses", () => {
     // lib/plan.ts builds target from the seed literal, so even a live register
     // does not make the destination contract real until the two agree.
     expect(callTargetProvenance(plan.target, security.address, "seed")).toBe(
-      "fixture"
+      "fixture",
     );
     expect(
-      callTargetProvenance(plan.target, deployedAddress, "hedera-testnet")
+      callTargetProvenance(plan.target, deployedAddress, "hedera-testnet"),
     ).toBe("fixture");
     expect(
       tokenExplorerHref(
         plan.target,
-        callTargetProvenance(plan.target, deployedAddress, "hedera-testnet")
-      )
+        callTargetProvenance(plan.target, deployedAddress, "hedera-testnet"),
+      ),
     ).toBeNull();
   });
 
   it("links a live read, and only a live read", () => {
     expect(
-      callTargetProvenance(deployedAddress, deployedAddress, "hedera-testnet")
+      callTargetProvenance(deployedAddress, deployedAddress, "hedera-testnet"),
     ).toBe("on-chain");
     expect(tokenExplorerHref(deployedAddress, "on-chain")).toBe(
-      `https://hashscan.io/testnet/contract/${deployedAddress}`
+      `https://hashscan.io/testnet/contract/${deployedAddress}`,
     );
     // Case differences are an address, not a different contract.
     expect(
       callTargetProvenance(
         deployedAddress.toUpperCase().replace("0X", "0x"),
         deployedAddress,
-        "hedera-testnet"
-      )
+        "hedera-testnet",
+      ),
     ).toBe("on-chain");
   });
 
@@ -158,7 +158,7 @@ describe("H2, synthetic receipts", () => {
     expect(view.transactionHash).toBe(minedHash);
     expect(view.reference).toBeNull();
     expect(view.href).toBe(
-      `https://hashscan.io/testnet/transaction/${minedHash}`
+      `https://hashscan.io/testnet/transaction/${minedHash}`,
     );
   });
 
@@ -222,12 +222,12 @@ describe("H2, synthetic receipts", () => {
 describe("the anchor receipt", () => {
   it("links only a write that actually happened", () => {
     expect(
-      anchorExplorerHref({ anchored: true, transactionHash: minedHash })
+      anchorExplorerHref({ anchored: true, transactionHash: minedHash }),
     ).toBe(`https://hashscan.io/testnet/transaction/${minedHash}`);
     // Anchored in an earlier run: true, but this run sent nothing.
     expect(anchorExplorerHref({ anchored: true })).toBeNull();
     expect(
-      anchorExplorerHref({ anchored: false, transactionHash: minedHash })
+      anchorExplorerHref({ anchored: false, transactionHash: minedHash }),
     ).toBeNull();
     expect(anchorExplorerHref(undefined)).toBeNull();
     expect(anchorExplorerHref(null)).toBeNull();
@@ -245,14 +245,19 @@ describe("configured addresses", () => {
 });
 
 describe("the treasury key state the banner switches on", () => {
-  const base = { privyLive: false, pending: null, locked: true, failure: null } as const;
+  const base = {
+    privyLive: false,
+    pending: null,
+    locked: true,
+    failure: null,
+  } as const;
 
   it("confirms an allowed send with a synthetic receipt, which carries no hash", () => {
     expect(
       deriveTreasuryKeyState({
         ...base,
         settlement: { allowed: true, receiptKind: "synthetic" },
-      })
+      }),
     ).toBe("tx-confirmed");
   });
 
@@ -261,13 +266,13 @@ describe("the treasury key state the banner switches on", () => {
       deriveTreasuryKeyState({
         ...base,
         settlement: { allowed: false, receiptKind: "none" },
-      })
+      }),
     ).toBe("tx-rejected");
     expect(
       deriveTreasuryKeyState({
         ...base,
         settlement: { allowed: true, receiptKind: "none" },
-      })
+      }),
     ).toBe("tx-failed");
   });
 });
@@ -280,13 +285,19 @@ describe("failures from the locked contract", () => {
   });
 
   it("keeps the server hint for the other 409s", () => {
-    for (const code of ["plan_mismatch", "plan_blocked", "quorum_not_met"] as const) {
+    for (const code of [
+      "plan_mismatch",
+      "plan_blocked",
+      "quorum_not_met",
+    ] as const) {
       const view = describeFailure(code, "Server words.");
       expect(view.sentence).toBe("Server words.");
       expect(view.title.length).toBeGreaterThan(0);
     }
     expect(describeFailure("plan_mismatch", undefined).action).toBe("reload");
-    expect(describeFailure("quorum_not_met", undefined).sentence).toMatch(/officers/);
+    expect(describeFailure("quorum_not_met", undefined).sentence).toMatch(
+      /officers/,
+    );
   });
 
   it("says how long to wait on a 429, once", () => {
@@ -294,7 +305,11 @@ describe("failures from the locked contract", () => {
     expect(bare.action).toBe("wait");
     expect(bare.sentence).toBe("Too many requests. Try again in 12 seconds.");
 
-    const told = describeFailure("rate_limited", "Wait 12 seconds and try again.", 12);
+    const told = describeFailure(
+      "rate_limited",
+      "Wait 12 seconds and try again.",
+      12,
+    );
     expect(told.sentence).toBe("Wait 12 seconds and try again.");
   });
 });

@@ -46,7 +46,7 @@ describe("the edge", () => {
     const broken = {
       ...plan,
       rows: plan.rows.map((row, index) =>
-        index === 0 ? { ...row, address: "0xnot-an-address" } : row
+        index === 0 ? { ...row, address: "0xnot-an-address" } : row,
       ),
     };
 
@@ -127,9 +127,9 @@ describe("the treasury cover", () => {
 
     expect(thin.treasuryMicros).toBe(short);
     expect(BigInt(thin.headroomMicros)).toBe(-1n);
-    expect(thin.blockers.some((entry) => entry.startsWith("Treasury is short"))).toBe(
-      true
-    );
+    expect(
+      thin.blockers.some((entry) => entry.startsWith("Treasury is short")),
+    ).toBe(true);
   });
 
   it("keeps the seed cover when none is supplied", () => {
@@ -175,13 +175,13 @@ describe("the treasury key state", () => {
 
   it("reads disconnected with no live credentials", () => {
     expect(deriveTreasuryKeyState({ ...resting, privyLive: false })).toBe(
-      "disconnected"
+      "disconnected",
     );
   });
 
   it("reads connecting while the policy install is in flight", () => {
     expect(deriveTreasuryKeyState({ ...resting, pending: "lock" })).toBe(
-      "connecting"
+      "connecting",
     );
   });
 
@@ -193,13 +193,16 @@ describe("the treasury key state", () => {
           code: "not_configured",
           hint: "Privy refused chain eip155:296 for this wallet.",
         },
-      })
+      }),
     ).toBe("wrong-network");
     expect(
       deriveTreasuryKeyState({
         ...resting,
-        failure: { code: "not_configured", hint: "PRIVY_KEY_QUORUM_ID is not set." },
-      })
+        failure: {
+          code: "not_configured",
+          hint: "PRIVY_KEY_QUORUM_ID is not set.",
+        },
+      }),
     ).not.toBe("wrong-network");
   });
 
@@ -209,7 +212,7 @@ describe("the treasury key state", () => {
 
   it("reads tx-pending while the send is with the wallet", () => {
     expect(
-      deriveTreasuryKeyState({ ...resting, pending: "send", locked: true })
+      deriveTreasuryKeyState({ ...resting, pending: "send", locked: true }),
     ).toBe("tx-pending");
   });
 
@@ -220,7 +223,7 @@ describe("the treasury key state", () => {
           ...resting,
           locked: true,
           settlement: { ...settled, receiptKind },
-        })
+        }),
       ).toBe("tx-confirmed");
     }
   });
@@ -231,7 +234,7 @@ describe("the treasury key state", () => {
         ...resting,
         locked: true,
         settlement: { ...settled, receiptKind: "none" },
-      })
+      }),
     ).toBe("tx-failed");
   });
 
@@ -241,17 +244,21 @@ describe("the treasury key state", () => {
         ...resting,
         locked: true,
         settlement: { ...settled, allowed: false, receiptKind: "none" },
-      })
+      }),
     ).toBe("tx-rejected");
   });
 
   it("reads tx-failed on an infrastructure code", () => {
-    for (const code of ["upstream_error", "upstream_timeout", "parse_failure"] as const) {
+    for (const code of [
+      "upstream_error",
+      "upstream_timeout",
+      "parse_failure",
+    ] as const) {
       expect(
         deriveTreasuryKeyState({
           ...resting,
           failure: { code, hint: "The provider did not answer." },
-        })
+        }),
       ).toBe("tx-failed");
     }
   });

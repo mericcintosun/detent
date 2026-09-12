@@ -72,7 +72,9 @@ function retryAfterOf(response: Response): number | undefined {
   const raw = response.headers.get("Retry-After");
   if (raw === null) return undefined;
   const seconds = Number(raw);
-  return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds) : undefined;
+  return Number.isFinite(seconds) && seconds >= 0
+    ? Math.ceil(seconds)
+    : undefined;
 }
 
 interface AuditEntry {
@@ -110,7 +112,10 @@ function anchorParts(anchor: AnchorReceipt | undefined): {
 function microsToInput(micros: string): string {
   const value = BigInt(micros);
   const whole = value / 1_000_000n;
-  const fraction = (value % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  const fraction = (value % 1_000_000n)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
@@ -118,7 +123,10 @@ function inputToMicros(input: string): string | null {
   const trimmed = input.trim();
   if (!/^\d+(\.\d{0,6})?$/.test(trimmed)) return null;
   const [whole, fraction = ""] = trimmed.split(".");
-  return (BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, "0") || "0")).toString();
+  return (
+    BigInt(whole) * 1_000_000n +
+    BigInt(fraction.padEnd(6, "0") || "0")
+  ).toString();
 }
 
 function stamp(): string {
@@ -136,9 +144,7 @@ function stamp(): string {
  * route owns that half of the contract and there is no runtime schema for it on
  * the client.
  */
-async function readApiResponse<T>(
-  response: Response
-): Promise<ApiResponse<T>> {
+async function readApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const unreadable: ApiResponse<T> = {
     ok: false,
     error: "parse_failure",
@@ -162,7 +168,7 @@ async function readApiResponse<T>(
   if (envelope.ok === false && typeof envelope.error === "string") {
     const blockers = Array.isArray(envelope.blockers)
       ? envelope.blockers.filter(
-          (entry): entry is string => typeof entry === "string"
+          (entry): entry is string => typeof entry === "string",
         )
       : undefined;
     return {
@@ -198,7 +204,7 @@ export function OperationsConsole({
   const [forced, setForced] = useState<string[]>([]);
   const [approvals, setApprovals] = useState<string[]>([]);
   const [installation, setInstallation] = useState<PolicyInstallation | null>(
-    null
+    null,
   );
   const [settlement, setSettlement] = useState<SubmitResult | null>(null);
   const [pending, setPending] = useState<"lock" | "send" | null>(null);
@@ -220,7 +226,7 @@ export function OperationsConsole({
         holders: snapshot.holders,
         treasuryMicros: snapshot.treasury.balanceMicros,
       }),
-    [kind, deferred, forced, snapshot.holders, snapshot.treasury.balanceMicros]
+    [kind, deferred, forced, snapshot.holders, snapshot.treasury.balanceMicros],
   );
 
   const action = actions.find((entry) => entry.kind === kind) ?? actions[0];
@@ -258,20 +264,24 @@ export function OperationsConsole({
 
   /** The control under a failure, chosen by describeFailure's action. */
   function failureControl(
-    view: FailureView
+    view: FailureView,
   ): { label: string; onClick: () => void } | undefined {
     switch (view.action) {
       case "relock":
         return { label: "Lock the plan again", onClick: () => void lockPlan() };
       case "reload":
-        return { label: "Reload the page", onClick: () => window.location.reload() };
+        return {
+          label: "Reload the page",
+          onClick: () => window.location.reload(),
+        };
       case "retry":
       case "wait":
         return failure?.stage === "lock"
           ? { label: "Try the lock again", onClick: () => void lockPlan() }
           : {
               label: "Try the send again",
-              onClick: () => void send(lastSend?.tampered ?? false, lastSend?.preference),
+              onClick: () =>
+                void send(lastSend?.tampered ?? false, lastSend?.preference),
             };
       case "none":
         return undefined;
@@ -287,11 +297,11 @@ export function OperationsConsole({
    */
   const registerTokenHref = tokenExplorerHref(
     snapshot.token.address,
-    registerProvenance(snapshot.source)
+    registerProvenance(snapshot.source),
   );
   const targetHref = tokenExplorerHref(
     plan.target,
-    callTargetProvenance(plan.target, snapshot.token.address, snapshot.source)
+    callTargetProvenance(plan.target, snapshot.token.address, snapshot.source),
   );
 
   const treasuryKeyState = deriveTreasuryKeyState({
@@ -331,14 +341,14 @@ export function OperationsConsole({
       setForced((previous) =>
         previous.includes(row.holderId)
           ? previous.filter((id) => id !== row.holderId)
-          : [...previous, row.holderId]
+          : [...previous, row.holderId],
       );
       return;
     }
     setDeferred((previous) =>
       previous.includes(row.holderId)
         ? previous.filter((id) => id !== row.holderId)
-        : [...previous, row.holderId]
+        : [...previous, row.holderId],
     );
   }
 
@@ -347,7 +357,7 @@ export function OperationsConsole({
     setApprovals((previous) =>
       previous.includes(id)
         ? previous.filter((entry) => entry !== id)
-        : [...previous, id]
+        : [...previous, id],
     );
   }
 
@@ -421,7 +431,7 @@ export function OperationsConsole({
         return;
       }
       submittedRows = submittedRows.map((row, index) =>
-        index === 0 ? { ...row, amountMicros: micros } : row
+        index === 0 ? { ...row, amountMicros: micros } : row,
       );
     }
 
@@ -448,7 +458,11 @@ export function OperationsConsole({
           // the operator already collected, and says so there.
           setInstallation(null);
           setSettlement(null);
-          setFailure({ code: payload.error, hint: payload.hint, stage: "lock" });
+          setFailure({
+            code: payload.error,
+            hint: payload.hint,
+            stage: "lock",
+          });
           record({
             event: "Lock no longer held",
             detail: `The server holds no lock for ${installation.lockId}. Lock the plan again before sending.`,
@@ -625,7 +639,10 @@ export function OperationsConsole({
               read before you sign, not after.
             </p>
             <div className="detent-enter flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="border-hairline text-foreground">
+              <Badge
+                variant="outline"
+                className="border-hairline text-foreground"
+              >
                 {snapshot.source === "hedera-testnet"
                   ? "Live read from Hedera testnet"
                   : "Cached register"}
@@ -657,7 +674,10 @@ export function OperationsConsole({
                 </>
               ) : (
                 <>
-                  <Badge variant="outline" className="border-border text-muted-foreground">
+                  <Badge
+                    variant="outline"
+                    className="border-border text-muted-foreground"
+                  >
                     Seed register address, not on chain
                   </Badge>
                   <span
@@ -747,10 +767,13 @@ export function OperationsConsole({
               surface under a sentence reads as a strikethrough. */}
           <CardHeader className="border-b border-border">
             <p className="detent-label">Plan, as it will be signed</p>
-            <CardTitle className="font-display text-2xl">{plan.label}</CardTitle>
+            <CardTitle className="font-display text-2xl">
+              {plan.label}
+            </CardTitle>
             <CardDescription className="max-w-[70ch] leading-relaxed">
               {action.summary} Authority: {plan.authority}. Record date{" "}
-              {couponWindow.recordDate}, payment date {couponWindow.paymentDate}.
+              {couponWindow.recordDate}, payment date {couponWindow.paymentDate}
+              .
             </CardDescription>
           </CardHeader>
 
@@ -758,95 +781,99 @@ export function OperationsConsole({
             {plan.rows.length === 0 ? (
               <PlanEmptyState partition={snapshot.token.partition} />
             ) : (
-            <div
-              role="region"
-              aria-label={`${plan.label}, ${plan.rows.length} rows`}
-              tabIndex={0}
-              className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-            >
-              <div className="min-w-[46rem]">
-                <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] gap-4 border-b border-border px-6 py-3">
-                  <span className="detent-label">Holder</span>
-                  <span className="detent-label">Account</span>
-                  <span className="detent-label text-right">Position</span>
-                  <span className="detent-label text-right">
-                    {kind === "coupon" ? "Coupon due" : "Units moved"}
-                  </span>
-                  <span className="detent-label text-right">Status</span>
-                </div>
+              <div
+                role="region"
+                aria-label={`${plan.label}, ${plan.rows.length} rows`}
+                tabIndex={0}
+                className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              >
+                <div className="min-w-[46rem]">
+                  <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] gap-4 border-b border-border px-6 py-3">
+                    <span className="detent-label">Holder</span>
+                    <span className="detent-label">Account</span>
+                    <span className="detent-label text-right">Position</span>
+                    <span className="detent-label text-right">
+                      {kind === "coupon" ? "Coupon due" : "Units moved"}
+                    </span>
+                    <span className="detent-label text-right">Status</span>
+                  </div>
 
-                <ul className="detent-stagger divide-y divide-border">
-                  {plan.rows.map((row) => (
-                    <li
-                      key={row.holderId}
-                      className={`detent-enter grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] items-start gap-4 px-6 py-4 ${
-                        row.held ? "bg-secondary" : ""
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        <p
-                          className={`text-sm font-medium ${row.held ? "text-bad" : ""}`}
-                        >
-                          {row.legalName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {row.jurisdiction} ·{" "}
-                          <span title={row.address}>
-                            {shortHex(row.address, 10, 4)}
-                          </span>
-                        </p>
-                        {row.held ? (
-                          <p className="max-w-[46ch] text-xs leading-relaxed text-bad">
-                            {row.holdReason}
-                          </p>
-                        ) : null}
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {row.accountId}
-                      </span>
-                      <span className="text-right text-sm tabular-nums">
-                        {formatTokens(row.balance)}
-                      </span>
-                      <span
-                        className={`text-right text-sm tabular-nums ${
-                          row.included ? "" : "text-muted-foreground line-through"
+                  <ul className="detent-stagger divide-y divide-border">
+                    {plan.rows.map((row) => (
+                      <li
+                        key={row.holderId}
+                        className={`detent-enter grid grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,7rem)] items-start gap-4 px-6 py-4 ${
+                          row.held ? "bg-secondary" : ""
                         }`}
                       >
-                        {formatMicros(row.amountMicros)}
-                      </span>
-                      <div className="flex justify-end">
-                        <Button
-                          variant={row.included ? "outline" : "ghost"}
-                          size="sm"
-                          disabled={locked}
-                          onClick={() => toggleRow(row)}
+                        <div className="space-y-1">
+                          <p
+                            className={`text-sm font-medium ${row.held ? "text-bad" : ""}`}
+                          >
+                            {row.legalName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {row.jurisdiction} ·{" "}
+                            <span title={row.address}>
+                              {shortHex(row.address, 10, 4)}
+                            </span>
+                          </p>
+                          {row.held ? (
+                            <p className="max-w-[46ch] text-xs leading-relaxed text-bad">
+                              {row.holdReason}
+                            </p>
+                          ) : null}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {row.accountId}
+                        </span>
+                        <span className="text-right text-sm tabular-nums">
+                          {formatTokens(row.balance)}
+                        </span>
+                        <span
+                          className={`text-right text-sm tabular-nums ${
+                            row.included
+                              ? ""
+                              : "text-muted-foreground line-through"
+                          }`}
                         >
-                          {row.held
-                            ? row.included
-                              ? "Hold again"
-                              : "Force in"
-                            : row.included
-                              ? "Defer"
-                              : "Restore"}
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                          {formatMicros(row.amountMicros)}
+                        </span>
+                        <div className="flex justify-end">
+                          <Button
+                            variant={row.included ? "outline" : "ghost"}
+                            size="sm"
+                            disabled={locked}
+                            onClick={() => toggleRow(row)}
+                          >
+                            {row.held
+                              ? row.included
+                                ? "Hold again"
+                                : "Force in"
+                              : row.included
+                                ? "Defer"
+                                : "Restore"}
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-            </div>
             )}
 
             <div className="grid gap-6 border-t border-border px-6 py-5 sm:grid-cols-3">
               <p className="text-sm leading-relaxed">
                 <span className="detent-label block pb-1">In the plan</span>
                 {includedRows.length} of {plan.rows.length} rows, drawing{" "}
-                {formatMicros(plan.drawMicros)} {snapshot.treasury.settlementAsset}.
+                {formatMicros(plan.drawMicros)}{" "}
+                {snapshot.treasury.settlementAsset}.
               </p>
               <p className="text-sm leading-relaxed">
                 <span className="detent-label block pb-1">Treasury cover</span>
                 {formatMicros(plan.treasuryMicros)}{" "}
-                {snapshot.treasury.settlementAsset} on {snapshot.treasury.accountId}.
+                {snapshot.treasury.settlementAsset} on{" "}
+                {snapshot.treasury.accountId}.
               </p>
               <p
                 className={`text-sm leading-relaxed ${headroomNegative ? "text-bad" : "text-ok"}`}
@@ -856,7 +883,7 @@ export function OperationsConsole({
                 {formatMicros(
                   headroomNegative
                     ? String(-BigInt(plan.headroomMicros))
-                    : plan.headroomMicros
+                    : plan.headroomMicros,
                 )}{" "}
                 {snapshot.treasury.settlementAsset}
               </p>
@@ -865,7 +892,10 @@ export function OperationsConsole({
             {plan.blockers.length > 0 ? (
               <ul className="space-y-2 border-t border-bad px-6 py-4">
                 {plan.blockers.map((blocker) => (
-                  <li key={blocker} className="text-sm leading-relaxed text-bad">
+                  <li
+                    key={blocker}
+                    className="text-sm leading-relaxed text-bad"
+                  >
                     {blocker}
                   </li>
                 ))}
@@ -941,7 +971,10 @@ export function OperationsConsole({
               size="lg"
               className="w-full"
               disabled={
-                locked || pending !== null || plan.blockers.length > 0 || !quorumMet
+                locked ||
+                pending !== null ||
+                plan.blockers.length > 0 ||
+                !quorumMet
               }
               onClick={lockPlan}
             >
@@ -966,7 +999,10 @@ export function OperationsConsole({
                 blockers={failure.blockers}
                 actionLabel={failureControl(failureView)?.label}
                 onRetry={failureControl(failureView)?.onClick}
-                busy={pending !== null || (failureView.action === "relock" && !quorumMet)}
+                busy={
+                  pending !== null ||
+                  (failureView.action === "relock" && !quorumMet)
+                }
               />
             ) : null}
           </CardContent>
@@ -979,7 +1015,8 @@ export function OperationsConsole({
             </CardTitle>
             <CardDescription className="leading-relaxed">
               One ALLOW rule, generated from the plan you just read. Everything
-              else stays on default DENY, and the rule dies with the transaction.
+              else stays on default DENY, and the rule dies with the
+              transaction.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -989,8 +1026,13 @@ export function OperationsConsole({
                   <Badge variant="outline" className="border-hairline">
                     {installation.policy.name}
                   </Badge>
-                  <Badge variant="outline" className="border-border text-muted-foreground">
-                    {installation.live ? "Installed on Privy" : "Compiled locally"}
+                  <Badge
+                    variant="outline"
+                    className="border-border text-muted-foreground"
+                  >
+                    {installation.live
+                      ? "Installed on Privy"
+                      : "Compiled locally"}
                   </Badge>
                 </div>
                 {/* The id the status line above the fold and the audit entry both
@@ -998,7 +1040,9 @@ export function OperationsConsole({
                     screen instead of out of a log sentence. */}
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span className="detent-label">Policy id</span>
-                  <span className="break-all text-sm">{installation.policyId}</span>
+                  <span className="break-all text-sm">
+                    {installation.policyId}
+                  </span>
                 </div>
                 {/* The third interactive moment: the conditions stop being a
                     list and become a diagram of the call they pin, explorable
@@ -1022,7 +1066,11 @@ export function OperationsConsole({
       </section>
 
       <section id="send" className="space-y-6">
-        <Card className={settlement && !settlement.verdict.allowed ? "border-bad" : ""}>
+        <Card
+          className={
+            settlement && !settlement.verdict.allowed ? "border-bad" : ""
+          }
+        >
           <CardHeader className="border-b border-border">
             <CardTitle className="font-display text-xl">Send it</CardTitle>
             <CardDescription className="max-w-[70ch] leading-relaxed">
@@ -1038,7 +1086,9 @@ export function OperationsConsole({
               busy={pending !== null}
               engineLive={decidedByWallet}
               receiptKind={receipt.kind}
-              onSignAndRelay={() => send(lastSend?.tampered ?? false, "signature")}
+              onSignAndRelay={() =>
+                send(lastSend?.tampered ?? false, "signature")
+              }
               onRetry={() => send(lastSend?.tampered ?? false)}
             />
 
@@ -1168,7 +1218,10 @@ export function OperationsConsole({
                       the answer; live only says credentials are configured,
                       and the local mirror can refuse on a live deployment. */}
                   {settlement.verdict.allowed ? null : (
-                    <Badge variant="outline" className="border-border text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="border-border text-muted-foreground"
+                    >
                       refused by:{" "}
                       {decidedByWallet ? "privy wallet" : "local policy mirror"}
                     </Badge>
@@ -1231,8 +1284,8 @@ export function OperationsConsole({
           <div>
             <h2 className="text-2xl tracking-tight">Audit record</h2>
             <p className="max-w-[62ch] pt-2 text-sm leading-relaxed text-muted-foreground">
-              Every plan hash, refusal and receipt from this session, in the order
-              they happened.
+              Every plan hash, refusal and receipt from this session, in the
+              order they happened.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">

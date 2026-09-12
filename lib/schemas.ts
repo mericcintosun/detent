@@ -37,13 +37,13 @@ export const hexSchema = z.custom<`0x${string}`>(
     typeof value === "string" &&
     value.length <= MAX_HEX_LENGTH &&
     /^0x[0-9a-fA-F]*$/.test(value),
-  { message: "expected a 0x prefixed hex string within the size cap" }
+  { message: "expected a 0x prefixed hex string within the size cap" },
 );
 
 /** A 20 byte EVM address. */
 export const addressSchema = z.custom<`0x${string}`>(
   (value) => typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value),
-  { message: "expected a 20 byte 0x address" }
+  { message: "expected a 20 byte 0x address" },
 );
 
 /**
@@ -53,7 +53,7 @@ export const addressSchema = z.custom<`0x${string}`>(
  */
 export const planHashSchema = z.custom<`0x${string}`>(
   (value) => typeof value === "string" && /^0x[0-9a-fA-F]{64}$/.test(value),
-  { message: "expected a 32 byte 0x plan hash" }
+  { message: "expected a 32 byte 0x plan hash" },
 );
 
 /** Settlement amounts travel as decimal digit strings, never as numbers. */
@@ -74,7 +74,10 @@ export const planRowSchema = z.object({
   balance: z.number().finite(),
   amountMicros: microsSchema,
   held: z.boolean(),
-  holdReason: z.string().max(MAX_LABEL_LENGTH * 4).nullable(),
+  holdReason: z
+    .string()
+    .max(MAX_LABEL_LENGTH * 4)
+    .nullable(),
   included: z.boolean(),
 });
 

@@ -19,9 +19,15 @@ import { POST } from "@/app/api/detent/route";
 import { holders } from "@/lib/data";
 import { buildPlan, type Plan } from "@/lib/plan";
 import type * as RegisterModule from "@/lib/register";
-import type { ApiResponse, PolicyInstallation, SubmitResult } from "@/lib/types";
+import type {
+  ApiResponse,
+  PolicyInstallation,
+  SubmitResult,
+} from "@/lib/types";
 
-const register = vi.hoisted(() => ({ treasuryMicros: undefined as string | undefined }));
+const register = vi.hoisted(() => ({
+  treasuryMicros: undefined as string | undefined,
+}));
 
 vi.mock("@/lib/register", async (importOriginal) => {
   const actual = await importOriginal<typeof RegisterModule>();
@@ -33,7 +39,10 @@ vi.mock("@/lib/register", async (importOriginal) => {
         ? snapshot
         : {
             ...snapshot,
-            treasury: { ...snapshot.treasury, balanceMicros: register.treasuryMicros },
+            treasury: {
+              ...snapshot.treasury,
+              balanceMicros: register.treasuryMicros,
+            },
           };
     },
   };
@@ -44,18 +53,28 @@ const plan = buildPlan({ kind: "coupon", holders });
 const clearSelection = { kind: "coupon" as const, deferred: [], forced: [] };
 
 /** A plan that forces a compliance held holder back into the payout rows. */
-const blockedSelection = { kind: "coupon" as const, deferred: [], forced: ["h-05"] };
+const blockedSelection = {
+  kind: "coupon" as const,
+  deferred: [],
+  forced: ["h-05"],
+};
 const blockedPlan = buildPlan({ kind: "coupon", holders, forced: ["h-05"] });
 
 let clientCounter = 0;
 
-function post(body: unknown, address = `198.51.100.${++clientCounter}`): Promise<Response> {
+function post(
+  body: unknown,
+  address = `198.51.100.${++clientCounter}`,
+): Promise<Response> {
   return POST(
     new Request("http://detent.test/api/detent", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": address,
+      },
       body: JSON.stringify(body),
-    })
+    }),
   );
 }
 
@@ -71,17 +90,17 @@ function tamperedRowsOf(source: Plan) {
   return rows.map((row, index) =>
     index === rows.length - 1
       ? { ...row, amountMicros: String(BigInt(row.amountMicros) + 1n) }
-      : row
+      : row,
   );
 }
 
 async function lock(
   body: Record<string, unknown> = {},
-  address?: string
+  address?: string,
 ): Promise<{ status: number; payload: ApiResponse<PolicyInstallation> }> {
   const response = await post(
     { intent: "lock", plan, selection: clearSelection, approvals, ...body },
-    address
+    address,
   );
   return { status: response.status, payload: await response.json() };
 }
@@ -94,7 +113,7 @@ async function lockId(): Promise<string> {
 
 async function submit(
   id: string,
-  submittedRows: ReturnType<typeof rowsOf>
+  submittedRows: ReturnType<typeof rowsOf>,
 ): Promise<{ status: number; payload: ApiResponse<SubmitResult> }> {
   const response = await post({ intent: "submit", lockId: id, submittedRows });
   return { status: response.status, payload: await response.json() };
@@ -122,13 +141,15 @@ describe("the lock intent", () => {
 
     const rule = payload.data.policy.rules[0];
     const exact = rule.conditions.find(
-      (condition) => condition.field === "data" && condition.operator === "eq"
+      (condition) => condition.field === "data" && condition.operator === "eq",
     );
 
     expect(payload.data.policy.default_action).toBe("DENY");
     expect(exact?.value).toBe(plan.calldata);
     expect(payload.data.planHash).toBe(plan.planHash);
-    expect(payload.data.approvedBy.map((signer) => signer.id)).toEqual(approvals);
+    expect(payload.data.approvedBy.map((signer) => signer.id)).toEqual(
+      approvals,
+    );
     expect(payload.data.lockId.length).toBeGreaterThan(0);
     expect(payload.data.lockId).not.toContain(plan.planHash.slice(2, 10));
   });
@@ -155,12 +176,17 @@ describe("the lock intent", () => {
     expect(status).toBe(409);
     if (payload.ok) throw new Error("a blocked plan must not lock");
     expect(payload.error).toBe("plan_blocked");
-    expect(payload.blockers?.join(" ")).toContain("held by the compliance module");
+    expect(payload.blockers?.join(" ")).toContain(
+      "held by the compliance module",
+    );
   });
 
   it("refuses a plan the server does not derive from the register", async () => {
     // The last calldata byte of the seed plan is 0xe0, so this changes one byte.
-    const forged = { ...plan, calldata: `${plan.calldata.slice(0, -2)}ff` as const };
+    const forged = {
+      ...plan,
+      calldata: `${plan.calldata.slice(0, -2)}ff` as const,
+    };
     expect(forged.calldata).not.toBe(plan.calldata);
     const { status, payload } = await lock({ plan: forged });
 
@@ -184,7 +210,8 @@ describe("the lock intent", () => {
     const { status, payload } = await lock({ approvals: ["a", "b"] });
 
     expect(status).toBe(409);
-    if (payload.ok) throw new Error("unregistered approvers must not open the policy");
+    if (payload.ok)
+      throw new Error("unregistered approvers must not open the policy");
     expect(payload.error).toBe("quorum_not_met");
   });
 
@@ -198,7 +225,7 @@ describe("the lock intent", () => {
     for (let attempt = 0; attempt < 10; attempt += 1) {
       last = await post(
         { intent: "lock", plan, selection: clearSelection, approvals },
-        address
+        address,
       );
       statuses.push(last.status);
     }
@@ -237,7 +264,10 @@ describe("the submit intent", () => {
   });
 
   it("refuses one altered byte, derives the tampered flag itself and signs nothing", async () => {
-    const { status, payload } = await submit(await lockId(), tamperedRowsOf(plan));
+    const { status, payload } = await submit(
+      await lockId(),
+      tamperedRowsOf(plan),
+    );
 
     expect(status).toBe(200);
     if (!payload.ok) throw new Error(`submit failed: ${payload.error}`);
@@ -254,7 +284,8 @@ describe("the submit intent", () => {
     const refused = await submit(id, tamperedRowsOf(plan));
     const retried = await submit(id, rowsOf(plan));
 
-    if (!refused.payload.ok || !retried.payload.ok) throw new Error("submit failed");
+    if (!refused.payload.ok || !retried.payload.ok)
+      throw new Error("submit failed");
     expect(refused.payload.data.verdict.allowed).toBe(false);
     expect(retried.payload.data.verdict.allowed).toBe(true);
   });
@@ -268,7 +299,8 @@ describe("the submit intent", () => {
     if (!allowed.payload.ok) throw new Error("submit failed");
     expect(allowed.payload.data.verdict.allowed).toBe(true);
     expect(afterwards.status).toBe(409);
-    if (afterwards.payload.ok) throw new Error("a spent lock must not sign again");
+    if (afterwards.payload.ok)
+      throw new Error("a spent lock must not sign again");
     expect(afterwards.payload.error).toBe("lock_unknown");
   });
 
@@ -278,7 +310,8 @@ describe("the submit intent", () => {
     const first = await submit(id, rowsOf(plan));
     const second = await submit(id, rowsOf(plan));
 
-    if (!first.payload.ok || !second.payload.ok) throw new Error("submit failed");
+    if (!first.payload.ok || !second.payload.ok)
+      throw new Error("submit failed");
     expect(second.payload.data).toEqual(first.payload.data);
   });
 
@@ -294,13 +327,20 @@ describe("the submit intent", () => {
 
   // Regression for audit H7: blockers were checked on lock and never on submit.
   it("refuses a compliance held row at submit because no lock can be opened for it (audit H7)", async () => {
-    const refusedAtLock = await lock({ plan: blockedPlan, selection: blockedSelection });
+    const refusedAtLock = await lock({
+      plan: blockedPlan,
+      selection: blockedSelection,
+    });
     expect(refusedAtLock.status).toBe(409);
 
-    const { status, payload } = await submit("lock_never_issued", rowsOf(blockedPlan));
+    const { status, payload } = await submit(
+      "lock_never_issued",
+      rowsOf(blockedPlan),
+    );
 
     expect(status).toBe(409);
-    if (payload.ok) throw new Error("a blocked row must not reach payout calldata");
+    if (payload.ok)
+      throw new Error("a blocked row must not reach payout calldata");
     expect(payload.error).toBe("lock_unknown");
   });
 
@@ -323,7 +363,7 @@ describe("the edge of the route", () => {
       new Request("http://detent.test/api/detent", {
         method: "POST",
         body: "{ this is not json",
-      })
+      }),
     );
     const payload: ApiResponse<never> = await response.json();
 
@@ -347,7 +387,7 @@ describe("the edge of the route", () => {
     const broken = {
       ...plan,
       rows: plan.rows.map((row, index) =>
-        index === 2 ? { ...row, address: "0xnope" } : row
+        index === 2 ? { ...row, address: "0xnope" } : row,
       ),
     };
 
@@ -362,7 +402,11 @@ describe("the edge of the route", () => {
   it("never answers a failure with a provider body or a stack trace", async () => {
     const responses = [
       await post({ intent: "lock", plan, approvals: [] }),
-      await post({ intent: "submit", lockId: "lock_never_issued", submittedRows: [] }),
+      await post({
+        intent: "submit",
+        lockId: "lock_never_issued",
+        submittedRows: [],
+      }),
     ];
 
     for (const response of responses) {

@@ -73,7 +73,10 @@ const INFRASTRUCTURE_CODES: DetentErrorCode[] = [
 ];
 
 /** A not_configured failure that names the chain is a network problem. */
-function namesTheChain(failure: { code: DetentErrorCode; hint: string }): boolean {
+function namesTheChain(failure: {
+  code: DetentErrorCode;
+  hint: string;
+}): boolean {
   return (
     failure.code === "not_configured" && /chain|eip155|296/i.test(failure.hint)
   );
@@ -86,7 +89,7 @@ function namesTheChain(failure: { code: DetentErrorCode; hint: string }): boolea
  * wallet state, it is a plan state.
  */
 export function deriveTreasuryKeyState(
-  input: TreasuryKeyInput
+  input: TreasuryKeyInput,
 ): TreasuryKeyState {
   if (input.pending === "lock") return "connecting";
   if (input.pending === "send") return "tx-pending";
@@ -144,20 +147,32 @@ const FALLBACK_SENTENCES: Partial<Record<DetentErrorCode, string>> = {
 export function describeFailure(
   code: DetentErrorCode,
   hint: string | undefined,
-  retryAfterSeconds?: number
+  retryAfterSeconds?: number,
 ): FailureView {
   const base = hint && hint.trim().length > 0 ? hint : FALLBACK_SENTENCES[code];
   let sentence = base ?? "The call did not go through. Nothing was signed.";
 
   switch (code) {
     case "lock_unknown":
-      return { title: "Lock expired, lock the plan again", sentence, action: "relock" };
+      return {
+        title: "Lock expired, lock the plan again",
+        sentence,
+        action: "relock",
+      };
     case "plan_mismatch":
-      return { title: "The register moved under this plan", sentence, action: "reload" };
+      return {
+        title: "The register moved under this plan",
+        sentence,
+        action: "reload",
+      };
     case "plan_blocked":
       return { title: "The plan is blocked", sentence, action: "none" };
     case "quorum_not_met":
-      return { title: "Approvals do not meet the quorum", sentence, action: "none" };
+      return {
+        title: "Approvals do not meet the quorum",
+        sentence,
+        action: "none",
+      };
     case "rate_limited": {
       if (
         retryAfterSeconds !== undefined &&
@@ -171,6 +186,10 @@ export function describeFailure(
     case "invalid_input":
       return { title: "The request was rejected", sentence, action: "none" };
     default:
-      return { title: "The call did not go through", sentence, action: "retry" };
+      return {
+        title: "The call did not go through",
+        sentence,
+        action: "retry",
+      };
   }
 }

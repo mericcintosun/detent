@@ -14,8 +14,8 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
         This page did not finish loading
       </h1>
       <p className="leading-relaxed text-muted-foreground">
-        The register read failed on the way out. Nothing was signed and no policy
-        was installed, so it is safe to run it again.
+        The register read failed on the way out. Nothing was signed and no
+        policy was installed, so it is safe to run it again.
       </p>
       <Button onClick={() => reset()}>Try again</Button>
     </div>

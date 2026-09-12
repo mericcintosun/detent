@@ -96,7 +96,7 @@ export function isPrivyLive(): boolean {
 
 function authHeaders(): Record<string, string> {
   const basic = Buffer.from(`${PRIVY_APP_ID}:${PRIVY_APP_SECRET}`).toString(
-    "base64"
+    "base64",
   );
   return {
     Authorization: `Basic ${basic}`,
@@ -141,13 +141,13 @@ async function privyFetch(path: string, init: RequestInit): Promise<Response> {
     if (second.response.status < 500) return second.response;
     throw new DetentError(
       "upstream_error",
-      `Privy answered ${second.response.status} on ${path} after ${RETRY_COUNT} retry.`
+      `Privy answered ${second.response.status} on ${path} after ${RETRY_COUNT} retry.`,
     );
   }
 
   throw new DetentError(
     "upstream_timeout",
-    `Privy did not answer ${path} within ${PRIVY_TIMEOUT_MS}ms, after ${RETRY_COUNT} retry.`
+    `Privy did not answer ${path} within ${PRIVY_TIMEOUT_MS}ms, after ${RETRY_COUNT} retry.`,
   );
 }
 
@@ -212,7 +212,7 @@ function divergenceOffset(expected: string, actual: string): number {
  */
 export function evaluatePolicy(
   policy: PrivyPolicy,
-  request: { to: string; chainId: number; data: Hex }
+  request: { to: string; chainId: number; data: Hex },
 ): SignatureVerdict {
   for (const rule of policy.rules) {
     let matched = true;
@@ -282,8 +282,7 @@ export function quorumSatisfied(approvals: string[]): boolean {
 }
 
 export type ApprovalResolution =
-  | { ok: true; signers: ApprovedSigner[] }
-  | { ok: false; reason: string };
+  { ok: true; signers: ApprovedSigner[] } | { ok: false; reason: string };
 
 /**
  * Resolve approval ids against the officer registry in lib/data.ts. Two things
@@ -303,7 +302,7 @@ export function resolveApprovals(approvals: string[]): ApprovalResolution {
   for (const entry of approvals) {
     const candidate = entry.trim().toLowerCase();
     const officer = approvers.find(
-      (approver) => approver.id.toLowerCase() === candidate
+      (approver) => approver.id.toLowerCase() === candidate,
     );
     if (!officer) {
       return {
@@ -343,7 +342,7 @@ export interface PrivyRequest {
 /** POST /v1/policies, owned by the key quorum. */
 export function policyInstallRequest(
   policy: PrivyPolicy,
-  keyQuorumId: string
+  keyQuorumId: string,
 ): PrivyRequest {
   return {
     path: "/v1/policies",
@@ -359,7 +358,7 @@ export function policyInstallRequest(
  */
 export function walletPolicyPatchRequest(
   walletId: string,
-  policyIds: string[]
+  policyIds: string[],
 ): PrivyRequest {
   return {
     path: `/v1/wallets/${walletId}`,
@@ -391,14 +390,14 @@ async function readWalletPolicyIds(walletId: string): Promise<string[]> {
     throw new DetentError(
       "upstream_error",
       `Privy answered ${response.status} reading wallet ${walletId}.`,
-      "The treasury wallet could not be read, so the policy was not attached and nothing was locked. Check PRIVY_TREASURY_WALLET_ID and the app credentials, then lock the plan again."
+      "The treasury wallet could not be read, so the policy was not attached and nothing was locked. Check PRIVY_TREASURY_WALLET_ID and the app credentials, then lock the plan again.",
     );
   }
   const parsed = privyWalletResponseSchema.safeParse(await response.json());
   if (!parsed.success) {
     throw new DetentError(
       "parse_failure",
-      "The wallet read answered in a shape this build does not understand."
+      "The wallet read answered in a shape this build does not understand.",
     );
   }
   return parsed.data.policy_ids ?? [];
@@ -412,17 +411,17 @@ async function readWalletPolicyIds(walletId: string): Promise<string[]> {
 async function attachPolicyToWallet(
   walletId: string,
   policyId: string,
-  previousPolicyIds: string[]
+  previousPolicyIds: string[],
 ): Promise<void> {
   const response = await sendPrivy(
-    walletPolicyPatchRequest(walletId, [policyId])
+    walletPolicyPatchRequest(walletId, [policyId]),
   );
 
   if (!response.ok) {
     throw new DetentError(
       "upstream_error",
       `Privy answered ${response.status} attaching policy ${policyId} to wallet ${walletId}.`,
-      "The policy was created but Privy would not bind it to the treasury wallet, so nothing was locked and the key is unchanged. A wallet held by an owner needs a request authorization signature on this call; check the wallet owner and the app credentials, then lock the plan again."
+      "The policy was created but Privy would not bind it to the treasury wallet, so nothing was locked and the key is unchanged. A wallet held by an owner needs a request authorization signature on this call; check the wallet owner and the app credentials, then lock the plan again.",
     );
   }
 
@@ -431,12 +430,12 @@ async function attachPolicyToWallet(
     throw new DetentError(
       "upstream_error",
       `Privy accepted the wallet patch but did not report policy ${policyId} on wallet ${walletId}.`,
-      "Privy did not confirm the policy is enforced on the treasury wallet, so the lock was refused rather than claimed. Check the wallet in the Privy dashboard, then lock the plan again."
+      "Privy did not confirm the policy is enforced on the treasury wallet, so the lock was refused rather than claimed. Check the wallet in the Privy dashboard, then lock the plan again.",
     );
   }
 
   console.info(
-    `${LOG_PREFIX} policy attached: ${policyId} on wallet ${walletId}, previous policy_ids ${previousPolicyIds.length}`
+    `${LOG_PREFIX} policy attached: ${policyId} on wallet ${walletId}, previous policy_ids ${previousPolicyIds.length}`,
   );
 }
 
@@ -444,20 +443,20 @@ async function attachPolicyToWallet(
 async function detachPolicyFromWallet(
   walletId: string,
   policyId: string,
-  previousPolicyIds: string[]
+  previousPolicyIds: string[],
 ): Promise<boolean> {
   try {
     const response = await sendPrivy(
-      walletPolicyPatchRequest(walletId, previousPolicyIds)
+      walletPolicyPatchRequest(walletId, previousPolicyIds),
     );
     console.info(
-      `${LOG_PREFIX} policy detached: ${policyId} from wallet ${walletId}, accepted ${response.ok}`
+      `${LOG_PREFIX} policy detached: ${policyId} from wallet ${walletId}, accepted ${response.ok}`,
     );
     return response.ok;
   } catch (error) {
     console.error(
       `${LOG_PREFIX} policy detach failed: ${policyId} on wallet ${walletId},`,
-      error instanceof Error ? error.message : "unknown detach failure"
+      error instanceof Error ? error.message : "unknown detach failure",
     );
     return false;
   }
@@ -465,11 +464,11 @@ async function detachPolicyFromWallet(
 
 export async function installPolicy(
   plan: Plan,
-  signers: ApprovedSigner[]
+  signers: ApprovedSigner[],
 ): Promise<InstalledPolicy> {
   const policy = compilePolicy(plan);
   console.info(
-    `${LOG_PREFIX} policy compiled: ${policy.name}, plan hash ${plan.planHash}, ${policy.rules[0].conditions.length} conditions, calldata ${(plan.calldata.length - 2) / 2} bytes`
+    `${LOG_PREFIX} policy compiled: ${policy.name}, plan hash ${plan.planHash}, ${policy.rules[0].conditions.length} conditions, calldata ${(plan.calldata.length - 2) / 2} bytes`,
   );
 
   if (!isPrivyLive()) {
@@ -488,7 +487,7 @@ export async function installPolicy(
     throw new DetentError(
       "not_configured",
       "PRIVY_KEY_QUORUM_ID is missing.",
-      "PRIVY_KEY_QUORUM_ID is not set on the server, so no key quorum can own the policy. Create the quorum with threshold two in the Privy dashboard and set that id."
+      "PRIVY_KEY_QUORUM_ID is not set on the server, so no key quorum can own the policy. Create the quorum with threshold two in the Privy dashboard and set that id.",
     );
   }
 
@@ -498,14 +497,14 @@ export async function installPolicy(
   const previousPolicyIds = await readWalletPolicyIds(WALLET_ID);
 
   const response = await sendPrivy(
-    policyInstallRequest(policy, PRIVY_KEY_QUORUM_ID)
+    policyInstallRequest(policy, PRIVY_KEY_QUORUM_ID),
   );
 
   if (!response.ok) {
     throw new DetentError(
       "upstream_error",
       `Privy refused the policy install with ${response.status}.`,
-      "Privy refused to install the policy. Check the app credentials and the key quorum id, then lock the plan again."
+      "Privy refused to install the policy. Check the app credentials and the key quorum id, then lock the plan again.",
     );
   }
 
@@ -513,14 +512,14 @@ export async function installPolicy(
   if (!parsed.success) {
     throw new DetentError(
       "parse_failure",
-      "The policy install response carried no id."
+      "The policy install response carried no id.",
     );
   }
 
   await attachPolicyToWallet(WALLET_ID, parsed.data.id, previousPolicyIds);
 
   console.info(
-    `${LOG_PREFIX} policy installed: ${parsed.data.id} on wallet ${WALLET_ID}, quorum ${PRIVY_KEY_QUORUM_ID}, ${Date.now() - startedAt}ms`
+    `${LOG_PREFIX} policy installed: ${parsed.data.id} on wallet ${WALLET_ID}, quorum ${PRIVY_KEY_QUORUM_ID}, ${Date.now() - startedAt}ms`,
   );
 
   return {
@@ -545,13 +544,13 @@ export async function revokePolicy(policyId: string): Promise<boolean> {
       method: "DELETE",
     });
     console.info(
-      `${LOG_PREFIX} policy revoked: ${policyId}, accepted ${response.ok}`
+      `${LOG_PREFIX} policy revoked: ${policyId}, accepted ${response.ok}`,
     );
     return response.ok;
   } catch (error) {
     console.error(
       `${LOG_PREFIX} policy revoked: ${policyId} failed,`,
-      error instanceof Error ? error.message : "unknown revoke failure"
+      error instanceof Error ? error.message : "unknown revoke failure",
     );
     return false;
   }
@@ -579,7 +578,7 @@ export async function releasePolicy(options: {
   const detached = await detachPolicyFromWallet(
     options.walletId,
     options.policyId,
-    options.previousPolicyIds
+    options.previousPolicyIds,
   );
   const revoked = await revokePolicy(options.policyId);
   return { detached, revoked };
@@ -684,7 +683,7 @@ async function signAndRelay(options: {
     throw new DetentError(
       "not_configured",
       "PRIVY_TREASURY_WALLET_ADDRESS is missing.",
-      "PRIVY_TREASURY_WALLET_ADDRESS is not set on the server, so the nonce for the raw transaction cannot be read. Take the wallet address from the Privy dashboard and set it."
+      "PRIVY_TREASURY_WALLET_ADDRESS is not set on the server, so the nonce for the raw transaction cannot be read. Take the wallet address from the Privy dashboard and set it.",
     );
   }
 
@@ -723,16 +722,18 @@ async function signAndRelay(options: {
     throw new DetentError(
       "upstream_error",
       `Privy refused to sign the transaction with ${response.status}.`,
-      "Privy would neither broadcast nor sign this transaction. Check the wallet id and the policy owner, then send the approved plan again."
+      "Privy would neither broadcast nor sign this transaction. Check the wallet id and the policy owner, then send the approved plan again.",
     );
   }
 
   const parsed = privyRpcResponseSchema.safeParse(await response.json());
-  const signed = parsed.success ? parsed.data.data?.signed_transaction : undefined;
+  const signed = parsed.success
+    ? parsed.data.data?.signed_transaction
+    : undefined;
   if (!signed) {
     throw new DetentError(
       "parse_failure",
-      "The sign response carried no signed transaction."
+      "The sign response carried no signed transaction.",
     );
   }
 
@@ -740,7 +741,7 @@ async function signAndRelay(options: {
     serializedTransaction: signed as Hex,
   });
   console.info(
-    `${LOG_PREFIX} tx broadcast via relay: ${hash}, nonce ${nonce}, ${(submit.data.length - 2) / 2} calldata bytes, ${Date.now() - startedAt}ms`
+    `${LOG_PREFIX} tx broadcast via relay: ${hash}, nonce ${nonce}, ${(submit.data.length - 2) / 2} calldata bytes, ${Date.now() - startedAt}ms`,
   );
 
   const release = await releasePolicy({
@@ -767,7 +768,7 @@ async function signAndRelay(options: {
 }
 
 export async function submitTransaction(
-  options: SubmitOptions
+  options: SubmitOptions,
 ): Promise<ExecutionResult> {
   // The mirror runs for the explanation and for the log. On the live path it
   // never decides anything: the wallet is asked either way, because a refusal
@@ -809,7 +810,7 @@ export async function submitTransaction(
     // Not a decision, a prediction: the wallet is still asked below, and if it
     // allows what the mirror refused the two have diverged and the log says so.
     console.info(
-      `${LOG_PREFIX} mirror predicts a denial: ${options.policy.name}, rule ${mirrored.ruleName}, ${(options.data.length - 2) / 2} calldata bytes`
+      `${LOG_PREFIX} mirror predicts a denial: ${options.policy.name}, rule ${mirrored.ruleName}, ${(options.data.length - 2) / 2} calldata bytes`,
     );
   }
 
@@ -834,7 +835,7 @@ export async function submitTransaction(
     const body = await response.text();
     if (looksLikePolicyDenial(body)) {
       console.info(
-        `${LOG_PREFIX} policy denied: ${options.policy.name} refused by Privy with ${response.status}`
+        `${LOG_PREFIX} policy denied: ${options.policy.name} refused by Privy with ${response.status}`,
       );
       return denialResult({
         policy: options.policy,
@@ -845,14 +846,14 @@ export async function submitTransaction(
     }
     if (broadcastMode === "auto" && response.status < 500) {
       console.info(
-        `${LOG_PREFIX} tx submitted: Privy answered ${response.status} for eip155:${options.chainId}, taking the signature path instead`
+        `${LOG_PREFIX} tx submitted: Privy answered ${response.status} for eip155:${options.chainId}, taking the signature path instead`,
       );
       return signAndRelay({ submit: options, mirrored });
     }
     throw new DetentError(
       "upstream_error",
       `Privy refused to broadcast with ${response.status}.`,
-      "Privy would not broadcast this transaction. Set PRIVY_BROADCAST_MODE=signature to sign and relay instead, then send the approved plan again."
+      "Privy would not broadcast this transaction. Set PRIVY_BROADCAST_MODE=signature to sign and relay instead, then send the approved plan again.",
     );
   }
 
@@ -860,7 +861,7 @@ export async function submitTransaction(
   if (!parsed.success) {
     throw new DetentError(
       "parse_failure",
-      "The wallet RPC response did not match the expected shape."
+      "The wallet RPC response did not match the expected shape.",
     );
   }
 
@@ -869,19 +870,19 @@ export async function submitTransaction(
     throw new DetentError(
       "parse_failure",
       "The wallet broadcast answered without a 32 byte transaction hash.",
-      "Privy accepted the transaction but did not return a transaction hash this build can verify, so nothing is claimed about where it landed. Check the wallet in the Privy dashboard before sending again."
+      "Privy accepted the transaction but did not return a transaction hash this build can verify, so nothing is claimed about where it landed. Check the wallet in the Privy dashboard before sending again.",
     );
   }
   const transactionHash = hash as `0x${string}`;
 
   if (!mirrored.allowed) {
     console.error(
-      `${LOG_PREFIX} mirror and wallet diverged: the mirror refused ${options.policy.name} and the wallet signed anyway, tx ${transactionHash}`
+      `${LOG_PREFIX} mirror and wallet diverged: the mirror refused ${options.policy.name} and the wallet signed anyway, tx ${transactionHash}`,
     );
   }
 
   console.info(
-    `${LOG_PREFIX} tx submitted: ${transactionHash}, policy ${options.policyId}, ${(options.data.length - 2) / 2} calldata bytes, ${Date.now() - startedAt}ms`
+    `${LOG_PREFIX} tx submitted: ${transactionHash}, policy ${options.policyId}, ${(options.data.length - 2) / 2} calldata bytes, ${Date.now() - startedAt}ms`,
   );
 
   const release = await releasePolicy({

@@ -168,7 +168,11 @@ export function Rail() {
         {/* Dropped below lg on purpose: at that width the plan table is already
             the next thing on screen, so a full-bleed gold block would only push
             the product down. */}
-        <Button asChild size="lg" className="hidden w-full lg:mt-auto lg:inline-flex">
+        <Button
+          asChild
+          size="lg"
+          className="hidden w-full lg:mt-auto lg:inline-flex"
+        >
           <a href="#plan">Open the Q3 coupon run</a>
         </Button>
 

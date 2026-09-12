@@ -12,7 +12,13 @@
 // links from lib/hashscan.ts instead, which keeps viem and the relay out of the
 // browser bundle.
 
-import { createPublicClient, defineChain, http, parseAbi, stringToHex } from "viem";
+import {
+  createPublicClient,
+  defineChain,
+  http,
+  parseAbi,
+  stringToHex,
+} from "viem";
 import {
   fakeRegisterAdapter,
   useLiveRegister,
@@ -123,55 +129,57 @@ export const liveRegisterAdapter: RegisterAdapter = {
     const partitionBytes = stringToHex(security.partition, { size: 32 });
 
     const results = await Promise.all(
-      seedHolders.map(async (holder): Promise<{ holder: Holder; read: boolean }> => {
-        try {
-          const [balance, verdict] = await Promise.all([
-            client.readContract({
-              address: tokenAddress,
-              abi: ATS_ABI,
-              functionName: "balanceOfByPartition",
-              args: [partitionBytes, holder.address],
-            }),
-            client.readContract({
-              address: tokenAddress,
-              abi: ATS_ABI,
-              functionName: "canTransfer",
-              args: [holder.address, 1n, "0x"],
-            }),
-          ]);
+      seedHolders.map(
+        async (holder): Promise<{ holder: Holder; read: boolean }> => {
+          try {
+            const [balance, verdict] = await Promise.all([
+              client.readContract({
+                address: tokenAddress,
+                abi: ATS_ABI,
+                functionName: "balanceOfByPartition",
+                args: [partitionBytes, holder.address],
+              }),
+              client.readContract({
+                address: tokenAddress,
+                abi: ATS_ABI,
+                functionName: "canTransfer",
+                args: [holder.address, 1n, "0x"],
+              }),
+            ]);
 
-          const [allowed, code] = verdict;
-          const compliance: ComplianceState = allowed
-            ? "clear"
-            : complianceFromCode(code);
+            const [allowed, code] = verdict;
+            const compliance: ComplianceState = allowed
+              ? "clear"
+              : complianceFromCode(code);
 
-          return {
-            read: true,
-            holder: {
-              ...holder,
-              balance: Number(
-                balance / BigInt(10) ** BigInt(security.decimals)
-              ),
-              compliance,
-              complianceNote: allowed
-                ? "Allowlist entry valid, verified on chain."
-                : `ATS compliance module refused a test credit, reason code ${code}.`,
-            },
-          };
-        } catch (error) {
-          console.warn(
-            `${LOG_PREFIX} register row unread for ${holder.accountId}:`,
-            error instanceof Error ? error.message : "unknown relay failure"
-          );
-          return {
-            read: false,
-            holder: {
-              ...holder,
-              complianceNote: `Not read on chain in this snapshot, showing the cached value. ${holder.complianceNote}`,
-            },
-          };
-        }
-      })
+            return {
+              read: true,
+              holder: {
+                ...holder,
+                balance: Number(
+                  balance / BigInt(10) ** BigInt(security.decimals),
+                ),
+                compliance,
+                complianceNote: allowed
+                  ? "Allowlist entry valid, verified on chain."
+                  : `ATS compliance module refused a test credit, reason code ${code}.`,
+              },
+            };
+          } catch (error) {
+            console.warn(
+              `${LOG_PREFIX} register row unread for ${holder.accountId}:`,
+              error instanceof Error ? error.message : "unknown relay failure",
+            );
+            return {
+              read: false,
+              holder: {
+                ...holder,
+                complianceNote: `Not read on chain in this snapshot, showing the cached value. ${holder.complianceNote}`,
+              },
+            };
+          }
+        },
+      ),
     );
 
     const unread = results.filter((entry) => !entry.read).length;
@@ -200,7 +208,7 @@ export const liveRegisterAdapter: RegisterAdapter = {
       } catch (error) {
         console.warn(
           `${LOG_PREFIX} treasury cover unread, keeping the cached figure:`,
-          error instanceof Error ? error.message : "unknown relay failure"
+          error instanceof Error ? error.message : "unknown relay failure",
         );
         coverNote =
           "Treasury cover is the cached figure: the settlement token balance could not be read in this snapshot.";
@@ -246,7 +254,7 @@ export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
   try {
     const snapshot = await adapter.load();
     console.info(
-      `${LOG_PREFIX} register read ok: ${snapshot.holders.length} holders, source ${snapshot.source}, ${Date.now() - startedAt}ms`
+      `${LOG_PREFIX} register read ok: ${snapshot.holders.length} holders, source ${snapshot.source}, ${Date.now() - startedAt}ms`,
     );
     cached = { at: Date.now(), snapshot };
     return snapshot;
@@ -256,7 +264,7 @@ export async function getRegisterSnapshot(): Promise<RegisterSnapshot> {
     // loud in the server log.
     console.error(
       `${LOG_PREFIX} register read failed after ${Date.now() - startedAt}ms, falling back to the cached register:`,
-      error instanceof Error ? error.message : "unknown read failure"
+      error instanceof Error ? error.message : "unknown read failure",
     );
     // Deliberately not cached: a relay that recovers should show on the next
     // navigation rather than after the full REGISTER_CACHE_MS window.

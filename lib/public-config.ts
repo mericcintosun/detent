@@ -20,7 +20,7 @@ export type AdapterMode = "fake" | "real";
  * variable, which every consumer already handles.
  */
 export function parseEvmAddress(
-  value: string | undefined
+  value: string | undefined,
 ): `0x${string}` | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -45,7 +45,7 @@ export const HEDERA_RPC_URL =
 
 /** The ATS equity token. Empty means the cached register. */
 export const ATS_TOKEN_ADDRESS = parseEvmAddress(
-  process.env.NEXT_PUBLIC_ATS_TOKEN_ADDRESS
+  process.env.NEXT_PUBLIC_ATS_TOKEN_ADDRESS,
 );
 
 /**
@@ -54,7 +54,7 @@ export const ATS_TOKEN_ADDRESS = parseEvmAddress(
  * register note says so.
  */
 export const SETTLEMENT_TOKEN_ADDRESS = parseEvmAddress(
-  process.env.NEXT_PUBLIC_SETTLEMENT_TOKEN_ADDRESS
+  process.env.NEXT_PUBLIC_SETTLEMENT_TOKEN_ADDRESS,
 );
 
 /**

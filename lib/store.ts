@@ -75,7 +75,7 @@ export interface BoundedStore<T> {
  * guarantees, so the eviction victim is the oldest key without a second index.
  */
 export function createBoundedStore<T>(
-  options: BoundedStoreOptions
+  options: BoundedStoreOptions,
 ): BoundedStore<T> {
   const entries = new Map<string, { value: T; expiresAt: number }>();
   const now = options.now ?? (() => Date.now());
@@ -238,7 +238,7 @@ export const rateLimiter = {
         allowed: false,
         retryAfterSeconds: Math.max(
           1,
-          Math.ceil((current.resetAt - now) / 1000)
+          Math.ceil((current.resetAt - now) / 1000),
         ),
       };
     }
