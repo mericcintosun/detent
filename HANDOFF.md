@@ -107,6 +107,11 @@ brand image anywhere.
 | `lib/plan.ts` | The plan engine. Builds rows, flags holds, computes headroom, encodes calldata with viem, hashes the plan. |
 | `lib/hedera.ts` | ATS / Hedera adapter. Real reads when configured, cached register otherwise. |
 | `lib/privy.ts` | Privy policy compiler, local evaluator, and the REST client for policies and wallet RPC. |
+| `lib/store.ts` | The only owner of cross-request state: the policy vault and the submission ledger. |
+| `lib/register.ts` | The register entry point the page imports, in front of `lib/hedera.ts`. |
+| `lib/anchor.ts` | PlanAnchor client: anchor on lock, settle or abandon on send, read before write. |
+| `lib/wallet-state.ts` | The eight treasury key states and the pure function that derives them. |
+| `components/console-states.tsx` | The banner, the skeleton, the send error surface and the three empty states. |
 | `contracts/src/PlanAnchor.sol` | Anchors and settles plan hashes on chain. |
 | `contracts/script/Deploy.s.sol`, `Smoke.s.sol` | Deploy, then one real interaction for proof. |
 | `public/brand/logo.png`, `public/brand/og.png` | Pre-generated brand rasters. `og.png` is the register figure in the masthead. |
@@ -492,3 +497,148 @@ the hollow account trap.
 settle or abandon on send, both links in the audit record), read the treasury
 settlement balance on chain so the headroom is live, and add the per-step
 loading and error surfaces the send path still lacks.
+
+### Phase 3, 2026-09-12. The whole demo path on real data
+
+**Goal.** Make the rest of the path real around the Privy half: one store seam
+with an idempotent send, the treasury cover read on chain so the headroom is a
+real number, `PlanAnchor` driven from the console so the plan hash is witnessed
+before the policy opens and closed after it, and a treasury key state machine
+with a rendered branch per state.
+
+**Status.** All five slices landed. Nothing was executed: this phase had no
+shell, so every path below is written and checked by reading, not by running.
+The fake path is untouched and still the insurance for the recorded demo: with
+an empty `.env.local` the refusal names the failed condition and the byte
+offset, the anchor reports itself as not wired, and the send still returns the
+stub receipt.
+
+**Decisions.**
+
+- **The persistence decision, verbatim.** Chosen: decision table row 4, "the
+  step's proof IS the chain" (`PlanAnchor` plus `lib/config.ts`), combined with
+  row 1, "seed constants and in-memory per request" for the policy vault and the
+  submission ledger, both behind the single wrapper `lib/store.ts`. Rejected:
+  row 2, a KV blob, because it would add an Upstash account, a token and a
+  dependency for state whose durable copy already exists on chain and whose
+  warm-instance fallback (recompiling the policy from the approved plan the
+  client echoes) is already written and tested. Row 3, Postgres, because nothing
+  in the five DEMO.md steps filters or joins anything; the register is 12 rows
+  read from a contract. If a future step genuinely cannot work without KV,
+  re-read the table before reaching for it.
+- **Read before write is what makes the demo repeatable.** A plan hash is
+  deterministic, so the second rehearsal of the same coupon run produces the
+  same hash, and `anchor()` reverts with `AlreadyAnchored`. Every function in
+  `lib/anchor.ts` calls `planOf` first: an already anchored hash returns
+  `{ anchored: true, note: "Already anchored in an earlier run, reusing the
+  existing record." }` and sends nothing, and `settlePlan` / `abandonPlan` guard
+  the same way against a status that is not `Anchored`. None of the three ever
+  throws; a missing key, a missing address or a busy relay is a receipt with
+  `anchored: false` and a note, because the anchor must never fail a send.
+- **The submission key carries the broadcast preference.** The specified key was
+  `policyId:planHash:tampered|approved:calldata`. The console appends the
+  broadcast preference, because without it the `wrong-network` action would
+  re-send under the same key and be answered from the ledger, so the sign and
+  relay path would never run. Two clicks on the same button still carry the same
+  preference and still broadcast once, which is the property the key exists for.
+- **`idle` covers live with a policy held.** The specified mapping names `idle`
+  as "live and nothing locked". Holding a policy is a plan state, not a wallet
+  state, so `deriveTreasuryKeyState` returns `idle` for live with nothing in
+  flight whether or not a policy is held. The other seven mappings are as
+  specified.
+- **The register memo is not shared with the failure path.** A successful
+  snapshot is cached for `REGISTER_CACHE_MS` (30 seconds, matched by
+  `export const revalidate = 30` in `app/page.tsx`). The cached-register fallback
+  is deliberately not memoised, so a relay that recovers shows on the next
+  navigation rather than 30 seconds later.
+- **The treasury cover reads the settlement token, not the security.** The ATS
+  token is the register; the coupon is paid in the settlement asset, so
+  `NEXT_PUBLIC_SETTLEMENT_TOKEN_ADDRESS` is its own key with its own two line
+  ABI. The balance is already in micro units, which is what `PlanInput`
+  `treasuryMicros` expects.
+
+**Failed attempts.** None. No slice needed a second correction pass.
+
+**Files changed.** Added: `lib/store.ts`, `lib/register.ts`, `lib/anchor.ts`,
+`lib/wallet-state.ts`, `components/console-states.tsx`,
+`scripts/demo-reset.mjs`, `.farm-commits.json`. Edited: `lib/hedera.ts`,
+`lib/plan.ts`, `lib/privy.ts`, `lib/config.ts`, `lib/public-config.ts`,
+`lib/schemas.ts`, `lib/types.ts`, `app/page.tsx`, `app/loading.tsx`,
+`app/api/detent/route.ts`, `components/operations-console.tsx`,
+`tests/core.test.ts`, `package.json`, `.env.example`, `README.md`,
+`contracts/README.md`, `IDENTITY.md` (one dated line under Amendments), this
+file.
+
+**Commands run.** None. This phase was file only, the agent had no shell.
+
+The runner's commands: `npm install`, `npm run build`, the per-slice commit
+replay from `.farm-commits.json` with a closing `faz-3:` commit, then push.
+
+The human's commands:
+
+```bash
+npm test
+npm run demo:reset
+npm run seed
+cd contracts && forge test
+export RPC_URL=https://testnet.hashio.io/api
+forge script script/Deploy.s.sol --rpc-url $RPC_URL \
+  --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+export DEPLOYED_CONTRACT=0xYourDeployedAnchor
+forge script script/Smoke.s.sol --rpc-url $RPC_URL \
+  --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+```
+
+Then put the deployed address in `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`, the same
+deploying key in `OPERATOR_PRIVATE_KEY`, and the two smoke transaction hashes
+under "On chain proof" in `README.md`. Before any on chain step the wallet
+behind `FARM_EVM_PRIVATE_KEY` needs roughly 20 testnet HBAR from
+https://portal.hedera.com/faucet, and its first transaction must be paid by that
+ECDSA key to break the hollow account trap.
+
+**Env keys the runner and the human must fill.** Everything in the Phase 2 table
+still applies, plus:
+
+| Key | Where the value comes from |
+| --- | --- |
+| `NEXT_PUBLIC_SETTLEMENT_TOKEN_ADDRESS` | EVM address of the testnet settlement token (the USDC-like asset the coupon is paid in). Its `balanceOf` for the treasury address funds the draw. Empty keeps the seed cover figure and the register note says so. |
+| `OPERATOR_PRIVATE_KEY` | The same ECDSA private key that deployed `PlanAnchor`, because the contract's `onlyOperator` pins the writer to the deployer. Server only, no `NEXT_PUBLIC_` prefix, never committed. Empty leaves the anchor reported as not wired and changes nothing else. |
+
+**Acceptance items not met, with evidence.**
+
+- Everything that needs a command is unverified. `npm run build`, `npm test`,
+  `npm run demo:reset`, `forge test` and the two `forge script` runs were never
+  executed by the agent, which had Write, Edit, Read, Glob and Grep only. In
+  particular the viem wallet path in `lib/anchor.ts:149` (`writeContract` with
+  `type: "legacy"`) and the struct return shape in `lib/anchor.ts:36` are
+  written from the documented shapes, not from a run against a deployed
+  `PlanAnchor`.
+- The live treasury cover in `lib/hedera.ts:189` has never read a real
+  settlement token. The fallback branch beside it is what runs today.
+- `components/operations-console.tsx:26` still imports `buildCalldata` into the
+  client bundle to derive the submission key. It is pure viem encoding with no
+  secret and no network, and the same function already arrived through
+  `buildPlan`, so this adds no new surface. Worth noting rather than fixing.
+- The masthead figure in the console still renders `public/brand/og.png` beside
+  the rail's brand mark, carried over from Phase 1 and unchanged here. Still
+  worth a decision before the video.
+
+**Open questions.**
+
+- Does Hashio accept `eth_estimateGas` free writes with an explicit `gas` of
+  1,500,000 for `anchor`? `lib/anchor.ts` passes `SIGNED_TX_GAS_LIMIT` rather
+  than estimating, to save a round trip. If a call reverts for gas, lower it in
+  `lib/config.ts` rather than adding an estimate step.
+- `chainRefused` in `components/operations-console.tsx:137` reads a refused
+  chain as "Privy was live, the policy was recompiled, the payload was allowed
+  and no hash came back". If the live path turns out to fail differently, that
+  is the one line to adjust, and the `wrong-network` branch is already written.
+- Nothing reads the anchor status back into the console. The audit record shows
+  what the write returned, not what the contract holds now. A later phase could
+  read `planOf` on load and show the plan as settled before anything is clicked.
+
+**Next best step.** Fund the testnet account, deploy `PlanAnchor`, set
+`OPERATOR_PRIVATE_KEY` and `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`, then walk DEMO.md
+three times with `NEXT_PUBLIC_ADAPTER_MODE=real` and record the two smoke
+transaction hashes in `README.md`. After that, Phase 4 is the landing and OG
+polish plus the video.

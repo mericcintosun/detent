@@ -27,3 +27,5 @@ A shareholder register is a record, so the product is dressed as one: wide margi
 ## Amendments (append-only; later phases add dated lines here, never edit the block above)
 
 2026-09-12, Phase 2. The send section's failure surface is now the same oxide-red bordered paragraph carrying one hint sentence, with the plan blockers listed under it as plain oxide-red lines when the error code is plan_blocked. No new colour, radius, font or motion value: the list reuses the treatment the plan table already gives its blockers.
+
+2026-09-12, Phase 3. One new recurring surface, the treasury key banner at the top of the send section: a bordered block carrying a detent-label line over one paragraph, bordered border-border while the key is resting or waiting, border-ok when the payload was signed and border-bad only on the refusal. No new colour, radius, font or motion value: it is the treatment the settlement block already uses, given a fixed place so the key's state does not appear and disappear. The empty states and the send failure now end in an outline Button rather than a sentence.

@@ -52,10 +52,23 @@ forge script script/Smoke.s.sol \
 It anchors one demo plan hash and settles it, leaving two transactions on
 HashScan as proof of a live interaction.
 
+Record both transaction hashes under "On chain proof" in the root `README.md`.
+
 ## Wiring the frontend
 
 Put the deployed address in `.env.local` as `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`
 and the chain in `NEXT_PUBLIC_CHAIN_ID` (296). Verify the contract on Sourcify
 for chain 296 so HashScan shows the source.
+
+The app writes to this contract too, from `lib/anchor.ts`: `anchor` on the lock
+step, `settle` or `abandon` on the send step. `onlyOperator` pins the writer to
+the deploying address, so set `OPERATOR_PRIVATE_KEY` in `.env.local` to the same
+ECDSA key used for the deploy above. It has no `NEXT_PUBLIC_` prefix and must
+never get one.
+
+Anchoring is read before write: `lib/anchor.ts` calls `planOf` first and reuses
+an existing record rather than reverting on `AlreadyAnchored`. A plan hash is
+deterministic, so rehearsing the same coupon run twice is a no-op on chain, and
+there is no reset entrypoint to undo one.
 
 TESTNET ONLY.

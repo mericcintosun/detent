@@ -90,7 +90,67 @@ through the entire flow, including the refusal. Fill in
 plus `PRIVY_APP_SECRET` to install the policy on a real treasury wallet. The
 recorded demo runs with both sets filled in.
 
+Two more keys turn on the rest of the path:
+
+| Key | What it turns on |
+| --- | --- |
+| `NEXT_PUBLIC_SETTLEMENT_TOKEN_ADDRESS` | The testnet settlement token whose `balanceOf` funds the coupon draw. With it set, the treasury cover and the headroom under the plan totals are read on chain instead of taken from the seed figure. |
+| `OPERATOR_PRIVATE_KEY` | The ECDSA key that deployed `PlanAnchor`. The contract pins its operator to the deployer, so anchoring from the app needs that same key. No `NEXT_PUBLIC_` prefix: it never reaches the browser. |
+
 Contract build and deploy commands are in `contracts/README.md`.
+
+## The anchor lifecycle
+
+`PlanAnchor` carries the on chain half of the audit record, and the console
+drives it:
+
+1. **Lock.** The approved plan hash is anchored with the target token and the
+   selector, before the wallet policy opens. The audit entry links the anchoring
+   transaction on HashScan next to the plan hash.
+2. **Send, allowed.** The plan is closed as settled, carrying a reference to the
+   payout transaction. The audit entry then carries two HashScan links: the
+   payout and the anchor.
+3. **Send, refused.** The plan is closed as abandoned with the reason, so a
+   refused run leaves a complete record rather than an open one.
+
+Every call reads `planOf` before it writes. An already anchored hash returns the
+existing record and sends nothing, which is what makes a rehearsal repeatable. A
+missing key, a missing address or a busy relay comes back as a receipt with
+`anchored: false` and a note; the anchor never fails a send.
+
+## Store and migrations
+
+There is no database in this product, and therefore no migration command. State
+lives in exactly two places: `PlanAnchor` on Hedera testnet for the durable
+record, and one in-process map behind `lib/store.ts` for the compiled policy
+held between the lock and the send, plus the submission ledger that makes a
+repeated send idempotent. Module scope survives warm invocations only, which is
+why the send path recompiles the policy from the approved plan the client echoes
+and says so in `policySource`.
+
+Rejected on the way here: a KV blob (an Upstash account, a token and a
+dependency for state whose durable copy is already on chain), and Postgres
+(nothing in the five demo steps filters or joins anything, and the register is
+12 rows read from a contract).
+
+```bash
+npm run demo:reset   # re-assert the fixture, rewrite the report, print the start state
+npm run seed         # validate fixtures/register.seed.json
+```
+
+`demo:reset` does not reset the on chain anchors, because `PlanAnchor` has no
+reset entrypoint and a plan hash is permanent. That is safe: the anchor calls
+read before they write, so the second rehearsal of the same coupon run reuses
+the record already on chain and the screen looks identical.
+
+## On chain proof
+
+`PlanAnchor` deployment and the two `Smoke.s.sol` transaction hashes (one
+`anchor`, one `settle`) go here as live interaction proof:
+
+- Contract: `<ADD_PLAN_ANCHOR_ADDRESS>`
+- Anchor transaction: `<ADD_SMOKE_ANCHOR_TX>`
+- Settle transaction: `<ADD_SMOKE_SETTLE_TX>`
 
 ## Tests
 
@@ -120,14 +180,12 @@ the npm scripts, so the contract suite runs from `contracts/`.
 
 ## What we would build next
 
-- Anchor the plan hash through `PlanAnchor` from the console itself, so the
-  approval is on chain before the policy opens rather than in the audit file.
 - Scheduled transactions for the payment date, so a locked plan can execute in
   its window without the operator holding the session open.
 - The remaining lifecycle actions: redemption, address freeze, partition
   rebalance, each with its own compliance replay.
-- Move policy storage from the in-process map in `app/api/detent/route.ts` to
-  Privy's own policy read endpoint, which removes the cold start fallback.
+- Move policy storage from the in-process map behind `lib/store.ts` to Privy's
+  own policy read endpoint, which removes the cold start fallback.
 - An importer for existing ATS deployments so an issuer can point Detent at a
   token it did not issue through us.
 
