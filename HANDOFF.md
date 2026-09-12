@@ -258,3 +258,84 @@ bounties on the form. Make the repo public.
   the network under load.
 - Both bounties opted in, sponsor feedback written, repo public with a real
   commit history.
+
+## 6. Phase log
+
+### Phase 1, 2026-09-12. Walking skeleton, seams and the demo path
+
+**Goal.** Make the whole ninety second flow clickable on `/` with seed data, and
+freeze the five seams later phases lean on: the demo contract (`DEMO.md`), the
+adapter seam (`ADAPTER_MODE`), the server seam (the typed API envelope), the
+visual seam (`app/globals.css`, already in place) and the deploy pipeline.
+
+**Status.** All five slices landed. No integration work was attempted, which is
+correct for this phase: the register is the cached fixture, the policy is
+compiled locally, the receipt is a stub derived from the calldata.
+
+**Decisions.**
+
+- `lib/types.ts` is the single home for every shape crossing a boundary. It
+  carries no runtime code at all, so a client component can import it. The old
+  declaration sites in `lib/privy.ts` and `lib/hedera.ts` now re-export from it,
+  so no existing import path broke.
+- The API route answers one envelope for every outcome:
+  `{ ok: true, data }` or `{ ok: false, error, blockers? }`, keeping the 400,
+  409 and 502 statuses. The console reads `payload.ok` before it touches
+  `payload.data`, which removed four duplicated interfaces from the component.
+- The seed register moved into `fixtures/register.seed.json` so `npm run seed`
+  can assert it. `lib/data.ts` reads the fixture and casts once through
+  `unknown`, because JSON widens the address and compliance literals.
+- The plan table empty state and the loading skeleton were both kept rather than
+  cut; the budget held.
+
+**The adapter seam contract, for Phase 2.** `lib/adapter.ts` owns the switch and
+imports nothing from `lib/hedera.ts` or `lib/privy.ts`, because both import it.
+`ADAPTER_MODE` reads `NEXT_PUBLIC_ADAPTER_MODE` once and defaults to `fake`.
+`useLiveRegister()` is true only when the mode is `real` and
+`NEXT_PUBLIC_ATS_TOKEN_ADDRESS` is set; `useLivePrivy()` is true only when the
+mode is `real` and both `PRIVY_APP_ID` and `PRIVY_APP_SECRET` are set, and it is
+the entire body of `isPrivyLive()`. Every register read goes through a
+`RegisterAdapter` (`{ mode, load(): Promise<RegisterSnapshot> }`).
+`getRegisterSnapshot()` picks `liveRegisterAdapter` or `fakeRegisterAdapter` and
+calls `.load()`; if the live adapter throws (no token address, or Hashio answers
+BUSY) it falls back to the fake adapter and overwrites the note. So Phase 2 has
+exactly two jobs: make `liveRegisterAdapter.load()` correct against a real token,
+and set the env values. Nothing else has to move.
+
+**Still untested against anything real.** `liveRegisterAdapter.load()` has never
+run against a deployed ATS token, and `installPolicy` / `submitTransaction` have
+never run against a real Privy app. Both live paths are written, neither is
+proven. The seed fallback hides relay errors on purpose, so log inside the catch
+in `getRegisterSnapshot()` while wiring the live read.
+
+**Failed attempts.** None. No slice needed a second correction pass.
+
+**Files changed.** Added: `DEMO.md`, `CLAUDE.md`, `lib/types.ts`,
+`lib/adapter.ts`, `fixtures/register.seed.json`, `scripts/seed.mjs`,
+`app/loading.tsx`, `contracts/test/PlanAnchor.t.sol`, `.farm-commits.json`.
+Edited: `lib/hedera.ts`, `lib/privy.ts`, `lib/data.ts`,
+`app/api/detent/route.ts`, `components/operations-console.tsx`,
+`components/rail.tsx`, `app/layout.tsx`, `app/page.tsx`, `app/error.tsx`,
+`app/not-found.tsx`, `package.json`, `.gitignore`, `.env.example`, this file.
+
+**Commands run.** None. This phase was file only: the agent had no shell. Every
+command below is the runner's or a human's to execute.
+
+**Open questions.**
+
+- `components/operations-console.tsx` is a client component and imports
+  `hashscanToken` from `lib/hedera.ts`, which now pulls `lib/adapter.ts` into the
+  client bundle. The Privy reads there compile to `undefined` on the client, so
+  nothing leaks, but moving the two HashScan URL helpers into their own module
+  would keep the client graph cleaner. Out of fence this phase.
+- The masthead figure in the console renders `public/brand/og.png`, a second
+  `<Image>` beside the rail's brand mark. It came with the scaffold and is
+  documented above as the register figure rather than a brand mark. Worth a
+  decision before the video.
+- `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` is in `.env.example` but nothing reads it
+  yet. That is feature 5.
+
+**Next best step.** Phase 2: fund the testnet account, break the hollow account
+trap, issue the ATS token, then set `NEXT_PUBLIC_ADAPTER_MODE=real` plus
+`NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and confirm the masthead badge flips from
+"Cached register" to "Live read from Hedera testnet".
