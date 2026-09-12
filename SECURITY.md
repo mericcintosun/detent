@@ -20,14 +20,10 @@ address is read from `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`, falling back to
 (`PLAN_ANCHOR_ADDRESS`). That module is the only reader of either name, and no
 anchor address is ever a literal in code.
 
-The deployed address, quoted exactly as the `On chain proof` section of
-`README.md` holds it today:
-
-- Contract: `<ADD_PLAN_ANCHOR_ADDRESS>`
-
-That is the placeholder, not an address: nothing is deployed yet. The human
-updates this line after the contract deploy step runs, because that step
-rewrites only `.env.local` and `README.md`.
+`PlanAnchor` was not deployed for this submission, so this file quotes no
+address and the `On chain proof` section of `README.md` quotes none either. The
+human writes the address in here by hand after the contract deploy step runs,
+because that step rewrites only `.env.local` and `README.md`.
 
 **The equity token.** The ATS equity token address comes from
 `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`. With it empty the console serves the cached
@@ -72,7 +68,7 @@ greps over the repo are the evidence:
 | `personal_sign` | no hit anywhere |
 | `eth_sign` | hits only `lib/privy.ts:356` and `lib/privy.ts:420`, both the server-side string `eth_signTransaction`, plus prose in `README.md` and `HANDOFF.md` |
 | `connect(` | no hit in `app/`, `components/` or `lib/` |
-| `@privy-io/react-auth` | one hit, `README.md:144`, the sentence saying it is not installed |
+| `@privy-io/react-auth` | no hit in `package.json`, `app/`, `components/` or `lib/`. Every hit in the repo is prose saying it is not installed: `README.md`, this file, `SUBMISSION.md` and `HANDOFF.md` |
 
 So the browser-wallet hygiene rules verify vacuously. There is no connect flow
 to get right, no chain switch prompt to handle and no signature request to

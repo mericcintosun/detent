@@ -52,9 +52,12 @@ top of this file.
       `🏢 Best B2B financial product`.
 - [ ] Paste the live URL: `https://detent-app.vercel.app`
 - [ ] Paste the repo URL.
-- [ ] Fill the three placeholders under "On chain proof" in `README.md`:
-      `<ADD_PLAN_ANCHOR_ADDRESS>`, `<ADD_SMOKE_ANCHOR_TX>`,
-      `<ADD_SMOKE_SETTLE_TX>`.
+- [ ] Only if the contract is deployed before submission: put the `PlanAnchor`
+      address and the two `Smoke.s.sol` transaction hashes into the deployed
+      artefacts table and the "On chain proof" section of `README.md`, and the
+      address into `SECURITY.md`. Both files currently state that nothing is
+      deployed, which is the honest state, so this item is not a blocker: skip it
+      and both documents stay correct.
 - [ ] Fill `<ADD_VIDEO_URL>` at the top of `README.md`.
 - [ ] Confirm the repo is public.
 - [ ] Confirm the commit history is not one commit on the final day. Both prize

@@ -17,14 +17,14 @@ which is DEMO step 2.** Everything after that happens on the same page.
 | Artefact | Value |
 | --- | --- |
 | Live app | https://detent-app.vercel.app |
-| Demo video | Recorded. 3:01, narrated, served from the site as a plain mp4. | [demo-video.mp4](https://detent-app.vercel.app/demo-video.mp4) |
-| `PlanAnchor`, Hedera testnet 296 | `<ADD_PLAN_ANCHOR_ADDRESS>` |
-| Smoke transaction, `anchor` | `<ADD_SMOKE_ANCHOR_TX>` |
-| Smoke transaction, `settle` | `<ADD_SMOKE_SETTLE_TX>` |
+| Demo video | [demo-video.mp4](https://detent-app.vercel.app/demo-video.mp4), 3:01, narrated, served from the site as a plain mp4 |
+| `PlanAnchor`, Hedera testnet 296 | Not deployed for this submission, so there is no address and no transaction hash to quote. The contract is `contracts/src/PlanAnchor.sol` and its two fuzz tests are in `contracts/test/PlanAnchor.t.sol`; the deploy and the smoke run are `contracts/script/Deploy.s.sol` and `contracts/script/Smoke.s.sol`. With `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` absent the app renders its documented `unwired` state instead of implying a record it does not have. |
 
-The angle bracket cells are filled from the deploy output and the recording at
-submission time. `DELIVERY.md` is the checklist that walks a human through it,
-and `docs/VIDEO.md` is the shot list the recording follows.
+That third row is a decision, not an omission. Deploying `PlanAnchor` needs a
+funded testnet account, and rather than ship a table of empty angle brackets the
+claim is withdrawn until the address exists. "On chain proof" below carries the
+two commands that fill it, `DELIVERY.md` is the checklist a human works, and
+`docs/VIDEO.md` is the shot list the recording follows.
 
 ## Try it in 60 seconds
 
@@ -256,10 +256,29 @@ npm run dev                  # http://localhost:3000
 
 With an empty `.env.local` the console runs on the cached register in
 `lib/data.ts` and evaluates the compiled policy locally. That is enough to click
-through the entire flow, including the refusal. Fill in
-`NEXT_PUBLIC_ATS_TOKEN_ADDRESS` to read the live ATS token, and `PRIVY_APP_ID`
-plus `PRIVY_APP_SECRET` to install the policy on a real treasury wallet. The
-recorded demo runs with both sets filled in.
+through the entire flow, including the refusal. The recorded demo runs on exactly
+that path, which is why the video and the live URL both read
+`Cached register · Treasury key, policy evaluated locally`.
+
+### Which keys flip the status line
+
+The first line on the fold names the mode, and these are the only keys that
+change it. Every name below already has a line in `.env.example`; none is new.
+
+**The treasury key half.** `isPrivyLive()` in `lib/privy.ts` is true only when
+`NEXT_PUBLIC_ADAPTER_MODE=real` and both `PRIVY_APP_ID` and `PRIVY_APP_SECRET`
+are set. With those three the line reads `Privy server wallet`; without any one of
+them it reads `Treasury key, policy evaluated locally`. Two more are needed for
+the install itself to succeed rather than merely be attempted:
+`PRIVY_TREASURY_WALLET_ID`, the server wallet the policy is installed against,
+and `PRIVY_KEY_QUORUM_ID`, the threshold-two quorum that owns it. Without the
+quorum id the lock step fails loudly with `not_configured` instead of pretending.
+
+**The register half.** `NEXT_PUBLIC_ADAPTER_MODE=real` plus
+`NEXT_PUBLIC_ATS_TOKEN_ADDRESS` turns the first half of the line from
+`Cached register` into `Live read from Hedera testnet`. Neither half depends on
+the other: a run with Privy keys and no token address reads live key and cached
+register, and the line says so.
 
 Two more keys turn on the rest of the path:
 
@@ -297,7 +316,11 @@ record, and one in-process map behind `lib/store.ts` for the compiled policy
 held between the lock and the send, plus the submission ledger that makes a
 repeated send idempotent. Module scope survives warm invocations only, which is
 why the send path recompiles the policy from the approved plan the client echoes
-and says so in `policySource`.
+and says so in `policySource`. The second-user consequence, stated plainly: two
+people on the live URL at once do not share that map, and neither sees the other's
+locked policy or audit log, so every visitor gets their own clean walk through the
+six steps; what does survive across visitors is the on chain record, which is the
+half that was built to be durable.
 
 Rejected on the way here: a KV blob (an Upstash account, a token and a
 dependency for state whose durable copy is already on chain), and Postgres
@@ -316,18 +339,41 @@ the record already on chain and the screen looks identical.
 
 ## On chain proof
 
-`PlanAnchor` deployment and the two `Smoke.s.sol` transaction hashes (one
-`anchor`, one `settle`) go here as live interaction proof:
+**What is on chain today: nothing.** `PlanAnchor` has never been deployed, so
+this section quotes no address and no transaction hash. Every read path against
+Hedera testnet is written and reachable (`lib/hedera.ts` for the register,
+`lib/anchor.ts` for `planOf`), and every write path is unproven against the
+relay. The console and `/record/[planHash]` both name that state on screen rather
+than hiding it: with `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` absent the record route
+renders `unwired` and the audit entry carries the anchor note instead of a
+HashScan link.
 
-- Contract: `<ADD_PLAN_ANCHOR_ADDRESS>`
-- Anchor transaction: `<ADD_SMOKE_ANCHOR_TX>`
-- Settle transaction: `<ADD_SMOKE_SETTLE_TX>`
+**What would be here after the deploy:** the `PlanAnchor` address, plus the two
+`Smoke.s.sol` transaction hashes, one `anchor` and one `settle`, as proof of a
+live interaction.
+
+**Exactly two commands fill it.** Both run from `contracts/`, with
+`RPC_URL=https://testnet.hashio.io/api` and a funded `FARM_EVM_PRIVATE_KEY`
+exported, and both need `--legacy` because the Hedera relay rejects typed
+transactions:
+
+```bash
+forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+DEPLOYED_CONTRACT=0xYourDeployedAnchor forge script script/Smoke.s.sol --rpc-url $RPC_URL --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+```
+
+The account behind that key needs testnet HBAR from
+https://portal.hedera.com/faucet first, and its first transaction must be paid by
+that key itself. After the smoke run, put the address and the two hashes back
+into the deployed artefacts table at the top of this file and set
+`NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`. `contracts/README.md` carries the long form of
+both commands.
 
 `SECURITY.md` carries the rest: which contract and chain the app touches, which
 wallet permissions it requests (none from a browser wallet, because no connector
-is installed), and why there is no ERC-20 approval anywhere in the repo. Update
-the address line there too after the deploy, because the deploy step rewrites
-only `.env.local` and this file.
+is installed), and why there is no ERC-20 approval anywhere in the repo. Its
+`PlanAnchor` address line has to be updated by hand after the deploy, because the
+deploy step rewrites only `.env.local` and this file.
 
 ## Tests
 
