@@ -15,12 +15,14 @@ export default defineConfig({
   testDir: "e2e",
   outputDir: "test-results",
   fullyParallel: true,
-  // One worker on purpose. Under parallel cold loads (8 workers, 60 loads) the
-  // production build intermittently throws React hydration error #418 on
-  // byte identical server HTML, while the same 60 loads on one worker stay
-  // clean. The silent breakage guard stays strict; the race is reported as an
-  // application bug instead of being allowlisted.
-  workers: 1,
+  // Four workers. On Next 15.5, parallel cold loads (8 concurrent, 60 loads)
+  // intermittently threw React hydration error #418 on byte identical server
+  // HTML, so the suite ran on one worker. On Next 16.3.5 the same probe (/,
+  // a well formed record page and an unknown route, 20 loads each, 8
+  // concurrent pages) measured 0 of 60 in two separate runs, so the suite runs
+  // parallel again. The silent breakage guard stays strict: a returning #418
+  // fails a test rather than being allowlisted.
+  workers: 4,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
