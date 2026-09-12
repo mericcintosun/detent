@@ -120,9 +120,15 @@ export type ReceiptKind = "on-chain" | "synthetic" | "none";
 
 export interface ReceiptView {
   kind: ReceiptKind;
-  /** The hash to print, synthetic or not, or null when there is none. */
+  /** The mined transaction hash. Set only for an on-chain receipt. */
   transactionHash: string | null;
-  /** The explorer URL, non-null only for an on-chain receipt. */
+  /**
+   * The value a synthetic receipt quotes instead of a hash: keccak256 over the
+   * plan hash and the submitted calldata. Plain text, never a link, and never
+   * set for an on-chain receipt.
+   */
+  reference: string | null;
+  /** The explorer URL, non-null only for an on-chain receipt with a real hash. */
   href: string | null;
 }
 
@@ -184,53 +190,78 @@ function kindFromRecord(
   return null;
 }
 
-function hashFromRecord(record: Record<string, unknown>): string | null {
-  for (const candidate of [record.transactionHash, record.hash, record.txHash]) {
+function stringField(
+  record: Record<string, unknown>,
+  keys: readonly string[]
+): string | null {
+  for (const key of keys) {
+    const candidate = record[key];
     if (typeof candidate === "string" && candidate.length > 0) return candidate;
   }
   return null;
 }
 
+const HASH_KEYS = ["transactionHash", "hash", "txHash"] as const;
+
 /**
- * Read a send result without trusting its shape, and decide whether its hash may
- * be linked.
+ * Read a send result without trusting its shape, and decide whether it may be
+ * linked.
  *
- * The API is moving from an untyped `{ transactionHash, live }` to a receipt
- * that names itself, so this reads both and is deliberately unopinionated about
- * which one arrives:
+ * The contract (lib/types.ts, ExecutionReceipt) is a nested, discriminated
+ * `receipt`: `{ kind: "on-chain", transactionHash, broadcast, note }` or
+ * `{ kind: "synthetic", reference, note }`, and no receipt at all when the policy
+ * refused. That is read first. The legacy flat `{ transactionHash, live }` shape
+ * is still read afterwards, so a replayed ledger entry or an older deployment
+ * cannot turn into a link by accident.
  *
- *   1. a nested `receipt` object, whose `kind` (or `type`, `source`, or a
- *      boolean `synthetic`) decides it, and whose own hash wins;
- *   2. the same discriminators at the top level;
- *   3. failing both, the old shape's `live` boolean.
- *
- * Anything that names neither is treated as synthetic. That is the safe default
- * for this product: a link that should not exist is a false claim on screen,
- * while a missing link on a real hash is only a missing convenience.
+ * Anything that does not name itself is treated as synthetic. A link that should
+ * not exist is a false claim on screen; a missing link on a real hash is only a
+ * missing convenience.
  */
 export function readReceipt(value: unknown): ReceiptView {
-  const none: ReceiptView = { kind: "none", transactionHash: null, href: null };
+  const none: ReceiptView = {
+    kind: "none",
+    transactionHash: null,
+    reference: null,
+    href: null,
+  };
   if (!isRecord(value)) return none;
 
   const nested = isRecord(value.receipt) ? value.receipt : null;
+  if (nested) {
+    const kind = kindFromRecord(nested) ?? "synthetic";
+    if (kind === "on-chain") {
+      const hash = stringField(nested, HASH_KEYS) ?? stringField(value, HASH_KEYS);
+      if (hash === null) return none;
+      return {
+        kind,
+        transactionHash: hash,
+        reference: null,
+        href: transactionExplorerHref(hash, "on-chain"),
+      };
+    }
+    // A synthetic receipt quotes a reference. Nothing it carries is a hash, so
+    // a stray transactionHash beside it is shown as the reference and never
+    // linked.
+    const reference =
+      stringField(nested, ["reference", ...HASH_KEYS]) ??
+      stringField(value, HASH_KEYS);
+    if (reference === null) return none;
+    return { kind, transactionHash: null, reference, href: null };
+  }
 
-  const transactionHash =
-    (nested ? hashFromRecord(nested) : null) ?? hashFromRecord(value);
-  if (transactionHash === null) return none;
-
-  // Narrower than ReceiptKind on purpose: "none" is already returned above, so
-  // everything from here has a hash and only has to be told apart.
-  let kind: "on-chain" | "synthetic" | null = nested
-    ? kindFromRecord(nested)
-    : null;
-  if (kind === null) kind = kindFromRecord(value);
-  if (kind === null) kind = value.live === true ? "on-chain" : "synthetic";
-
-  return {
-    kind,
-    transactionHash,
-    href: transactionExplorerHref(transactionHash, kind),
-  };
+  const hash = stringField(value, HASH_KEYS);
+  if (hash === null) return none;
+  const kind =
+    kindFromRecord(value) ?? (value.live === true ? "on-chain" : "synthetic");
+  return kind === "on-chain"
+    ? {
+        kind,
+        transactionHash: hash,
+        reference: null,
+        href: transactionExplorerHref(hash, "on-chain"),
+      }
+    : { kind, transactionHash: null, reference: hash, href: null };
 }
 
 /**

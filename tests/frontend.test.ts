@@ -26,11 +26,11 @@ import {
 } from "@/lib/hashscan";
 import { buildPlan } from "@/lib/plan";
 import { parseEvmAddress } from "@/lib/public-config";
-import { deriveTreasuryKeyState } from "@/lib/wallet-state";
+import { deriveTreasuryKeyState, describeFailure } from "@/lib/wallet-state";
 
 const plan = buildPlan({ kind: "coupon", holders });
 
-/** The stub lib/privy.ts returns when there are no Privy credentials. */
+/** A synthetic reference: 32 bytes, well formed, and still never a transaction. */
 const syntheticHash = `0x${plan.calldata.slice(2, 66).padEnd(64, "0")}`;
 
 /** A 32 byte hash that really could be a Hedera testnet transaction. */
@@ -124,74 +124,96 @@ describe("H1, explorer links on fixture addresses", () => {
 });
 
 describe("H2, synthetic receipts", () => {
-  it("never links the stub the credential-free path returns", () => {
-    // The exact value lib/privy.ts derives from the calldata today.
-    expect(isExplorerTransactionHash(syntheticHash)).toBe(true);
+  it("never links the synthetic receipt the keyless path returns", () => {
+    // The contract shape from lib/types.ts, ExecutionReceipt.
     const view = readReceipt({
-      transactionHash: syntheticHash,
+      verdict: { allowed: true },
+      receipt: {
+        kind: "synthetic",
+        reference: syntheticHash,
+        note: "Keyless rehearsal.",
+      },
+      decidedBy: "local-mirror",
       live: false,
-      policyRevoked: true,
     });
     expect(view.kind).toBe("synthetic");
-    expect(view.transactionHash).toBe(syntheticHash);
+    expect(view.reference).toBe(syntheticHash);
+    expect(view.transactionHash).toBeNull();
     expect(view.href).toBeNull();
   });
 
-  it("links a broadcast receipt on the old shape", () => {
-    const view = readReceipt({ transactionHash: minedHash, live: true });
+  it("links an on-chain receipt", () => {
+    const view = readReceipt({
+      receipt: {
+        kind: "on-chain",
+        transactionHash: minedHash,
+        broadcast: "relay",
+        note: "Relayed.",
+      },
+      transactionHash: minedHash,
+      decidedBy: "privy-wallet",
+      live: true,
+    });
     expect(view.kind).toBe("on-chain");
-    expect(view.href).toBe(
-      `https://hashscan.io/testnet/transaction/${minedHash}`
-    );
-  });
-
-  it("reads a receipt that names itself, nested or flat", () => {
-    const nested = readReceipt({
-      live: true,
-      receipt: { kind: "synthetic", transactionHash: syntheticHash },
-    });
-    expect(nested.kind).toBe("synthetic");
-    expect(nested.href).toBeNull();
-
-    const flat = readReceipt({
-      live: false,
-      transactionHash: minedHash,
-      receiptKind: "on-chain",
-    });
-    expect(flat.kind).toBe("on-chain");
-    expect(flat.href).not.toBeNull();
-
-    const boolean = readReceipt({
-      live: true,
-      transactionHash: minedHash,
-      synthetic: true,
-    });
-    expect(boolean.kind).toBe("synthetic");
-    expect(boolean.href).toBeNull();
-  });
-
-  it("prefers the nested receipt's own hash over the legacy field", () => {
-    const view = readReceipt({
-      transactionHash: syntheticHash,
-      receipt: { kind: "on-chain", transactionHash: minedHash },
-    });
     expect(view.transactionHash).toBe(minedHash);
+    expect(view.reference).toBeNull();
     expect(view.href).toBe(
       `https://hashscan.io/testnet/transaction/${minedHash}`
     );
   });
 
-  it("defaults to synthetic when nothing names the receipt", () => {
-    const view = readReceipt({ transactionHash: minedHash });
+  it("reports no receipt on a refusal, which carries none", () => {
+    const view = readReceipt({
+      verdict: { allowed: false },
+      decidedBy: "local-mirror",
+      live: false,
+    });
+    expect(view).toEqual({
+      kind: "none",
+      transactionHash: null,
+      reference: null,
+      href: null,
+    });
+  });
+
+  it("never links a stray hash beside a synthetic receipt", () => {
+    const view = readReceipt({
+      transactionHash: minedHash,
+      live: true,
+      receipt: { kind: "synthetic", reference: syntheticHash },
+    });
     expect(view.kind).toBe("synthetic");
+    expect(view.reference).toBe(syntheticHash);
     expect(view.href).toBeNull();
+  });
+
+  it("does not link an on-chain receipt whose hash is not a hash", () => {
+    const view = readReceipt({
+      receipt: { kind: "on-chain", transactionHash: "0x1234" },
+    });
+    expect(view.kind).toBe("on-chain");
+    expect(view.href).toBeNull();
+  });
+
+  it("still reads the legacy flat shape without linking a stub", () => {
+    const stub = readReceipt({ transactionHash: syntheticHash, live: false });
+    expect(stub.kind).toBe("synthetic");
+    expect(stub.reference).toBe(syntheticHash);
+    expect(stub.href).toBeNull();
+
+    const mined = readReceipt({ transactionHash: minedHash, live: true });
+    expect(mined.kind).toBe("on-chain");
+    expect(mined.href).not.toBeNull();
+
+    const unnamed = readReceipt({ transactionHash: minedHash });
+    expect(unnamed.kind).toBe("synthetic");
+    expect(unnamed.href).toBeNull();
   });
 
   it("reports no receipt rather than guessing", () => {
     for (const value of [null, undefined, "0xdead", 7, {}, { live: true }]) {
       const view = readReceipt(value);
       expect(view.kind).toBe("none");
-      expect(view.transactionHash).toBeNull();
       expect(view.href).toBeNull();
     }
   });
@@ -223,24 +245,56 @@ describe("configured addresses", () => {
 });
 
 describe("the treasury key state the banner switches on", () => {
-  it("still calls an allowed send with a hash confirmed", () => {
-    // The state machine is about the policy verdict, not about whether the hash
-    // was mined: honesty about the receipt is the banner's job, and it reads
-    // readReceipt for that. This pins the split so neither half drifts.
+  const base = { privyLive: false, pending: null, locked: true, failure: null } as const;
+
+  it("confirms an allowed send with a synthetic receipt, which carries no hash", () => {
     expect(
       deriveTreasuryKeyState({
-        privyLive: false,
-        pending: null,
-        locked: true,
-        settlement: {
-          allowed: true,
-          transactionHash: syntheticHash,
-          policySource: "held-from-lock",
-          chainRefused: false,
-        },
-        failure: null,
+        ...base,
+        settlement: { allowed: true, receiptKind: "synthetic" },
       })
     ).toBe("tx-confirmed");
-    expect(readReceipt({ transactionHash: syntheticHash, live: false }).href).toBeNull();
+  });
+
+  it("rejects a refusal and fails an allowed send with no receipt at all", () => {
+    expect(
+      deriveTreasuryKeyState({
+        ...base,
+        settlement: { allowed: false, receiptKind: "none" },
+      })
+    ).toBe("tx-rejected");
+    expect(
+      deriveTreasuryKeyState({
+        ...base,
+        settlement: { allowed: true, receiptKind: "none" },
+      })
+    ).toBe("tx-failed");
+  });
+});
+
+describe("failures from the locked contract", () => {
+  it("sends a cold lock back to the lock step", () => {
+    const view = describeFailure("lock_unknown", "");
+    expect(view.action).toBe("relock");
+    expect(view.sentence).toMatch(/lock the plan again/i);
+  });
+
+  it("keeps the server hint for the other 409s", () => {
+    for (const code of ["plan_mismatch", "plan_blocked", "quorum_not_met"] as const) {
+      const view = describeFailure(code, "Server words.");
+      expect(view.sentence).toBe("Server words.");
+      expect(view.title.length).toBeGreaterThan(0);
+    }
+    expect(describeFailure("plan_mismatch", undefined).action).toBe("reload");
+    expect(describeFailure("quorum_not_met", undefined).sentence).toMatch(/officers/);
+  });
+
+  it("says how long to wait on a 429, once", () => {
+    const bare = describeFailure("rate_limited", "Too many requests.", 12);
+    expect(bare.action).toBe("wait");
+    expect(bare.sentence).toBe("Too many requests. Try again in 12 seconds.");
+
+    const told = describeFailure("rate_limited", "Wait 12 seconds and try again.", 12);
+    expect(told.sentence).toBe("Wait 12 seconds and try again.");
   });
 });

@@ -31,7 +31,6 @@ import {
 } from "@/lib/hashscan";
 import {
   CHAIN_ID,
-  buildCalldata,
   buildPlan,
   formatMicros,
   formatTokens,
@@ -45,7 +44,11 @@ import type {
   RegisterSnapshot,
   SubmitResult,
 } from "@/lib/types";
-import { deriveTreasuryKeyState } from "@/lib/wallet-state";
+import {
+  deriveTreasuryKeyState,
+  describeFailure,
+  type FailureView,
+} from "@/lib/wallet-state";
 
 /** What the console keeps from a failed call: the code it switches on, the
  *  sentence it prints, and the blockers that belong under it. */
@@ -53,6 +56,23 @@ interface ConsoleFailure {
   code: DetentErrorCode;
   hint: string;
   blockers?: string[];
+  /**
+   * Which step the failure belongs to, so it is printed next to the control
+   * that can act on it: a lock refusal under the lock button, a send refusal in
+   * the send card. lock_unknown from a send is filed under the lock, because
+   * locking again is the only way out of it.
+   */
+  stage: "lock" | "send";
+  /** From a 429's Retry-After header, in seconds. */
+  retryAfterSeconds?: number;
+}
+
+/** Retry-After as seconds, or undefined when absent or not a number. */
+function retryAfterOf(response: Response): number | undefined {
+  const raw = response.headers.get("Retry-After");
+  if (raw === null) return undefined;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds) : undefined;
 }
 
 interface AuditEntry {
@@ -212,24 +232,51 @@ export function OperationsConsole({
   const locked = installation !== null;
   const quorumMet = approvals.length >= 2;
 
-  // Privy was live, the policy had to be recompiled rather than recalled, the
-  // payload was allowed and nothing landed: that is a refused chain, not a
-  // refused payload.
-  const chainRefused =
-    settlement !== null &&
-    settlement.live &&
-    settlement.policySource === "recompiled-from-approved-plan" &&
-    settlement.verdict.allowed &&
-    !settlement.transactionHash;
-
   /**
-   * What came back from the last send, and whether its hash may be linked.
-   * readReceipt reads both the old `{ transactionHash, live }` shape and a
-   * receipt that names itself, and defaults to synthetic when neither does, so
-   * this console never puts a HashScan link under a hash that was derived from
-   * the calldata rather than mined.
+   * What came back from the last send, and whether it may be linked.
+   * readReceipt reads the typed `receipt` the route returns, `on-chain` with a
+   * transaction hash or `synthetic` with a reference, and defaults to synthetic
+   * for anything that does not name itself, so this console never puts a
+   * HashScan link under something that was not mined.
    */
   const receipt = readReceipt(settlement);
+
+  /**
+   * An allowed send spends the lock on the server: the policy is detached and
+   * revoked, and a second submit under the same lock id is lock_unknown. A
+   * refusal leaves it open, which is what lets the demo send the approved plan
+   * straight after the tampered one.
+   */
+  const lockSpent = settlement !== null && settlement.verdict.allowed;
+
+  /** Which engine answered. `live` only says credentials exist; this says who decided. */
+  const decidedByWallet = settlement?.decidedBy === "privy-wallet";
+
+  const failureView: FailureView | null = failure
+    ? describeFailure(failure.code, failure.hint, failure.retryAfterSeconds)
+    : null;
+
+  /** The control under a failure, chosen by describeFailure's action. */
+  function failureControl(
+    view: FailureView
+  ): { label: string; onClick: () => void } | undefined {
+    switch (view.action) {
+      case "relock":
+        return { label: "Lock the plan again", onClick: () => void lockPlan() };
+      case "reload":
+        return { label: "Reload the page", onClick: () => window.location.reload() };
+      case "retry":
+      case "wait":
+        return failure?.stage === "lock"
+          ? { label: "Try the lock again", onClick: () => void lockPlan() }
+          : {
+              label: "Try the send again",
+              onClick: () => void send(lastSend?.tampered ?? false, lastSend?.preference),
+            };
+      case "none":
+        return undefined;
+    }
+  }
 
   /**
    * The two addresses this console can link, each one gated on having actually
@@ -252,12 +299,7 @@ export function OperationsConsole({
     pending,
     locked,
     settlement: settlement
-      ? {
-          allowed: settlement.verdict.allowed,
-          transactionHash: settlement.transactionHash,
-          policySource: settlement.policySource,
-          chainRefused,
-        }
+      ? { allowed: settlement.verdict.allowed, receiptKind: receipt.kind }
       : null,
     failure: failure ? { code: failure.code, hint: failure.hint } : null,
   });
@@ -316,7 +358,15 @@ export function OperationsConsole({
       const response = await fetch("/api/detent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: "lock", plan, approvals }),
+        // The selection is the only part of the plan the operator chooses, and
+        // the server rebuilds everything else from its own register read. The
+        // approvals are registry ids (approver.id), never display names.
+        body: JSON.stringify({
+          intent: "lock",
+          plan,
+          selection: { kind, deferred, forced },
+          approvals,
+        }),
       });
       const payload = await readApiResponse<PolicyInstallation>(response);
       if (!payload.ok) {
@@ -324,10 +374,13 @@ export function OperationsConsole({
           code: payload.error,
           hint: payload.hint,
           blockers: payload.blockers,
+          stage: "lock",
+          retryAfterSeconds: retryAfterOf(response),
         });
         return;
       }
       setInstallation(payload.data);
+      setSettlement(null);
       record({
         event: "Policy compiled and installed",
         detail: `${payload.data.policy.name} pins ${plan.target} and one selector, plan hash ${shortHex(plan.planHash)}. ${payload.data.anchor?.anchored ? "The plan hash is anchored on chain." : "The plan hash was not anchored on chain."}`,
@@ -338,6 +391,7 @@ export function OperationsConsole({
       setFailure({
         code: "upstream_error",
         hint: "The console could not reach the policy endpoint.",
+        stage: "lock",
       });
     } finally {
       setPending(null);
@@ -345,7 +399,7 @@ export function OperationsConsole({
   }
 
   async function send(tampered: boolean, preference?: "auto" | "signature") {
-    if (!installation) return;
+    if (!installation || lockSpent) return;
     setPending("send");
     setFailure(null);
     setLastSend({ tampered, preference });
@@ -361,6 +415,7 @@ export function OperationsConsole({
         setFailure({
           code: "invalid_input",
           hint: "Enter an amount with at most six decimal places.",
+          stage: "send",
         });
         setPending(null);
         return;
@@ -370,38 +425,46 @@ export function OperationsConsole({
       );
     }
 
-    // One key per distinct submission. The calldata is in it, so a second
-    // tampered amount is a different send, and the broadcast preference is in
-    // it, so the sign and relay retry is not answered from the ledger. Two
-    // clicks on the same button are the same key and broadcast once.
-    const submittedCalldata =
-      submittedRows.length > 0
-        ? buildCalldata(plan.kind, submittedRows)
-        : "0x";
-    const submissionKey = `${installation.policyId}:${plan.planHash}:${
-      tampered ? "tampered" : "approved"
-    }:${submittedCalldata}:${preference ?? "auto"}`;
-
     try {
       const response = await fetch("/api/detent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // The lock id is the whole authority. The server holds the approved
+        // calldata and the policy under it, derives the tampered flag and the
+        // idempotency key itself, and reads nothing else from this body.
         body: JSON.stringify({
           intent: "submit",
-          policyId: installation.policyId,
-          approvedPlan: plan,
+          lockId: installation.lockId,
           submittedRows,
-          tampered,
-          submissionKey,
           ...(preference ? { broadcastPreference: preference } : {}),
         }),
       });
       const payload = await readApiResponse<SubmitResult>(response);
       if (!payload.ok) {
+        if (payload.error === "lock_unknown") {
+          // The server holds no lock under this id: the instance was recycled
+          // or the lock expired. Nothing can be sent until the plan is locked
+          // again, so the console goes back to that step, keeps the approvals
+          // the operator already collected, and says so there.
+          setInstallation(null);
+          setSettlement(null);
+          setFailure({ code: payload.error, hint: payload.hint, stage: "lock" });
+          record({
+            event: "Lock no longer held",
+            detail: `The server holds no lock for ${installation.lockId}. Lock the plan again before sending.`,
+            tone: "bad",
+          });
+          document
+            .getElementById("policy")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
         setFailure({
           code: payload.error,
           hint: payload.hint,
           blockers: payload.blockers,
+          stage: "send",
+          retryAfterSeconds: retryAfterOf(response),
         });
         return;
       }
@@ -418,7 +481,7 @@ export function OperationsConsole({
             sent.kind === "on-chain"
               ? "Signed and broadcast"
               : "Signed, nothing broadcast",
-          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. Policy ${installation.policyId} revoked.${result.anchor?.anchored ? " The plan is closed as settled on chain." : ""}${sent.kind === "synthetic" ? " The receipt is synthetic: it is derived from the calldata, no transaction was broadcast and there is nothing to open on HashScan." : ""}`,
+          detail: `${includedRows.length} rows, ${formatMicros(plan.drawMicros)} ${snapshot.treasury.settlementAsset}. Policy ${installation.policyId} revoked, lock ${installation.lockId} spent.${result.anchor?.anchored ? " The plan is closed as settled on chain." : ""}${sent.kind === "synthetic" ? " The receipt is synthetic: its reference is derived from the plan hash and the calldata, no transaction was broadcast and there is nothing to open on HashScan." : ""}`,
           tone: "ok",
           href: sent.href ?? undefined,
           ...anchorParts(result.anchor),
@@ -426,7 +489,7 @@ export function OperationsConsole({
       } else {
         record({
           event: "Signature refused",
-          detail: `${result.verdict.reason}${result.anchor?.anchored ? " The plan is closed as abandoned on chain rather than left open." : ""}`,
+          detail: `${result.verdict.reason} Refused by the ${result.decidedBy === "privy-wallet" ? "Privy wallet" : "local policy mirror"}; lock ${installation.lockId} stays open for the approved plan.${result.anchor?.anchored ? " The plan is closed as abandoned on chain rather than left open." : ""}`,
           tone: "bad",
           ...anchorParts(result.anchor),
         });
@@ -435,6 +498,7 @@ export function OperationsConsole({
       setFailure({
         code: "upstream_error",
         hint: "The console could not reach the wallet endpoint.",
+        stage: "send",
       });
     } finally {
       setPending(null);
@@ -892,6 +956,19 @@ export function OperationsConsole({
                 Collect both approvals to install the policy.
               </p>
             ) : null}
+            {/* A refused lock is printed where it can be acted on, including a
+                send that came back lock_unknown: the console has already
+                returned to this step, so the way out is the button above. */}
+            {failure?.stage === "lock" && failureView ? (
+              <SendErrorState
+                title={failureView.title}
+                hint={failureView.sentence}
+                blockers={failure.blockers}
+                actionLabel={failureControl(failureView)?.label}
+                onRetry={failureControl(failureView)?.onClick}
+                busy={pending !== null || (failureView.action === "relock" && !quorumMet)}
+              />
+            ) : null}
           </CardContent>
         </Card>
 
@@ -959,7 +1036,7 @@ export function OperationsConsole({
               reason={settlement?.verdict.reason}
               note={failure?.hint ?? settlement?.note}
               busy={pending !== null}
-              engineLive={settlement?.live ?? false}
+              engineLive={decidedByWallet}
               receiptKind={receipt.kind}
               onSignAndRelay={() => send(lastSend?.tampered ?? false, "signature")}
               onRetry={() => send(lastSend?.tampered ?? false)}
@@ -1018,7 +1095,7 @@ export function OperationsConsole({
                   id="tamper"
                   inputMode="decimal"
                   value={tamperValue}
-                  disabled={!locked || pending !== null}
+                  disabled={!locked || lockSpent || pending !== null}
                   onChange={(event) => setTamperInput(event.target.value)}
                 />
                 <p className="max-w-[56ch] text-xs leading-relaxed text-muted-foreground">
@@ -1029,7 +1106,7 @@ export function OperationsConsole({
               <Button
                 variant="destructive"
                 size="lg"
-                disabled={!locked || pending !== null}
+                disabled={!locked || lockSpent || pending !== null}
                 onClick={() => send(true)}
               >
                 {pending === "send" ? "Asking the wallet…" : "Send edited plan"}
@@ -1039,22 +1116,24 @@ export function OperationsConsole({
             <Button
               size="lg"
               className="w-full"
-              disabled={!locked || pending !== null}
+              disabled={!locked || lockSpent || pending !== null}
               onClick={() => send(false)}
             >
               {pending === "send"
                 ? "Asking the wallet…"
-                : "Execute the approved plan"}
+                : lockSpent
+                  ? "Executed, the lock is spent"
+                  : "Execute the approved plan"}
             </Button>
 
-            {failure ? (
+            {failure?.stage === "send" && failureView ? (
               <SendErrorState
-                hint={failure.hint}
-                blockers={
-                  failure.code === "plan_blocked" ? failure.blockers : undefined
-                }
-                busy={pending !== null || !locked}
-                onRetry={() => send(lastSend?.tampered ?? false, lastSend?.preference)}
+                title={failureView.title}
+                hint={failureView.sentence}
+                blockers={failure.blockers}
+                actionLabel={failureControl(failureView)?.label}
+                onRetry={failureControl(failureView)?.onClick}
+                busy={pending !== null || !locked || lockSpent}
               />
             ) : null}
 
@@ -1084,16 +1163,14 @@ export function OperationsConsole({
                       Policy revoked
                     </Badge>
                   ) : null}
-                  <Badge variant="outline" className="border-border text-muted-foreground">
-                    policy source: {settlement.policySource}
-                  </Badge>
                   {/* A refusal nobody can attribute proves nothing, so the badge
-                      row names the engine that produced this one, in the same
-                      lower-case idiom as the badge beside it. */}
+                      row names the engine that produced this one. decidedBy is
+                      the answer; live only says credentials are configured,
+                      and the local mirror can refuse on a live deployment. */}
                   {settlement.verdict.allowed ? null : (
                     <Badge variant="outline" className="border-border text-muted-foreground">
                       refused by:{" "}
-                      {settlement.live ? "privy wallet" : "local policy mirror"}
+                      {decidedByWallet ? "privy wallet" : "local policy mirror"}
                     </Badge>
                   )}
                 </div>
@@ -1129,17 +1206,17 @@ export function OperationsConsole({
                       Synthetic receipt, nothing on chain
                     </Badge>
                     <p className="max-w-[76ch] text-sm leading-relaxed text-muted-foreground">
-                      No transaction was broadcast. This hash is derived from
-                      the calldata so the run has a reference to quote, and
-                      Hedera testnet has never seen it, which is why there is no
-                      HashScan link under it. Configure the Privy credentials
-                      and the same send returns a real one.
+                      No key signed and no transaction was broadcast. The
+                      reference below is derived from the plan hash and the
+                      calldata so the run has something to quote. It is not a
+                      transaction hash, Hedera testnet has never seen it, and
+                      that is why there is no HashScan link under it. Configure
+                      the Privy credentials and the same send returns a real
+                      receipt.
                     </p>
-                    <p
-                      className="text-sm break-all text-muted-foreground tabular-nums"
-                      title={receipt.transactionHash ?? undefined}
-                    >
-                      {receipt.transactionHash}
+                    <p className="text-sm break-all text-muted-foreground tabular-nums">
+                      <span className="detent-label block pb-1">Reference</span>
+                      {receipt.reference}
                     </p>
                   </div>
                 ) : null}

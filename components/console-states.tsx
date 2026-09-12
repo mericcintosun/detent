@@ -157,11 +157,9 @@ export function TreasuryKeyBanner({
           }
         >
           <p className="max-w-[72ch] text-sm leading-relaxed">
-            The payload matched the approved calldata byte for byte, the wallet
-            signed it, and the policy is revoked.
             {receiptKind === "on-chain"
-              ? ""
-              : " The receipt is synthetic: no transaction went to Hedera testnet, so there is nothing to open on HashScan."}
+              ? "The payload matched the approved calldata byte for byte, the wallet signed it, and the policy is revoked."
+              : "The payload matched the approved calldata byte for byte and the policy allowed it. No key signed and nothing went to Hedera testnet: the receipt is synthetic, so there is nothing to open on HashScan."}
           </p>
           {note ? (
             <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
@@ -208,16 +206,26 @@ export function TreasuryKeyBanner({
 /* --- The send error surface ----------------------------------------------- */
 
 export interface SendErrorStateProps {
+  /** A short label naming what went wrong, from describeFailure. */
+  title?: string;
   hint: string;
   blockers?: string[];
-  onRetry: () => void;
+  /** The control under the sentence. Omit it and no control is drawn. */
+  actionLabel?: string;
+  onRetry?: () => void;
   busy: boolean;
 }
 
-/** A failed call, with the retry as a control rather than a sentence. */
+/**
+ * A failed call, with the way out as a control rather than a sentence. Used by
+ * both the lock step and the send step, so the same answer from the server reads
+ * the same in either place.
+ */
 export function SendErrorState({
+  title,
   hint,
   blockers,
+  actionLabel = "Try the send again",
   onRetry,
   busy,
 }: SendErrorStateProps) {
@@ -226,9 +234,10 @@ export function SendErrorState({
     // because nothing else on screen moves. role="alert" is the announcement,
     // and the retry underneath is the way out of it.
     <div role="alert" aria-live="assertive" className="space-y-3">
-      <p className="border border-bad px-4 py-3 text-sm leading-relaxed text-bad">
-        {hint}
-      </p>
+      <div className="space-y-1 border border-bad px-4 py-3">
+        {title ? <p className="detent-label text-bad">{title}</p> : null}
+        <p className="text-sm leading-relaxed text-bad">{hint}</p>
+      </div>
       {blockers && blockers.length > 0 ? (
         <ul className="space-y-1 px-4">
           {blockers.map((blocker) => (
@@ -238,9 +247,11 @@ export function SendErrorState({
           ))}
         </ul>
       ) : null}
-      <Button variant="outline" disabled={busy} onClick={onRetry}>
-        Try the send again
-      </Button>
+      {onRetry ? (
+        <Button variant="outline" disabled={busy} onClick={onRetry}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   );
 }

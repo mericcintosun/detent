@@ -10,13 +10,12 @@
 //                  and the receipt is a stub. The demo runs here with an empty
 //                  .env.local.
 //   connecting     a policy install is in flight against Privy.
-//   wrong-network  the wallet would not take chain 296: either the typed error
-//                  names the chain, or the send came back on the chain-refusal
-//                  path. The banner offers the sign and relay route out.
+//   wrong-network  the wallet would not take chain 296: the typed error names
+//                  the chain. The banner offers the sign and relay route out.
 //   idle           live, nothing in flight.
 //   tx-pending     a send is in flight.
-//   tx-confirmed   the policy allowed the payload and a transaction hash came
-//                  back.
+//   tx-confirmed   the policy allowed the payload and a receipt came back,
+//                  on chain or synthetic. The banner says which.
 //   tx-rejected    the policy refused the payload. This is the key doing its
 //                  job, which is the wow moment, not an error.
 //   tx-failed      infrastructure: a timeout, a provider error, or a response
@@ -26,6 +25,7 @@
 // same state from the same inputs.
 
 import type { DetentErrorCode } from "@/lib/errors";
+import type { ReceiptKind } from "@/lib/hashscan";
 
 export type TreasuryKeyState =
   | "disconnected"
@@ -37,16 +37,19 @@ export type TreasuryKeyState =
   | "tx-rejected"
   | "tx-failed";
 
+/**
+ * The slice of a send result the state machine reads.
+ *
+ * There is no chain-refusal flag any more. It used to be inferred from a policy
+ * recompiled out of the request body, and the server no longer recompiles
+ * anything: every verdict is judged against the policy held under the lock, so
+ * that branch could never be taken. A chain the wallet will not broadcast to now
+ * arrives as a typed failure that names the chain.
+ */
 export interface TreasuryKeySettlement {
   allowed: boolean;
-  transactionHash?: string;
-  policySource: "held-from-lock" | "recompiled-from-approved-plan";
-  /**
-   * Privy was live, the policy had to be recompiled rather than recalled, the
-   * payload was allowed and nothing landed. That is what a refused chain looks
-   * like from the browser.
-   */
-  chainRefused: boolean;
+  /** From readReceipt in lib/hashscan.ts. A synthetic receipt carries no hash. */
+  receiptKind: ReceiptKind;
 }
 
 export interface TreasuryKeyInput {
@@ -95,13 +98,79 @@ export function deriveTreasuryKeyState(
 
   const settlement = input.settlement;
   if (settlement) {
-    if (settlement.chainRefused) return "wrong-network";
     if (!settlement.allowed) return "tx-rejected";
-    if (settlement.transactionHash) return "tx-confirmed";
-    // Allowed, live, and nothing came back to link. That is infrastructure.
+    if (settlement.receiptKind !== "none") return "tx-confirmed";
+    // Allowed and no receipt of either kind. That is infrastructure.
     return "tx-failed";
   }
 
   if (!input.privyLive) return "disconnected";
   return "idle";
+}
+
+/* --- Failures, in the operator's words ------------------------------------ */
+
+/** What the console offers under a failure. */
+export type FailureAction = "relock" | "retry" | "wait" | "reload" | "none";
+
+export interface FailureView {
+  /** A short label naming what went wrong. */
+  title: string;
+  /** The sentence to print. The server's own hint when it sent one. */
+  sentence: string;
+  /** The way out. */
+  action: FailureAction;
+}
+
+const FALLBACK_SENTENCES: Partial<Record<DetentErrorCode, string>> = {
+  lock_unknown:
+    "The server no longer holds this lock, so there is no policy to send under. Lock the plan again, then send it.",
+  plan_mismatch:
+    "The plan on this page is not the plan the server derives from the register. Reload the page, read the plan again and approve it again.",
+  plan_blocked:
+    "The plan still carries blockers, so nothing can be locked or sent. Clear the rows listed below and try again.",
+  quorum_not_met:
+    "Two distinct registered officers must approve before the policy is installed.",
+  rate_limited: "Too many requests from this address in a short window.",
+};
+
+/**
+ * One view per failure code, so the lock step and the send step print the same
+ * words for the same answer. The server hint is kept verbatim when present,
+ * because it carries detail the console cannot know (which officer is missing,
+ * how long the window is). A Retry-After header the hint does not already
+ * mention is appended, so a 429 always says how long to wait.
+ */
+export function describeFailure(
+  code: DetentErrorCode,
+  hint: string | undefined,
+  retryAfterSeconds?: number
+): FailureView {
+  const base = hint && hint.trim().length > 0 ? hint : FALLBACK_SENTENCES[code];
+  let sentence = base ?? "The call did not go through. Nothing was signed.";
+
+  switch (code) {
+    case "lock_unknown":
+      return { title: "Lock expired, lock the plan again", sentence, action: "relock" };
+    case "plan_mismatch":
+      return { title: "The register moved under this plan", sentence, action: "reload" };
+    case "plan_blocked":
+      return { title: "The plan is blocked", sentence, action: "none" };
+    case "quorum_not_met":
+      return { title: "Approvals do not meet the quorum", sentence, action: "none" };
+    case "rate_limited": {
+      if (
+        retryAfterSeconds !== undefined &&
+        Number.isFinite(retryAfterSeconds) &&
+        !/\d+\s*seconds?/i.test(sentence)
+      ) {
+        sentence = `${sentence} Try again in ${retryAfterSeconds} seconds.`;
+      }
+      return { title: "Slow down", sentence, action: "wait" };
+    }
+    case "invalid_input":
+      return { title: "The request was rejected", sentence, action: "none" };
+    default:
+      return { title: "The call did not go through", sentence, action: "retry" };
+  }
 }
