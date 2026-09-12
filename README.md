@@ -55,7 +55,8 @@ below works against the cached register and the locally compiled policy.
    oxide red with the reason, and the headroom prints under the totals.
 3. Press **Approve** on both officers. That is the key quorum of two.
 4. Press **Lock this plan to the treasury key**. The compiled policy appears with
-   its four pinned conditions over `default_action: DENY`.
+   its four pinned conditions: chain, contract, function and exact calldata.
+   Anything that does not match all four is refused.
 5. Edit one digit of the amount in the send section.
 6. Press **Send edited plan**. The key refuses and names the condition that
    failed and the byte offset where the payload diverged.
@@ -82,11 +83,12 @@ Detent reads the holder set and the compliance state of an Asset Tokenization
 Studio token from Hedera testnet, replays the selected corporate action off
 chain and prints a plan: who receives what, which address the transfer hook will
 reject, how much cover the treasury actually has. When the operator accepts the
-plan, its calldata is compiled into a Privy wallet policy. The treasury server
-wallet is then permitted to sign that contract, that selector and those exact
-parameter bytes; everything else stays on `default_action: DENY`. A key quorum
-with threshold two installs the policy, the transaction goes out, and the policy
-is revoked. The plan hash and the HashScan link land in the audit record.
+plan, its calldata is compiled into a Privy wallet policy owned by a key quorum
+of two and bound to the treasury server wallet. The wallet may then sign for that
+chain, that contract, that function and that partition, and nothing else. The
+exact parameter bytes, which Privy's conditions cannot compare for the coupon's
+holder and amount arrays, are enforced by the server before the request reaches
+the wallet. The transaction goes out, and the policy is detached and revoked. The plan hash and the HashScan link land in the audit record.
 
 That paragraph describes the product as it is written. With no token issued and
 no credentials set, which is how the live URL and the recorded demo run, the
@@ -165,14 +167,18 @@ ATS factory before pointing Detent at the result.
 
 **Privy, server wallets, policies and key quorums (Best B2B financial product).**
 `lib/privy.ts` is the compiler and the client. `compilePolicy` turns an approved
-plan into a policy with a single ALLOW rule pinning `chain_id`, `to`,
-`data starts_with <selector>` and `data eq <calldata>`, on top of
-`default_action: DENY`. `installPolicy` POSTs it to `/v1/policies` owned by a key
-quorum of threshold two; `submitTransaction` calls
-`/v1/wallets/{id}/rpc` with `eth_sendTransaction`; `revokePolicy` removes the
-rule once the transaction is in. `evaluatePolicy` mirrors the same rule
-evaluation locally so the refusal can be explained in words on screen, and so
-the demo runs with no keys configured.
+plan into the four conditions Detent enforces: chain id, contract, function
+selector and exact calldata. `compileWirePolicy` turns the same plan into the
+subset Privy's documented conditions can express: `chain_id` and `to` on
+`ethereum_transaction`, and the function and partition on `ethereum_calldata`
+with the ABI. `installPolicy` creates it at `/v1/policies` with `owner_id` set to
+the key quorum of threshold two and binds it to the treasury wallet through
+`policy_ids`; `submitTransaction` calls `/v1/wallets/{id}/rpc` with
+`eth_sendTransaction`; `revokePolicy` restores the wallet's previous policies and
+deletes this one. Every retry reuses a `privy-idempotency-key`, and actions on
+owned resources carry a `privy-authorization-signature`. `evaluatePolicy` checks
+the exact calldata on the server first, so a tampered payload never reaches the
+wallet, and the same check explains the refusal on screen when no keys are set.
 
 ## Bounty ledger
 
@@ -241,17 +247,19 @@ control, such as policies, signers, key quorums or intents.
 
 Every clause is implemented in `lib/privy.ts`:
 
-- `compilePolicy` turns the approved plan into a policy with one ALLOW rule
-  pinning `chain_id eq`, `to eq`, `data starts_with <selector>` and
-  `data eq <calldata>`, over `default_action: DENY`.
-- `installPolicy` POSTs that policy to `/v1/policies`, and the request body
-  carries `owner: { key_quorum_id: PRIVY_KEY_QUORUM_ID }`, so the policy is owned
-  by a key quorum rather than by one signer.
+- `compilePolicy` turns the approved plan into the four conditions Detent
+  enforces, and `compileWirePolicy` into the rules Privy accepts: `chain_id` and
+  `to` on `ethereum_transaction`, the function and the partition on
+  `ethereum_calldata` with the ABI. Privy refuses anything no rule allows.
+- `installPolicy` POSTs that policy to `/v1/policies` with `owner_id` set to
+  `PRIVY_KEY_QUORUM_ID`, so a key quorum rather than one signer owns it, and binds
+  it to the treasury wallet through `policy_ids`.
 - `submitTransaction` calls `/v1/wallets/{id}/rpc` for `eth_sendTransaction`, and
   falls back to `eth_signTransaction` plus a Hashio broadcast when Privy will not
   send to `eip155:296`. The policy governs the signing request either way.
-- `revokePolicy` DELETEs the rule once the transaction is in, so the treasury key
-  gets its general authority back.
+- `revokePolicy` restores the wallet's previous `policy_ids` and deletes the
+  policy after the send, and also after a refused binding, a failed send or an
+  expired lock, so nothing is left attached to the treasury key.
 - `evaluatePolicy` mirrors the same rule evaluation locally and runs first, which
   is why the refusal can name the failed condition and the byte offset where the
   submitted calldata diverged.
