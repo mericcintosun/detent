@@ -15,6 +15,12 @@ export default defineConfig({
   testDir: "e2e",
   outputDir: "test-results",
   fullyParallel: true,
+  // One worker on purpose. Under parallel cold loads (8 workers, 60 loads) the
+  // production build intermittently throws React hydration error #418 on
+  // byte identical server HTML, while the same 60 loads on one worker stay
+  // clean. The silent breakage guard stays strict; the race is reported as an
+  // application bug instead of being allowlisted.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
