@@ -78,7 +78,15 @@ export function PolicyExplorer({
         {/* The whole payload is on screen, which is the claim; a calldata for
             nine rows runs well over a thousand characters, so the strip is
             bounded and scrolls inside itself rather than stretching the card. */}
-        <p className="max-h-48 overflow-y-auto pt-2 text-sm leading-relaxed break-all">
+        {/* The strip scrolls inside itself, so it is its own focus stop:
+            without a tabindex a keyboard reader can reach every condition below
+            and never reach the call they point at. */}
+        <p
+          role="region"
+          aria-label="The compiled call, chain, destination, selector and calldata"
+          tabIndex={0}
+          className="max-h-48 overflow-y-auto pt-2 text-sm leading-relaxed break-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
           <span className={tone("chain")}>
             chain {chainCondition ? chainCondition.value : ""}
           </span>{" "}

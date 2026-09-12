@@ -132,10 +132,21 @@ export default async function ConsolePage() {
         </p>
 
         <details className="border-t border-border pt-6">
-          <summary className="detent-label cursor-pointer py-2 hover:text-foreground">
+          {/* A wide-tracked label is three pixels of ink; min-h-11 gives the
+              disclosure a real touch target without moving the type or losing
+              the marker. */}
+          <summary className="detent-label min-h-11 cursor-pointer py-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             How it differs from a simulator
           </summary>
-          <div className="overflow-x-auto pt-4">
+          {/* The table is wider than a 390px viewport, so the scroller is its
+              own focus stop rather than content a keyboard reader can see the
+              left edge of and nothing else. */}
+          <div
+            role="region"
+            aria-label="How Detent differs from a simulator"
+            tabIndex={0}
+            className="overflow-x-auto pt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          >
             <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-border">
