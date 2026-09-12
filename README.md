@@ -37,7 +37,7 @@ no address and no transaction hash is quoted anywhere.
 | Half | State | What turns it on |
 | --- | --- | --- |
 | The plan, the quorum, the compiled policy, the refusal with its byte offset, the audit record | **Runs today**, on the live URL and on a fresh clone with an empty `.env.local`. The policy is compiled and evaluated by `lib/privy.ts` locally. | Nothing. `npm install && npm run dev`. |
-| The register read: `balanceOfByPartition` and `canTransfer` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio and falls back to the cached register on any failure. | `NEXT_PUBLIC_ADAPTER_MODE=real` plus `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`, after issuing the token through the ATS factory. |
+| The register read: `balanceOfByPartition` and `canTransferByPartition` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio, checks each credit from the configured treasury, and falls back to the cached register on any failure or missing configuration. A dry run against a mock ATS token rendered the twelve holders with the three held rows and their reasons. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS`, optionally `NEXT_PUBLIC_ATS_PARTITION`, after issuing the token through the ATS factory. |
 | The signature: policy installed on a Privy server wallet under a key quorum of two, then revoked | **Written, not exercised against live credentials.** Without them the same evaluator answers locally, which is why the demo produces a real refusal with no keys. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID`. |
 | The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Written and tested in Foundry, not deployed.** 37 tests pass, 9 of them fuzz, and the deploy and smoke scripts run end to end under test. The app renders its `unwired` state instead of implying a record. | `forge script script/Deploy.s.sol` from `contracts/`, then `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`. See "On chain proof". |
 
@@ -118,7 +118,7 @@ flowchart TD
   plan["lib/plan.ts<br/>rows, holds, headroom, calldata, plan hash"]
   privy["lib/privy.ts<br/>compile, install, evaluate, revoke"]
   anchor["lib/anchor.ts<br/>anchor, settle, abandon, read back"]
-  hedera["lib/hedera.ts<br/>balanceOfByPartition, canTransfer"]
+  hedera["lib/hedera.ts<br/>balanceOfByPartition, canTransferByPartition"]
   contract["contracts/src/PlanAnchor.sol"]
   chain["Hedera testnet, chain 296<br/>Hashio JSON-RPC relay"]
   scan["HashScan<br/>token, payout and anchor receipts"]
@@ -142,10 +142,13 @@ flowchart TD
 
 **Hedera, Asset Tokenization Studio (target track: Tokenization of Anything).**
 The security is modelled as an ATS equity token on Hedera testnet. `lib/hedera.ts`
-reads `balanceOfByPartition` (ERC-1410) for every holder and `canTransfer`
-(ERC-1594) for the compliance verdict on a would-be credit, over the Hashio
-JSON-RPC relay, and the reason code the compliance module returns is what turns a
-row red in the console. `contracts/src/PlanAnchor.sol` anchors each approved plan
+reads `balanceOfByPartition` (ERC-1410) for every holder and asks
+`canTransferByPartition` whether a credit from the treasury to that holder would
+clear, over the Hashio JSON-RPC relay. ATS answers with an EIP-1066 status byte
+and the selector of the error that refused the credit, and that is what turns a
+row red in the console. CLASS-A is the register's display label: against a single
+partition ATS token the reads use its default partition unless
+`NEXT_PUBLIC_ATS_PARTITION` names another. `contracts/src/PlanAnchor.sol` anchors each approved plan
 hash before the policy opens and settles it after, so HashScan carries the
 record.
 
@@ -190,12 +193,14 @@ Where each clause is answered, and where it is not:
 
 - **Asset Tokenization Studio.** `lib/hedera.ts` carries the ATS contract surface
   in one `parseAbi` block: `balanceOfByPartition(bytes32,address)` from ERC-1410
-  and `canTransfer(address,uint256,bytes)` from ERC-1594. Both are called, not
-  just declared: `liveRegisterAdapter.load()` issues one `readContract` per
-  holder for `balanceOfByPartition` and a second for `canTransfer`, and the
-  `bytes32` reason code the compliance module returns is what turns a row oxide
-  red in the console. That adapter is selected only when
-  `NEXT_PUBLIC_ADAPTER_MODE=real` and a token address is set; no token has been
+  and `canTransferByPartition(address,address,bytes32,uint256,bytes,bytes)`, which
+  ATS allows in single and multi partition mode alike. Both are called, not just
+  declared: `liveRegisterAdapter.load()` issues one `readContract` per holder for
+  `balanceOfByPartition` and a second for `canTransferByPartition` from the
+  configured treasury, and the ATS error selector that refuses a credit is what
+  turns a row oxide red in the console. That adapter is selected only when
+  `NEXT_PUBLIC_ADAPTER_MODE=real` and a token address is set, and it falls back to
+  the cached register when `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS` is missing; no token has been
   issued for this submission, so the recorded run serves the cached register and
   labels it as cached. The reads are hand written with viem against the ATS ABI.
   `@hashgraph/asset-tokenization-sdk` is not installed and no claim here rests on
