@@ -18,13 +18,31 @@ which is DEMO step 2.** Everything after that happens on the same page.
 | --- | --- |
 | Live app | https://detent-app.vercel.app |
 | Demo video | [demo-video.mp4](https://detent-app.vercel.app/demo-video.mp4), 3:01, narrated, served from the site as a plain mp4 |
-| `PlanAnchor`, Hedera testnet 296 | Not deployed for this submission, so there is no address and no transaction hash to quote. The contract is `contracts/src/PlanAnchor.sol` and its two fuzz tests are in `contracts/test/PlanAnchor.t.sol`; the deploy and the smoke run are `contracts/script/Deploy.s.sol` and `contracts/script/Smoke.s.sol`. With `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` absent the app renders its documented `unwired` state instead of implying a record it does not have. |
+| ATS equity token, Hedera testnet 296 | Not issued for this submission, so there is no token address to quote. The reader is `lib/hedera.ts`, and with `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` absent the console serves the cached register from `fixtures/register.seed.json` and says so on screen. |
+| `PlanAnchor`, Hedera testnet 296 | Not deployed for this submission, so there is no address and no transaction hash to quote. The contract is `contracts/src/PlanAnchor.sol` and its five Foundry tests, three of them fuzz, are in `contracts/test/PlanAnchor.t.sol`; the deploy and the smoke run are `contracts/script/Deploy.s.sol` and `contracts/script/Smoke.s.sol`. With `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` absent the app renders its documented `unwired` state instead of implying a record it does not have. |
 
-That third row is a decision, not an omission. Deploying `PlanAnchor` needs a
-funded testnet account, and rather than ship a table of empty angle brackets the
-claim is withdrawn until the address exists. "On chain proof" below carries the
-two commands that fill it, `DELIVERY.md` is the checklist a human works, and
-`docs/VIDEO.md` is the shot list the recording follows.
+Those last two rows are a decision, not an omission. Issuing the token and
+deploying `PlanAnchor` both need a funded testnet account, and rather than ship a
+table of empty angle brackets the claim is withdrawn until the addresses exist.
+"On chain proof" below carries the two commands that fill the anchor row,
+`DELIVERY.md` is the checklist a human works, and `docs/VIDEO.md` is the shot
+list the recording follows.
+
+## What runs today, and what is written but not deployed
+
+One table, and every claim further down defers to it. Nothing in this repository
+is on Hedera testnet right now: no token was issued, no contract was deployed, so
+no address and no transaction hash is quoted anywhere.
+
+| Half | State | What turns it on |
+| --- | --- | --- |
+| The plan, the quorum, the compiled policy, the refusal with its byte offset, the audit record | **Runs today**, on the live URL and on a fresh clone with an empty `.env.local`. The policy is compiled and evaluated by `lib/privy.ts` locally. | Nothing. `npm install && npm run dev`. |
+| The register read: `balanceOfByPartition` and `canTransfer` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio and falls back to the cached register on any failure. | `NEXT_PUBLIC_ADAPTER_MODE=real` plus `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`, after issuing the token through the ATS factory. |
+| The signature: policy installed on a Privy server wallet under a key quorum of two, then revoked | **Written, not exercised against live credentials.** Without them the same evaluator answers locally, which is why the demo produces a real refusal with no keys. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID`. |
+| The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Written and tested in Foundry, not deployed.** Five tests pass, three of them fuzz. The app renders its `unwired` state instead of implying a record. | `forge script script/Deploy.s.sol` from `contracts/`, then `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`. See "On chain proof". |
+
+The demo video and the live URL both run the first row, and the console prints
+which half it is on: `Cached register · Treasury key, policy evaluated locally`.
 
 ## Try it in 60 seconds
 
@@ -67,6 +85,11 @@ wallet is then permitted to sign that contract, that selector and those exact
 parameter bytes; everything else stays on `default_action: DENY`. A key quorum
 with threshold two installs the policy, the transaction goes out, and the policy
 is revoked. The plan hash and the HashScan link land in the audit record.
+
+That paragraph describes the product as it is written. With no token issued and
+no credentials set, which is how the live URL and the recorded demo run, the
+register comes from the cached snapshot and the same policy compiler and
+evaluator answer locally. The table above is the line between the two.
 
 The line that matters: the preview is not a report next to the signature, the
 preview *is* the signing limit.
@@ -118,14 +141,22 @@ flowchart TD
 ## How it uses the sponsor tech
 
 **Hedera, Asset Tokenization Studio (target track: Tokenization of Anything).**
-The security is an ATS equity token on Hedera testnet. `lib/hedera.ts` reads
-`balanceOfByPartition` (ERC-1410) for every holder and `canTransfer`
+The security is modelled as an ATS equity token on Hedera testnet. `lib/hedera.ts`
+reads `balanceOfByPartition` (ERC-1410) for every holder and `canTransfer`
 (ERC-1594) for the compliance verdict on a would-be credit, over the Hashio
-JSON-RPC relay. The reason code the compliance module returns is what turns a
-row red in the console. `contracts/src/PlanAnchor.sol` anchors each approved
-plan hash on Hedera before the policy opens and settles it after, so HashScan
-carries the record. Issuance, configuration and one lifecycle operation (the
-coupon distribution) all happen on testnet.
+JSON-RPC relay, and the reason code the compliance module returns is what turns a
+row red in the console. `contracts/src/PlanAnchor.sol` anchors each approved plan
+hash before the policy opens and settles it after, so HashScan carries the
+record.
+
+Stated against the table above so the two halves are not confused: the token has
+not been issued and `PlanAnchor` has not been deployed, so no read and no write
+above has run against the live network yet. The ABI surface, the chain
+definition, the relay client and the contract are all here and the reads fire the
+moment `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` is set. The lifecycle operation the
+product performs is the Q3 coupon distribution, which the console replays in full
+on every run; issuance and configuration are the two steps a human does in the
+ATS factory before pointing Detent at the result.
 
 **Privy, server wallets, policies and key quorums (Best B2B financial product).**
 `lib/privy.ts` is the compiler and the client. `compilePolicy` turns an approved
@@ -150,13 +181,12 @@ submission mechanics for each one live in `DELIVERY.md`.
 
 ### 🪙 Tokenization of Anything, answered
 
-The qualification wording, verbatim: "Asset Tokenization Studio kullanmak (SDK,
-kontratlar, web uygulaması veya bunların birleşimi), Hedera testnet üzerinde
-deploy edip göstermek, kontratları HashScan'de doğrulamak ve beş dakikayı
-geçmeyen videoda "issuance, configuration, and at least one lifecycle operation"
-göstermek."
+What the row asks for: use Asset Tokenization Studio, whether the SDK, the
+contracts, the web app or a combination of them; deploy on Hedera testnet and
+show it; verify the contracts on HashScan; and show issuance, configuration and
+at least one lifecycle operation in a video no longer than five minutes.
 
-Where each clause is answered:
+Where each clause is answered, and where it is not:
 
 - **Asset Tokenization Studio.** `lib/hedera.ts` carries the ATS contract surface
   in one `parseAbi` block: `balanceOfByPartition(bytes32,address)` from ERC-1410
@@ -164,7 +194,12 @@ Where each clause is answered:
   just declared: `liveRegisterAdapter.load()` issues one `readContract` per
   holder for `balanceOfByPartition` and a second for `canTransfer`, and the
   `bytes32` reason code the compliance module returns is what turns a row oxide
-  red in the console.
+  red in the console. That adapter is selected only when
+  `NEXT_PUBLIC_ADAPTER_MODE=real` and a token address is set; no token has been
+  issued for this submission, so the recorded run serves the cached register and
+  labels it as cached. The reads are hand written with viem against the ATS ABI.
+  `@hashgraph/asset-tokenization-sdk` is not installed and no claim here rests on
+  it.
 - **Hedera testnet.** The `hederaTestnet` chain definition in the same file pins
   chain 296 and the Hashio relay from `HEDERA_RPC_URL`. `hederaPublicClient()` is
   the only read client in the repo, and `lib/anchor.ts` writes through the same
@@ -177,19 +212,27 @@ Where each clause is answered:
 - **On chain record.** `lib/anchor.ts` plus `contracts/src/PlanAnchor.sol` anchor
   the approved plan hash before the policy opens and settle it after the payout
   lands. `readPlanRecord` reads `planOf` back with no operator key, which is what
-  `/record/[planHash]` renders as a permanent record.
+  `/record/[planHash]` renders as a permanent record. The contract is not
+  deployed, so that route currently renders its `unwired` state and the audit
+  entry carries the anchor note in place of a HashScan link. Five Foundry tests
+  cover the contract, three of them fuzz.
 - **The lifecycle operation** on screen is the coupon distribution: the Q3
   quarterly coupon paid to the holder set on partition CLASS-A, replayed off
-  chain as a plan and then executed against the token.
+  chain as a plan and then, once a token address is configured, executed against
+  the token.
+
+One clause of that row is open and worth naming rather than blurring: "deploy on
+testnet and verify on HashScan". Nothing is deployed, so there is no verified
+contract page to show. The deploy is two commands and a funded account, both in
+"On chain proof" below.
 
 ### 🏢 Best B2B financial product, answered
 
-The qualification wording, verbatim: "Privy'yi ürünün çekirdeğine koymak, en az
-bir Privy cüzdanı oluşturmak veya kullanmak, bir işletme senaryosu göstermek ve
-"at least one Privy control, such as policies, signers, key quorums, or intents"
-uygulamak."
+What the row asks for: put Privy at the core of the product, create or use at
+least one Privy wallet, show a business scenario, and apply at least one Privy
+control, such as policies, signers, key quorums or intents.
 
-Every clause lands in `lib/privy.ts`:
+Every clause is implemented in `lib/privy.ts`:
 
 - `compilePolicy` turns the approved plan into a policy with one ALLOW rule
   pinning `chain_id eq`, `to eq`, `data starts_with <selector>` and
@@ -247,8 +290,8 @@ policies and key quorums, Foundry for `PlanAnchor`, HashScan for receipts,
 Vercel for hosting.
 
 `PlanAnchor` was not deployed for this submission, so there is no address and no
-transaction hash to quote; its two fuzz tests are in
-`contracts/test/PlanAnchor.t.sol`.
+transaction hash to quote; its five Foundry tests, three of
+them fuzz, are in `contracts/test/PlanAnchor.t.sol`.
 
 ## Quickstart
 
@@ -296,7 +339,10 @@ Contract build and deploy commands are in `contracts/README.md`.
 ## The anchor lifecycle
 
 `PlanAnchor` carries the on chain half of the audit record, and the console
-drives it:
+drives it. The three steps below are what happens once the contract is deployed
+and `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY` are set. With
+either one absent, which is the state of this submission, every call comes back
+as a receipt with `anchored: false` and a note, and the send still completes:
 
 1. **Lock.** The approved plan hash is anchored with the target token and the
    selector, before the wallet policy opens. The audit entry links the anchoring
@@ -357,13 +403,13 @@ HashScan link.
 live interaction.
 
 **Exactly two commands fill it.** Both run from `contracts/`, with
-`RPC_URL=https://testnet.hashio.io/api` and a funded `FARM_EVM_PRIVATE_KEY`
+`RPC_URL=https://testnet.hashio.io/api` and a funded `DEPLOYER_PRIVATE_KEY`
 exported, and both need `--legacy` because the Hedera relay rejects typed
 transactions:
 
 ```bash
-forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
-DEPLOYED_CONTRACT=0xYourDeployedAnchor forge script script/Smoke.s.sol --rpc-url $RPC_URL --private-key $FARM_EVM_PRIVATE_KEY --broadcast --legacy
+forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $DEPLOYER_PRIVATE_KEY --broadcast --legacy
+DEPLOYED_CONTRACT=0xYourDeployedAnchor forge script script/Smoke.s.sol --rpc-url $RPC_URL --private-key $DEPLOYER_PRIVATE_KEY --broadcast --legacy
 ```
 
 The account behind that key needs testnet HBAR from
@@ -383,13 +429,30 @@ deploy step rewrites only `.env.local` and this file.
 
 ```bash
 npm test              # vitest: the edge schemas and the policy evaluator
-cd contracts && forge test   # PlanAnchor, including two fuzz tests
+cd contracts && forge test   # PlanAnchor, five tests, three of them fuzz
 ```
 
 `npm test` covers the two mechanisms the demo turns on: the zod validation at
 the API edge, and the policy evaluation that produces the refusal with the
 failing condition and the byte offset. Foundry is deliberately not wired into
 the npm scripts, so the contract suite runs from `contracts/`.
+
+## Lint and format
+
+```bash
+npm run lint          # ESLint 9, flat config in eslint.config.mjs
+npm run lint:fix
+npm run format:check  # Prettier, reports without writing
+npm run format        # Prettier, writes
+```
+
+`next build` does not lint, so `npm run lint` is the only thing that does. The
+rule set is `next/core-web-vitals` and `next/typescript` plus a short list that
+catches what strict TypeScript does not: unused values, loose equality, `var`,
+and a stray `console.log` in app code. It reports zero errors and zero warnings
+today. Prettier is configured but has not been run over the tree; `npm run
+format:check` names the files that differ, and prose is left out of it because
+the Markdown here is hand wrapped.
 
 ## Demo, ninety seconds
 
@@ -404,9 +467,16 @@ the npm scripts, so the contract suite runs from `contracts/`.
    names the condition that failed and the byte where the payload diverged.
 5. Send the untouched plan. It signs, the HashScan link and the plan hash drop
    into the audit record, and the policy is revoked.
-6. Open the permanent record at `/record/<planHash>`. The plan hash is read back
-   off `PlanAnchor` on testnet: state settled, the same token and selector, the
-   anchored and settled timestamps in UTC. Reload it and the chain still says so.
+6. Open the permanent record at `/record/<planHash>`. With `PlanAnchor` deployed
+   and its address set, the plan hash is read back off the contract: state
+   settled, the same token and selector, the anchored and settled timestamps in
+   UTC, and a reload still says so. Without the address, which is the state of
+   this submission, the route renders its `unwired` state and names it.
+
+Steps 1 to 5 run with no keys at all. Step 5 signs through the Privy server
+wallet when credentials are present; without them the local mirror of the same
+evaluator answers, and the console labels the source on screen rather than
+implying a broadcast it did not make.
 
 ## What we would build next
 
@@ -427,9 +497,8 @@ the contracts and the fixtures alike.
 ## Pre-existing code and AI use
 
 ETHOnline 2026 publishes no AI policy of its own, so nothing here is claimed
-against one. What the event does require is the declaration of pre-existing code:
-`Varsa önceden yazılmış kodun beyan edilmesi`, which reads in English as "any
-previously written code must be declared".
+against one. What the event does require is the declaration of pre-existing code: any code
+written before the event started must be declared.
 
 There is none. Every file in this repository was written during the event, and
 the commit history shows it from the first commit onward. No code was carried in

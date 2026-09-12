@@ -5,7 +5,10 @@ Derived from `DEMO.md` steps 1 to 6. Recorded against the live URL,
 against `localhost`: a judge watching the video and a judge opening the link must
 see the same page.
 
-**Length.** Target **2:00 to 2:30**. The hard cap is **5:00**, set by the
+**Length.** The take that shipped, `public/demo-video.mp4`, runs **3:01**, which
+is the number `README.md` quotes. The shot plan below was written to **2:00 to
+2:30** and the real delivery ran longer on narration; both sit well inside the
+cap. The hard cap is **5:00**, set by the
 `🪙 Tokenization of Anything` row, which also requires issuance, configuration
 and at least one lifecycle operation to be visible. Issuance and configuration
 are the ATS equity token and its allowlist, both named in shot 2; the lifecycle
@@ -35,8 +38,10 @@ close paraphrase; do not read the screen aloud word for word.
 | 10 | The permanent record | 6 | Press **Open the permanent record**. `/record/<planHash>` loads. Reload it once. | "This is read straight off the anchor contract with no operator key. Reload it, and the chain still says settled. The record outlives the session." | 1:30 | 20 |
 | 11 | Close on the fold | closing | Back to `/#register`. Still frame. | "The preview is not a report sitting next to the signature. The preview is the signing limit, and it exists for exactly one corporate action." | 1:50 | 15 |
 
-**Total: 2:05.** Five seconds of tail on shot 11 brings it to 2:10 without
-touching either hard mark.
+**Planned total: 2:05.** Five seconds of tail on shot 11 brings it to 2:10
+without touching either hard mark. The recorded take runs 3:01, the extra
+fifty-odd seconds spread across the narration rather than landing in one shot, so
+both hard marks above still hold and the five minute cap is not close.
 
 ## Before the take
 
@@ -69,7 +74,9 @@ The register is cached and will keep rendering. What can stall is anything that
 touches the relay: the anchor writes in shots 4 and 8, the HashScan links in shot
 9, and the `planOf` read in shot 10. If one of them hangs, finish the take
 speaking over a still rather than waiting on the spinner, and cut the still in
-during the edit. The stills come from `docs/SCREENSHOTS.md`.
+during the edit. The stills are the five marked **video fallback** in
+`docs/SCREENSHOTS.md`, and none of them has been taken yet: until someone takes
+them, the fallback is to hold on the last good frame of the live page.
 
 | Shot | What can stall | Still that covers it | What the voice says over it |
 | --- | --- | --- | --- |
