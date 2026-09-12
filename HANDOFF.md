@@ -1030,3 +1030,183 @@ fund the testnet account, deploy `PlanAnchor` (the pause ships with it), run
 address into `SECURITY.md`, then walk DEMO.md end to end with
 `NEXT_PUBLIC_ADAPTER_MODE=real` and open `/record/<planHash>` to see step 6
 settled for the first time.
+
+### Phase 8, 2026-09-12. Structural frontend overhaul
+
+**Goal.** Make the live URL read as a finished operator console in the first ten
+seconds at phone width as well as desktop, and make DEMO.md step 4, the refusal,
+the loudest thing on the page. No new feature, no new route, no new dependency:
+a visual and structural pass over existing markup, on tokens that already exist.
+
+**Status.** All four slices landed. Nothing was executed: this phase had Write,
+Edit, Read, Glob and Grep and no shell, so `npm run build`, `npm test` and every
+browser check are unrun here. Every grep quoted below was actually run against
+the working tree in this session and its result is quoted verbatim.
+
+The diagnosis, the twelve changes and the proof strings live in `.farm-delta.md`
+at the repo root, written before any other file was touched.
+
+**Decisions.**
+
+- **The rail collapses, it does not turn into a drawer.** Below `lg` the rail is
+  a compact bar: the brand link on one row, then the six section links as a
+  single horizontally scrollable row inside its own `overflow-x-auto` wrapper
+  (`components/rail.tsx:122`), each link keeping `min-h-11` and
+  `whitespace-nowrap`. The wrapper carries `-mx-5 ... px-5` so the row bleeds to
+  the screen edges and a half-cut label reads as "there is more"; the page itself
+  never scrolls sideways. No disclosure button, no overlay, no new state: a
+  collapsing menu would be a new interactive component in a phase whose fence
+  says no new feature. At `lg` and up every class that mattered is still there:
+  `lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:shrink-0 lg:border-b-0 lg:border-r`.
+- **The CTA is dropped below `lg`, not moved.** The phase allowed either. At
+  390px the gold block cost a full screen third and the plan table is the next
+  thing on screen anyway, so `hidden w-full lg:mt-auto lg:inline-flex` drops it
+  and the "Plan" link in the section bar carries the same jump. Judges on a phone
+  now meet the register masthead, not a call to action.
+- **About and Security moved into the shared shell, not into the page footer.**
+  The `dl` is now `AboutSecurity`, exported from `components/rail.tsx` and
+  rendered twice: inside the rail behind `lg:block`, and once in
+  `app/layout.tsx:66` under the console for widths below `lg`. Putting it in
+  `app/page.tsx`'s footer instead would have dropped all four rows and the
+  SECURITY.md link from `/record/[planHash]`, undoing Phase 5's "in the shared
+  shell so both routes reach it". The layout copy is a
+  `<section aria-label="About and security">` rather than a second `<footer>`, so
+  `app/page.tsx` keeps the page's only `contentinfo` landmark. `hashscanToken`,
+  `shortHex`, `CHAIN_ID` and `PLAN_ANCHOR_ADDRESS` are reused, not re-derived.
+- **The ledger rule is gone from the plan card header and stays declared.**
+  `detent-ruled` was painting the repeating rule behind the `CardTitle` and the
+  `CardDescription`, which renders as a strikethrough through both. The header is
+  now `border-b border-border` with a `detent-label` eyebrow over the title. The
+  class itself stays in `app/globals.css:107` and `public/illustrations/ledger-rule.svg`
+  is untouched, so a later phase can put the rule back on a surface where no text
+  sits. Grep for `detent-ruled` under `components/`: zero.
+- **The register note is demoted, not deleted.** It was
+  `border border-border bg-card p-4`, the heaviest object on the fold, outranking
+  the h1 that names the security. It is now `border-t border-border pt-3` with
+  `divide-y divide-border` rows at `text-xs` on the ground colour. All four rows
+  (`snapshot.fetchedAt`, the source, `snapshot.token.partition`,
+  `snapshot.treasury.settlementAsset`), `snapshot.note` and `detent-enter`
+  survive, verified by grep.
+- **The disabled treatment is a token, not an opacity.** `disabled:opacity-50`
+  came off the cva base entirely. Each variant now names its own disabled state:
+  the gold `default` becomes a bordered, unfilled control with
+  `muted-foreground` ink, the others take `disabled:text-muted-foreground`, and
+  `destructive` keeps its oxide rule and takes `disabled:text-bad`. The rule was
+  moved out of the base on purpose: two `disabled:text-*` utilities in one class
+  string have equal specificity, so the winner would depend on Tailwind's output
+  order rather than on the variant. `disabled:pointer-events-none`,
+  `rounded-none`, `min-h-11` and `min-h-12` are all intact.
+- **The refusal control is now the loudest control on the page.** `destructive`
+  is `border-2 border-destructive bg-destructive ... text-destructive-foreground`
+  set `font-semibold uppercase tracking-[0.14em]`. Both halves are existing
+  tokens (`--destructive` is `--oxide`, `--destructive-foreground` is `--ground`)
+  and the wide-tracked capitals are the `detent-label` idiom the product already
+  reads in. Disabled, it drops the fill and keeps the 2px oxide rule with oxide
+  ink, so it never fades to the pink in `before-desktop-page-2.png`.
+- **The tamper field is an editable cell.** `bg-transparent` with no foreground
+  made `7756.25` indistinguishable from placeholder text. It is now
+  `bg-card ... text-foreground`, with `disabled:bg-muted` rather than a text
+  fade, so the value stays in ink before the lock as well as after it and is
+  legible in a compressed recording. `placeholder:text-muted-foreground` and
+  `<label htmlFor="tamper">` are untouched.
+
+**Failed attempts.** None. No slice needed a second correction pass, and no edit
+was reverted.
+
+**Files changed.** Added: `.farm-delta.md`, `.farm-commits.json`. Edited:
+`components/rail.tsx`, `app/layout.tsx`, `components/operations-console.tsx`,
+`components/ui/button.tsx`, `components/ui/input.tsx`,
+`components/console-states.tsx`, `app/page.tsx`, `IDENTITY.md` (one dated line
+appended under Amendments, nothing above it touched), this file. Nothing under
+`lib/`, `contracts/`, `fixtures/`, `scripts/` or `app/api/` was opened for
+writing. `fixtures/register.seed.json` is untouched, so the demo still carries 12
+holders and 3 held rows. `contracts/script/Smoke.s.sol` is untouched and still
+reads `DEPLOYED_CONTRACT`.
+
+**Commands run.** None. This phase was file only and the agent had no shell: the
+tools were Write, Edit, Read, Glob and Grep. Every command below belongs to the
+runner or to a human.
+
+The runner's commands: `npm install`, `npm run build`, the per-slice commit
+replay from `.farm-commits.json` with a closing `faz-8: structural frontend
+overhaul` commit, then push and the Vercel redeploy.
+
+**Acceptance items not met, with evidence.**
+
+- `app/icon.svg` carries four hex literals (`#f4f1ea`, `#ece7dc`, `#ad8c3a`,
+  `#9c3b2a` at lines 2 to 5). The gate reads "no hex literal under `app/` or
+  `components/` outside `app/globals.css`". It is the pre-existing favicon
+  convention file, not a component; an SVG served as its own document cannot read
+  the custom properties in `app/globals.css`, and the four values are
+  IDENTITY.md's own GROUND, SURFACE, ACCENT and SECOND. Zero hex literals exist
+  in any `.tsx` under `app/` or `components/`. Left as it stands rather than
+  breaking the favicon.
+- Everything that needs a command is unverified: `npm run build`, `npm test`,
+  `forge test`, the devtools sweep at 360px, 390px, 768px and 1440px, the cold
+  private window stranger test and Lighthouse were never executed here. In
+  particular the mobile rail bar, the segmented corporate action group and the
+  new disabled and destructive states have been reasoned about from the class
+  strings and never rendered.
+- The Kept row in `.farm-delta.md`: at 390px the plan table still shows only
+  Holder and Account, with Position, Coupon due and Status behind the horizontal
+  scroll of the `min-w-[46rem]` grid at
+  `components/operations-console.tsx:509-511`. Deliberate, and the amount the
+  judge edits is printed again in ink in the tamper field.
+- `/record/[planHash]` was read and inherits every treatment through the shared
+  shell and `components/console-states.tsx`; nothing in it needed a fix, so
+  nothing in it was edited. That claim is from reading the file, not from opening
+  the route.
+
+**Carried forward, still unrun from Phases 2 to 5, verbatim.**
+
+- The live ATS register read. `liveRegisterAdapter.load()` has never run against
+  a deployed ATS token, and the live treasury cover in `lib/hedera.ts:189` has
+  never read a real settlement token.
+- The live Privy install and submit. `installPolicy`, `submitTransaction` and
+  `revokePolicy` have never run against a real Privy app, so the response shapes
+  in `lib/schemas.ts` are written from documentation.
+- The whole anchor write path. `anchorPlan`, `settlePlan` and `abandonPlan` have
+  never reached a deployed `PlanAnchor`; `writeContract` with `type: "legacy"` at
+  `lib/anchor.ts:242` is unproven against the relay.
+- The `planOf` struct decode. `readPlanRecord` casts the result to an object with
+  named fields (`lib/anchor.ts:174`). If viem hands back a positional tuple
+  instead, every field reads as undefined and `state` falls to `unknown`; that
+  cast is the one place to change.
+- The settled state of `/record/[planHash]` has never been seen on screen. With no
+  `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` the route renders `unwired`, which is the
+  documented degraded state.
+
+**The mark.** `public/brand/logo.png` does not need a Marka rerun. It reads as a
+gold ring on parchment with an oxide-red detent, which is GROUND, ACCENT and
+SECOND exactly as IDENTITY.md sets them, and it is rendered exactly once, inside
+the home `Link` in `components/rail.tsx`, as one `<Image>` plus one text node.
+No second brand image exists anywhere under `components/`.
+
+**Open questions.**
+
+- Nothing was cut this phase, so nothing is parked here from the cut protocol.
+- The plan table at 390px, carried from the Kept row above. If a later phase
+  wants the coupon amount on screen without a sideways drag, the cheapest change
+  is a second, stacked rendering of the five fields behind `sm:hidden` beside the
+  existing grid, at `components/operations-console.tsx:509`. It doubles the
+  markup for the table, which is why it was not done inside this budget.
+- `.detent-ruled` in `app/globals.css:107` and
+  `public/illustrations/ledger-rule.svg` are now referenced by nothing. Either
+  give the rule a home where no text sits on it (the plan card's footer band at
+  `components/operations-console.tsx` is the obvious candidate) or delete both in
+  a later pass. Deleting an asset was out of fence here.
+- The rail's `lg` column and the layout's mobile block render the same four About
+  and Security rows, so the `dl` terms appear twice in the DOM at `lg` and up,
+  once hidden. If that matters for a screen reader audit, the fix is to render
+  `AboutSecurity` only in the layout and drop the rail copy, which costs the rail
+  its footer at desktop width.
+
+**Next best step.** Unchanged and still blocking: fund the account behind
+`FARM_EVM_PRIVATE_KEY` with testnet HBAR
+(https://portal.hedera.com/faucet, 100 HBAR per request, and the first
+transaction must be paid by that key to break the hollow account trap), deploy
+`PlanAnchor` over `https://testnet.hashio.io/api` with `--legacy`, run
+`contracts/script/Smoke.s.sol`, paste the address and the two transaction hashes
+under "On chain proof" in `README.md` and the address into `SECURITY.md`, set
+`NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`, then walk DEMO.md steps 1 to 6 on the live URL
+in a cold private window, once at phone width.
