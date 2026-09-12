@@ -25,9 +25,26 @@ import {
   type ActionKind,
   type Holder,
 } from "@/lib/data";
-import { CHAIN_ID } from "@/lib/public-config";
+import {
+  ADAPTER_MODE,
+  ATS_TOKEN_ADDRESS,
+  CHAIN_ID,
+} from "@/lib/public-config";
 
 export { CHAIN_ID };
+
+/**
+ * The contract the plan calls. In real mode with a token address configured
+ * that is the live ATS token, the same address the register is read from; the
+ * seed fixture address is only the target of the cached register. Read from
+ * NEXT_PUBLIC_ values so the console and the API route, which both build the
+ * plan, always agree on it, and so the plan hash they each compute matches.
+ */
+export function planTarget(): `0x${string}` {
+  return ADAPTER_MODE === "real" && ATS_TOKEN_ADDRESS
+    ? ATS_TOKEN_ADDRESS
+    : security.address;
+}
 
 const COUPON_ABI = parseAbiItem(
   "function distributeCoupon(bytes32 partition, address[] holders, uint256[] amounts)"
@@ -216,6 +233,8 @@ export function buildPlan({
     );
   }
 
+  const target = planTarget();
+
   const calldataRows = included.map((row) => ({
     address: row.address,
     amountMicros: row.amountMicros,
@@ -227,7 +246,7 @@ export function buildPlan({
     authority: action.authority,
     signature: action.signature,
     selector: selectorFor(kind),
-    target: security.address,
+    target,
     chainId: CHAIN_ID,
     reference: couponWindow.reference,
     rows,
@@ -237,7 +256,7 @@ export function buildPlan({
     blockers,
     calldata:
       calldataRows.length > 0 ? buildCalldata(kind, calldataRows) : "0x",
-    planHash: hashPlan(kind, security.address, calldataRows),
+    planHash: hashPlan(kind, target, calldataRows),
   };
 }
 
