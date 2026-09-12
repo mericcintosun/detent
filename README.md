@@ -3,7 +3,7 @@
 Operator console for tokenized securities: preview a coupon run or a forced
 transfer line by line, then lock the treasury wallet to exactly that transaction.
 
-> Live demo: https://detent.vercel.app
+> Live demo: https://detent-app.vercel.app
 > Video: <ADD_VIDEO_URL>
 
 ## The problem
