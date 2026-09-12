@@ -79,10 +79,15 @@ bundle:
 
 - The **Privy server wallet**, reached from `lib/privy.ts` over
   `POST /v1/wallets/{id}/rpc`. It signs under a single-use policy compiled by
-  `compilePolicy` in the same file, owned by a key quorum with threshold two
-  (`PRIVY_KEY_QUORUM_ID`, `QUORUM_THRESHOLD` in `lib/config.ts`), bound to the
-  wallet through `policy_ids`, and detached and revoked by `releasePolicy` once
-  the transaction is in.
+  `compileWirePolicy` in the same file, owned by a key quorum through
+  `owner_id` (`PRIVY_KEY_QUORUM_ID`), bound to the wallet through `policy_ids`,
+  and detached and revoked by `releasePolicy` once the lock is spent: sent,
+  failed, timed out or expired.
+- The **Privy authorization keys** in `PRIVY_AUTHORIZATION_KEYS`, read only in
+  `lib/config.ts` and used only by `authorizationSignature` in `lib/privy.ts` to
+  sign the wallet update, the wallet rpc and the policy delete. No
+  `NEXT_PUBLIC_` prefix, and a key that does not parse is refused without being
+  echoed.
 - **`OPERATOR_PRIVATE_KEY`**, which writes `PlanAnchor` from `lib/anchor.ts`.
 
 No key-like string is reachable from the client. `PRIVY_APP_ID`,
@@ -103,38 +108,89 @@ no spender address.** `approve` and `type(uint256).max` do not appear in
 `lib/`. So there is nothing to revoke and no allowance to inspect after the
 demo. Saying the allowance is "bounded" would imply one exists.
 
-What is bounded instead is the signing surface. `compilePolicy` in
-`lib/privy.ts` turns the approved plan into one ALLOW rule over
-`default_action: DENY`, with four conditions, all on `ethereum_transaction`:
+What is bounded instead is the signing surface, and it is bounded in two places
+that are not equally strong.
 
-1. `chain_id eq` the plan's chain id, 296.
-2. `to eq` the plan's target contract.
-3. `data starts_with` the function selector.
-4. `data eq` the full approved calldata, byte for byte.
+**The server check pins the exact calldata.** `compilePolicy` in `lib/privy.ts`
+turns the approved plan into the policy the console shows: one ALLOW rule with
+four conditions, `chain_id eq` 296, `to eq` the target contract, `data
+starts_with` the function selector and `data eq` the full approved calldata,
+byte for byte. `submitTransaction` evaluates every submitted payload against it,
+on the live path too, and a payload that is not the approved calldata is refused
+by this server before the wallet is asked. That refusal is labelled
+`decidedBy: "local-mirror"`.
 
-Everything outside that single call is denied by default. The policy exists
-for exactly one corporate action.
+**The wallet policy cannot pin the exact calldata, and this file will not claim
+it does.** Privy's policy engine
+(https://docs.privy.io/controls/policies/overview) exposes only `to`, `value`
+and `chain_id` on `ethereum_transaction`. Calldata is matched through
+`ethereum_calldata`, which decodes arguments against an ABI and compares them
+one by one; there is no condition on the raw bytes and no documented operator
+for an array argument. So `compileWirePolicy`, which is what is actually
+installed, pins:
+
+1. `ethereum_transaction.chain_id eq` 296.
+2. `ethereum_transaction.to eq` the plan's target contract.
+3. `ethereum_calldata.<function>.partition eq` the approved partition, which also
+   pins the function.
+4. For a forced transfer only: `from`, `to` and `value`, the remaining scalar
+   arguments.
+
+For a coupon the holder list and the amounts are arrays, so the wallet policy
+does not constrain them. A caller who held the app secret and called Privy
+directly could have the treasury sign a `distributeCoupon` to the same contract
+and partition with other holders or amounts while a lock is open. Detent's own
+route never sends such a payload, but the guarantee for those two arguments is
+this server's, not Privy's. The same conditions are written for
+`eth_sendTransaction` and `eth_signTransaction`, because the relay fallback
+signs. The wire policy has no `default_action` field: Privy denies whatever no
+rule allows. None of these conditions has been evaluated by the real Privy
+engine, so the value formats (checksum case of an address, hex for a `uint256`)
+are this build's best reading of the reference, and a mismatch fails closed as a
+refused send.
 
 **Where the limit is enforced.** A compiled policy constrains nothing until it is
 bound to the wallet. `installPolicy` in `lib/privy.ts` reads the treasury wallet
-(`GET /v1/wallets/{wallet_id}`), creates the policy (`POST /v1/policies`) and
-then writes its id into the wallet's `policy_ids` with
-`PATCH /v1/wallets/{wallet_id}`. Privy documents at most one policy per wallet
-and a PATCH that replaces the whole list, so the previous list is kept in the
-lock and written back once the transaction lands, before `revokePolicy` deletes
-the policy. If the attach does not take, the lock fails: an unbound policy is an
-unconstrained key. `evaluatePolicy` mirrors the same evaluation locally. It is the
-explanation layer only: on the live path the wallet is always asked and its
-answer is the one that counts, and every send result carries `decidedBy`
-(`privy-wallet` or `local-mirror`) so a local refusal is never labelled as the
-wallet's.
+(`GET /v1/wallets/{wallet_id}`), creates the policy (`POST /v1/policies`, owned
+by the key quorum through `owner_id`) and then writes its id into the wallet's
+`policy_ids` with `PATCH /v1/wallets/{wallet_id}`. Privy documents at most one
+policy per wallet and a PATCH that replaces the whole list, so the previous list
+is kept in the lock and written back when the lock is spent, before
+`revokePolicy` deletes the policy. If the attach does not take, the lock fails
+and the policy is detached and revoked on the way out: an unbound policy is an
+unconstrained key.
 
-**Not verified live.** No Privy credentials exist in this environment, so the
-attach, detach and revoke calls are covered by tests of their request shape, not
-by a run against Privy. Privy requires a `privy-authorization-signature` header
-on a wallet update when the wallet has an owner. This build does not produce that
-signature, so a treasury wallet held by an owner will refuse the attach and the
-lock will fail closed with a hint that says so.
+**Every exit cleans up.** A send that lands, a send that fails, a send that times
+out, an attach that is refused and a lock that expires unspent all write the
+wallet's previous `policy_ids` back and delete the policy, on a best effort
+basis, and log one line with the outcome. A failed or unknown send also spends
+the lock, so it cannot be re-sent under a policy that is already gone. Expiry is
+swept on a timer in the process that holds the lock; a serverless instance that
+is recycled before the sweep runs loses the lock and its cleanup together, and
+the policy then has to be removed in the Privy dashboard.
+
+**No write is repeated blind.** Policy creation and the wallet rpc each carry
+one `privy-idempotency-key` per logical operation, and the single retry after a
+timeout or a 5xx reuses it (https://docs.privy.io/api-reference/idempotency-keys).
+A send that still gets no answer is reported as unknown, with the instruction to
+check the treasury wallet on HashScan, never as failed.
+
+**Owned wallets and policies.** When `PRIVY_AUTHORIZATION_KEYS` is set, the wallet
+update, the wallet rpc and the policy delete carry a
+`privy-authorization-signature` built as the direct implementation guide
+describes
+(https://docs.privy.io/controls/authorization-keys/using-owners/sign/direct-implementation):
+an RFC 8785 canonical payload of version, method, url, body and the `privy-`
+headers, signed with ECDSA P-256 over SHA-256, base64 DER, one signature per key,
+comma separated. Privy publishes no test vector, so the tests verify each
+signature against its own public key and the canonical form against the payload
+printed in the guide. A policy owned by a threshold two quorum needs two
+authorization keys of that quorum in the variable.
+
+**Not verified live.** No Privy credentials exist in this environment. Every
+Privy call is covered by offline tests of its exact request, and by a dry run
+against a local mock that enforces the published request shapes, the owner
+signature and idempotency. Neither is a run against Privy.
 
 ## 4. What the API route trusts, and what it does not
 

@@ -101,19 +101,26 @@ describe("C1, the policy is bound to the wallet", () => {
     expect(request.body).toBeUndefined();
   });
 
-  it("installs the policy under the key quorum with default_action DENY", () => {
-    const request = policyInstallRequest(compilePolicy(plan), "kq_two");
-    const body = JSON.parse(request.body ?? "{}") as {
-      owner: { key_quorum_id: string };
-      default_action: string;
-      rules: Array<{ conditions: unknown[] }>;
+  it("installs the policy under the key quorum through owner_id, in the documented shape", () => {
+    const request = policyInstallRequest(plan, "kq_two");
+    const body = JSON.parse(request.body ?? "{}") as Record<string, unknown> & {
+      rules: Array<{ method: string; conditions: unknown[] }>;
     };
 
     expect(request.method).toBe("POST");
     expect(request.path).toBe("/v1/policies");
-    expect(body.owner).toEqual({ key_quorum_id: "kq_two" });
-    expect(body.default_action).toBe("DENY");
-    expect(body.rules[0].conditions).toHaveLength(4);
+    // Privy's create policy reference takes a key quorum as owner_id; owner is
+    // for a user id or a public key, and there is no default_action field.
+    expect(body.owner_id).toBe("kq_two");
+    expect(body).not.toHaveProperty("owner");
+    expect(body).not.toHaveProperty("default_action");
+    expect(body.rules.map((rule) => rule.method)).toEqual([
+      "eth_sendTransaction",
+      "eth_signTransaction",
+    ]);
+    expect(body.rules[0].conditions).toHaveLength(3);
+    // The explanation policy the console renders still pins the exact calldata.
+    expect(compilePolicy(plan).rules[0].conditions).toHaveLength(4);
   });
 });
 
