@@ -58,7 +58,10 @@ top of this file.
       address into `SECURITY.md`. Both files currently state that nothing is
       deployed, which is the honest state, so this item is not a blocker: skip it
       and both documents stay correct.
-- [ ] Fill `<ADD_VIDEO_URL>` at the top of `README.md`.
+- [ ] Open the demo video URL in the `README.md` artefacts table from a cold
+      window and confirm it streams: `https://detent-app.vercel.app/demo-video.mp4`.
+      The file is `public/demo-video.mp4`, it runs 3:01, and `README.md` and
+      `docs/VIDEO.md` both quote that number.
 - [ ] Confirm the repo is public.
 - [ ] Confirm the commit history is not one commit on the final day. Both prize
       pages call that out.

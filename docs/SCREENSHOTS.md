@@ -1,8 +1,13 @@
 # Screenshots, the wish list
 
+**None of the ten shots below has been taken. `docs/screenshots/` does not exist
+in this repository, and no page in the repository links to one.** This file is a
+list of what to capture, not a manifest of what is here, and it stays that way
+until a human takes the shots and commits them.
+
 Plain text on purpose. `README.md` must not reference an image file that is not
 in the repo, so nothing here is linked from anywhere until a human has actually
-taken the shot and committed it. This file is the list of what to take.
+taken the shot and committed it.
 
 Take them in one sitting, in a cold private window against
 **https://detent-app.vercel.app**, at 1440px wide with the browser at 100 percent
