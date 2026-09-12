@@ -67,8 +67,10 @@ Record both transaction hashes under "On chain proof" in the root `README.md`.
 ## Wiring the frontend
 
 Put the deployed address in `.env.local` as `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`
-and the chain in `NEXT_PUBLIC_CHAIN_ID` (296). Verify the contract on Sourcify
-for chain 296 so HashScan shows the source.
+and the chain in `NEXT_PUBLIC_CHAIN_ID` (296). Whoever runs the deploy above
+should then verify the contract on Sourcify for chain 296 so HashScan shows the
+source; nothing in this repo has been verified yet, because nothing has been
+deployed yet.
 
 The app writes to this contract too, from `lib/anchor.ts`: `anchor` on the lock
 step, `settle` or `abandon` on the send step. `onlyOperator` pins the writer to

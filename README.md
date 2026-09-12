@@ -243,8 +243,12 @@ provider. The third bounty slot the event allows is left empty on purpose, see
 Next.js 15 (App Router), TypeScript strict, Tailwind CSS v4, shadcn primitives,
 viem, Hedera testnet (chain 296) over Hashio, Asset Tokenization Studio
 contracts (ERC-1400 / 1410 / 1594 / 1643 / 1644), Privy REST server wallets with
-policies and key quorums, Foundry for `PlanAnchor`, Sourcify for verification,
-HashScan for receipts, Vercel for hosting.
+policies and key quorums, Foundry for `PlanAnchor`, HashScan for receipts,
+Vercel for hosting.
+
+`PlanAnchor` was not deployed for this submission, so there is no address and no
+transaction hash to quote; its two fuzz tests are in
+`contracts/test/PlanAnchor.t.sol`.
 
 ## Quickstart
 
