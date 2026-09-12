@@ -402,7 +402,11 @@ export function OperationsConsole({
    * two modes a reader is looking at: where the register came from, which key
    * would sign, and the chain. Once a plan is locked the policy id joins it, so
    * the id the documentation tells a reader to look for is on screen rather than
-   * buried in an audit entry.
+   * buried in an audit entry. The id is only called a Privy policy id when Privy
+   * actually issued it; the local branch says whose id it is instead, because a
+   * `pol_local_…` string presented as a Privy id is a claim the run cannot back.
+   * Before a plan is locked the line still names the slot, so a reader landing
+   * cold learns the term and where its value will appear.
    */
   const modeLine = [
     snapshot.source === "hedera-testnet"
@@ -412,7 +416,11 @@ export function OperationsConsole({
       ? "Privy server wallet"
       : "Treasury key, policy evaluated locally",
     `Hedera testnet ${CHAIN_ID}`,
-    ...(installation ? [`Privy policy ${installation.policyId}`] : []),
+    installation
+      ? installation.live
+        ? `Privy policy ${installation.policyId}`
+        : `Policy ${installation.policyId}, compiled locally`
+      : "No policy locked yet",
   ].join(" · ");
 
   return (
@@ -450,20 +458,41 @@ export function OperationsConsole({
                   ? "Live read from Hedera testnet"
                   : "Cached register"}
               </Badge>
-              {snapshot.token.verified ? (
-                <Badge variant="outline" className="border-ok text-ok">
-                  Verified on HashScan
-                </Badge>
-              ) : null}
-              <a
-                href={hashscanToken(snapshot.token.address)}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={snapshot.token.address}
-                className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
-              >
-                {shortHex(snapshot.token.address, 12, 8)}
-              </a>
+              {/* The verified badge and the explorer link belong to the live
+                  read and to nothing else. On the cached register the address
+                  is a seed literal HashScan has never heard of, and a link to
+                  an empty explorer page is worse than no link, so the seed
+                  branch says what the address is and prints it as plain text. */}
+              {snapshot.source === "hedera-testnet" ? (
+                <>
+                  {snapshot.token.verified ? (
+                    <Badge variant="outline" className="border-ok text-ok">
+                      Verified on HashScan
+                    </Badge>
+                  ) : null}
+                  <a
+                    href={hashscanToken(snapshot.token.address)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={snapshot.token.address}
+                    className="text-sm underline decoration-hairline underline-offset-4 hover:text-foreground"
+                  >
+                    {shortHex(snapshot.token.address, 12, 8)}
+                  </a>
+                </>
+              ) : (
+                <>
+                  <Badge variant="outline" className="border-border text-muted-foreground">
+                    Seed register address, not on chain
+                  </Badge>
+                  <span
+                    title={snapshot.token.address}
+                    className="text-sm text-muted-foreground"
+                  >
+                    {shortHex(snapshot.token.address, 12, 8)}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           {/* One mark per page, and the rail already carries it. What the
@@ -814,6 +843,7 @@ export function OperationsConsole({
               reason={settlement?.verdict.reason}
               note={failure?.hint ?? settlement?.note}
               busy={pending !== null}
+              engineLive={settlement?.live ?? false}
               onSignAndRelay={() => send(lastSend?.tampered ?? false, "signature")}
               onRetry={() => send(lastSend?.tampered ?? false)}
             />
@@ -923,6 +953,15 @@ export function OperationsConsole({
                   <Badge variant="outline" className="border-border text-muted-foreground">
                     policy source: {settlement.policySource}
                   </Badge>
+                  {/* A refusal nobody can attribute proves nothing, so the badge
+                      row names the engine that produced this one, in the same
+                      lower-case idiom as the badge beside it. */}
+                  {settlement.verdict.allowed ? null : (
+                    <Badge variant="outline" className="border-border text-muted-foreground">
+                      refused by:{" "}
+                      {settlement.live ? "privy wallet" : "local policy mirror"}
+                    </Badge>
+                  )}
                 </div>
                 <p
                   className={`max-w-[76ch] text-sm leading-relaxed ${
