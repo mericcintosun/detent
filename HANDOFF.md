@@ -1477,12 +1477,14 @@ every field, `docs/VIDEO.md` carries the shot list.
       three places: the submission form, the deployed artefacts table in
       `README.md`, and field 7 of `SUBMISSION.md`. All three carry the literal
       `<ADD_VIDEO_URL>` until then.
-- [ ] Fill the three on chain placeholders after the deploy and the smoke run:
-      `<ADD_PLAN_ANCHOR_ADDRESS>`, `<ADD_SMOKE_ANCHOR_TX>`,
-      `<ADD_SMOKE_SETTLE_TX>`. They appear in the deployed artefacts table and
-      under "On chain proof" in `README.md`. Update the address line in
-      `SECURITY.md` by hand: the deploy step rewrites only `.env.local` and
-      `README.md`.
+- [ ] **Optional since Phase 6, not a blocker.** The three on chain placeholders
+      are gone: `README.md` and `SECURITY.md` now state that `PlanAnchor` was not
+      deployed for this submission, which is the honest state and needs no
+      further edit. Only if the deploy and the smoke run actually happen before
+      the deadline, put the address and the two transaction hashes into the
+      deployed artefacts table and the "On chain proof" section of `README.md`,
+      and the address into `SECURITY.md` by hand: the deploy step rewrites only
+      `.env.local` and `README.md`.
 - [ ] Confirm the repository is **public**.
 - [ ] Confirm the commit history is **not one commit on the final day**. Both
       prize pages call that out by name.
@@ -1504,3 +1506,259 @@ on screen ("Cached register", "Treasury key, compiled locally", the anchor note,
 and the record route's `unwired` state), and `SUBMISSION.md` states each one in
 the write-up it belongs to. A submission made on the cached path is honest and
 complete; one that implies a live read it did not make is neither.
+
+## Phase 6, the first jury fixes
+
+**Goal.** The first judge panel scored 5.8 with `fix-then-submit` and two of three
+judges would not advance the project. Not one finding was about the idea: every
+blocker was a claim the repo made that the screen or the README could not back.
+This phase closed the agent-owned half of that gap. The README stops promising an
+on chain deploy that has not happened, the page states in one line above the fold
+which mode a reader is looking at, and the fold leads with the product name and
+its promise instead of with the name of a fixture security.
+
+**Status.** All three code and document slices landed, plus this ledger. Nothing
+was cut. Everything that needs a shell (`npm run build`, `npm test`,
+`forge test`, the live URL spot check) is the runner's or a human's, and is
+recorded below as unverified rather than claimed.
+
+**Decisions.**
+
+- **The retraction is worded as a decision, not as an omission.** The three
+  angle-bracket rows are gone from the deployed artefacts table and one row takes
+  their place naming the contract, its two fuzz tests and both scripts by path,
+  and saying that the app renders its documented `unwired` state when
+  `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` is absent. "On chain proof" now opens with
+  "What is on chain today: nothing" and carries the exact two `forge script`
+  commands that fill it. A judge reading either place learns the state in one
+  sentence and can check every path named.
+- **The mode line is built in the console, not passed as a string.** `lib/register.ts`
+  gained one re-export, `isPrivyLive` from `lib/privy.ts`, so `app/page.tsx` reads
+  the signer mode through the same door it already reads the snapshot through and
+  never imports the server-only Privy module by name. What crosses to the client
+  is a boolean, `signerLive`. The console assembles the line itself from
+  `snapshot.source`, that boolean, `CHAIN_ID` and, once a plan is locked,
+  `installation.policyId`.
+- **`CHAIN_ID` came through `lib/plan.ts`, not through a new import of
+  `lib/public-config.ts`.** `lib/plan.ts:30` already re-exports it as a value and
+  the console already imports from `lib/plan`, so the line reads the same constant
+  the compiled `chain_id` condition is built from, with no second config import in
+  a client component.
+- **The status line is the first child of the existing `detent-stagger`
+  container.** No inline `--delay`, no new keyframe: the container's nth-child
+  delays already cover seven children through the `n + 7` clause in
+  `app/globals.css`. The masthead now holds the mode line, the eyebrow, the `h1`,
+  the promise, the security name, the register count and the badge row, in that
+  order.
+- **`snapshot.token.name` moved down two positions rather than being deleted.** It
+  is now a `detent-label` line under the promise, so DEMO step 1 still prints the
+  security name, the token address linked to HashScan, the source badge, 12
+  holders and 3 held rows.
+- **`PRIVY_WALLET_ID` does not exist in this repo and was not invented.** The
+  phase brief named it; the real variable is `PRIVY_TREASURY_WALLET_ID`
+  (`.env.example:51`, read in `lib/config.ts:29`). The README section documents
+  the real name, and it also documents that `isPrivyLive()` needs
+  `NEXT_PUBLIC_ADAPTER_MODE=real` beside `PRIVY_APP_ID` and `PRIVY_APP_SECRET`,
+  which is what `lib/privy.ts:65-71` actually tests. No environment variable was
+  added anywhere.
+- **Two stale claims were corrected while their files were open.** "The recorded
+  demo runs with both sets filled in" in the Quickstart was false and is now the
+  opposite sentence, naming the cached path the video actually shows; it is the
+  same finding as the second blocker, one document further down. And the
+  `@privy-io/react-auth` grep row in `SECURITY.md` claimed "one hit,
+  `README.md:144`", which drifted; it now names where the string does and does not
+  appear instead of a line number.
+
+**Failed attempts.** None. No edit needed a second correction pass and nothing was
+reverted.
+
+**Files changed.** Edited: `README.md`, `SECURITY.md`, `DELIVERY.md`,
+`lib/register.ts`, `app/page.tsx`, `components/operations-console.tsx`, `DEMO.md`,
+`IDENTITY.md` (one dated line appended under Amendments, nothing above it
+touched), this file. Added: nothing except the rewritten `.farm-commits.json`.
+Untouched on purpose: `SUBMISSION.md`, `docs/VIDEO.md`, `docs/SCREENSHOTS.md`
+(the farm's surfaces this round), `fixtures/register.seed.json`, `package.json`,
+`public/brand/`, `app/opengraph-image.png`, everything under `contracts/`,
+`app/api/` and `lib/` other than the two-line re-export in `lib/register.ts`.
+
+**Commands run.** None. This phase was file only: the tools were Write, Edit,
+Read, Glob and Grep, and there was no shell for `npm`, `git`, `forge` or a dev
+server. Every claim below that needed one is marked unverified.
+
+**Acceptance items not met, with evidence.**
+
+- `npm install`, `npm run build`, `npm test` and `forge test` were never run here.
+  The type risk in this phase is one new required prop, `signerLive`, on
+  `OperationsConsole`; `app/page.tsx:78` is the only call site
+  (`grep -n OperationsConsole` returns exactly that one render plus the
+  declaration), so a missing-prop error has one place to appear.
+- The rendered fold was never opened in a browser. The order of the seven
+  masthead children, the wrapping of the mode line at 360px and the policy id row
+  in the policy card are read off `components/operations-console.tsx` and not off
+  a screen.
+- The live status line has never printed its live half, because no phase has ever
+  had Privy credentials. `signerLive` is false on every run so far.
+
+**Open questions.**
+
+- Nothing was cut, so nothing is parked here from the cut protocol.
+- The mode line and the treasury key banner now both name the key mode, in
+  different words: the line says `Treasury key, policy evaluated locally` and
+  `components/console-states.tsx` says "compiled locally". Neither is wrong and
+  the duplication is deliberate for now (one is above the fold, one is at the
+  point of signing), but a later phase may want one shared string.
+- The policy id appears three times once a plan is locked: the mode line, the new
+  `Policy id` row in the compiled policy card, and the audit `detail` at
+  `components/operations-console.tsx:308`. That is on purpose, because the panel
+  could not find it at all, but it is worth revisiting if the fold gets crowded.
+- Everything in the Phase 9 open-questions list above still stands: the plan table
+  at 390px, the duplicated About and Security rows, the Safari fallback for the
+  scroll-driven band, and the five hard-coded section ids in
+  `components/section-progress.tsx`.
+
+**Next best step.** Regenerate the video script and the submission pack from the
+Jüri card before the second panel runs, so the judges score the fixed
+deliverables rather than the old ones. Those two surfaces are the farm's, and
+three of the six panel items are on them. After that, and only if a human has
+time: fund the account behind `FARM_EVM_PRIVATE_KEY`, deploy `PlanAnchor`, run
+the smoke script, and put the address and the two hashes back into `README.md`
+and `SECURITY.md`, which turns the retraction row back into a proof row.
+
+## Phase 6 fix ledger
+
+Every item the first panel raised appears exactly once below.
+
+### Applied
+
+- **Blocker, all three judges: "README'nin \"Deployed artefacts\" tablosu
+  doldurulmamış placeholder'larla gönderiliyor, yani zincir üstü iddiaların tek
+  bir koordinatı yok."** Criteria lifted: Teknik zorluk, İşlevsellik. The panel's
+  own fallback was applied, because no deploy was possible in this phase. The
+  three placeholder rows are removed from the deployed artefacts table in
+  `README.md` and replaced by one row that names
+  `contracts/src/PlanAnchor.sol`, `contracts/test/PlanAnchor.t.sol`,
+  `contracts/script/Deploy.s.sol` and `contracts/script/Smoke.s.sol` and states
+  the `unwired` state. The malformed three-cell Demo video row in the same table
+  is now a two-cell row carrying
+  `https://detent-app.vercel.app/demo-video.mp4`. "On chain proof" in `README.md`
+  is rewritten to say what is on chain today (nothing), what would be there, and
+  the two commands that fill it, and it keeps the instruction that `SECURITY.md`
+  needs the address by hand. `SECURITY.md` carries the same retraction in one
+  sentence. `DELIVERY.md`'s checklist item is now conditional on the contract
+  actually being deployed. `grep -n` for the three placeholder strings over those
+  three files returns zero.
+- **Blocker, two judges: "Canlı deploy sponsor ürünlerini çalıştırmıyor (register
+  cache'ten, policy lokalde değerlendiriliyor) ama video ve deck aynı ekran için
+  canlı Hedera testnet iddiasında bulunuyor."** Criterion lifted: İşlevsellik.
+  The code half is applied exactly as the panel wrote it: the fixture path is not
+  removed, a line is added above it. `lib/register.ts` re-exports `isPrivyLive`,
+  `app/page.tsx` reads it beside `getRegisterSnapshot()` and passes `signerLive`,
+  and `components/operations-console.tsx` renders one `detent-enter detent-label`
+  line as the first child of the masthead's `detent-stagger` container: the
+  register source, the treasury key mode and `Hedera testnet 296`, joined by the
+  middle dot the eyebrow uses, with `Privy policy <id>` appended once a policy
+  exists. The register badge row and the register note block are untouched. The
+  compiled policy card also prints `installation.policyId` as a labelled row, so
+  the id is on screen and not only inside the audit `detail` string. `README.md`
+  documents which keys flip each half of the line. The video and deck half of this
+  finding is the farm's, listed below.
+- **fixList rank 6: "app/page.tsx, ilk ekran, \"Bosphorus Mercantile Equity\"
+  başlığının üstü ... Kaydırmadan görünen alana ürün adını ve tek cümlelik vaadi
+  koy."** Criterion lifted: Yaratıcılık. Applied in
+  `components/operations-console.tsx`, not in `app/page.tsx`: the masthead markup
+  lives in the console component, and `app/page.tsx` only renders it. The `h1` is
+  now `Detent` in `font-display` on the size and tracking classes it already had,
+  followed by the one-sentence promise, then `{snapshot.token.name}` in the
+  eyebrow's treatment, then the unchanged register count line. `DEMO.md` step 1 is
+  rewritten to describe the new order and names both files. `IDENTITY.md` carries
+  a dated Amendments line stating that no new colour, font, radius or motion value
+  was introduced.
+- **couldNotVerify: "lib/store.ts'in in-memory mi yoksa kalıcı mı olduğu
+  payload'da yok."** Rebutted below, and one sentence was added to `README.md`
+  under "Store and migrations" because that section named the cold-start
+  consequence but not the second-user one.
+
+### Declined
+
+- Nothing was declined. Every item on the panel's list is either applied above,
+  rebutted with file evidence below, blocked on a shell and listed as
+  could-not-verify, or on a surface the farm owns.
+
+### Rebutted, with file evidence, no fix needed
+
+These are `couldNotVerify` lines that are wrong about this repo. They are recorded
+here rather than acted on.
+
+- **"Stack iddiasındaki \"@privy-io/react-auth\" gerçekten kullanılıyor mu
+  belirsiz."** It is deliberately not installed, and the repo says so in three
+  places: `README.md:215`, `SECURITY.md:58` and the grep table row at
+  `SECURITY.md:71`. `package.json:14-24` lists nine dependencies
+  (`@radix-ui/react-slot`, `class-variance-authority`, `clsx`, `next`, `react`,
+  `react-dom`, `tailwind-merge`, `viem`, `zod`) and not one is a Privy package,
+  because the signing key is a server wallet reached over the REST API from
+  `lib/privy.ts`. The string returns no hit in `package.json`, `app/`,
+  `components/` or `lib/`; every hit in the repo is prose saying it is absent. The
+  `SECURITY.md` row that used to pin this to `README.md:144` was corrected this
+  phase, since that line number had drifted.
+- **"README aynı bölümde \"Nothing below is aspirational\" diyor ama tabloda
+  ..."** The sentence is at `README.md:87-88`, inside the Architecture module map,
+  and it is a claim about that mermaid diagram: every box in it is a file that the
+  box above imports. It is not above the deployed artefacts table, which is at
+  `README.md:15-24`, nine sections earlier. The two were never in the same
+  section. Recorded as a correction, and Slice 1 removed the contradiction anyway
+  by retiring the placeholder rows.
+- **"lib/store.ts'in in-memory mi yoksa kalıcı mı olduğu payload'da yok."** It is
+  in-process module scope and nothing else: `const policies = new Map(...)` at
+  `lib/store.ts:30` behind the `policyVault` API at `lib/store.ts:33-43`, plus
+  `const submissions = new Map(...)` at `lib/store.ts:45` for send idempotency.
+  The file's own header comment states the decision and the serverless caveat at
+  `lib/store.ts:1-20`, and `README.md` documents the choice and what was rejected
+  (a KV blob, Postgres) under "Store and migrations". That section did **not**
+  name the second-user consequence, so one sentence was added there: two people on
+  the live URL at once share no map, neither sees the other's locked policy or
+  audit log, and the durable half is the chain.
+
+### Could not verify, with the missing evidence
+
+Both need a shell and credentials, neither of which this phase had.
+
+- **Whether `installPolicy` has ever received a 200 from `POST /v1/policies`.**
+  The call is at `lib/privy.ts:284`, inside the branch guarded by `isPrivyLive()`
+  at `lib/privy.ts:264`. No phase of this project has ever had `PRIVY_APP_ID` and
+  `PRIVY_APP_SECRET` set, so that branch has never been entered and the response
+  shapes in `lib/schemas.ts` are still written from documentation. Missing
+  evidence: a Privy app id, an app secret, a server wallet id and a threshold-two
+  key quorum id, set in the Vercel project, plus one lock step run against them.
+- **Whether `PlanAnchor` is deployed.** It is not, and as of this phase both
+  `README.md` and `SECURITY.md` say so. Missing evidence: a funded account behind
+  `FARM_EVM_PRIVATE_KEY`, a `forge script script/Deploy.s.sol` run over
+  `https://testnet.hashio.io/api` with `--legacy`, and a
+  `contracts/script/Smoke.s.sol` run with `DEPLOYED_CONTRACT` set. Until then the
+  whole anchor write path (`anchorPlan`, `settlePlan`, `abandonPlan`) and the
+  `planOf` struct decode at `lib/anchor.ts:174` stay unproven, as the carried-forward
+  list above already records.
+
+### Handled by the farm, nothing was written here for these
+
+Quoted verbatim so the ledger can name them. All four are the submission pack and
+the video script, which this phase was told not to touch, and
+`SUBMISSION.md`, `docs/VIDEO.md` and `docs/SCREENSHOTS.md` are byte-unchanged.
+
+- **fixList rank 1, surface `submission-text`:** "SUBMISSION.md, 1-4 arası
+  alanların tamamı ve \"3. Description\" ilk paragrafı".
+- **fixList rank 2, surface `video`:** "video sahne 1 ve sahne 2 (docs/VIDEO.md
+  shot list ve seslendirme)".
+- **fixList rank 5, surface `submission-text`:** "SUBMISSION.md, her sponsor için
+  \"how you used the sponsor tools, feedback and comments\" alanı (Hedera ve Privy
+  ayrı)".
+- **Blocker 3, product judge:** "Platform formuna giden metin, kurucuya yazılmış
+  iç notlar içeriyor ve jüri bunları proje açıklaması sanıp okuyor".
+
+### One bookkeeping note on the ranking
+
+The phase brief quoted fixList ranks 1, 2, 5 and 6 verbatim and the three
+blockers. Ranks 3 and 4 were not quoted in the brief, and the closest reading is
+that they are the two blockers whose surfaces are code and documentation, which
+are the first two applied items above. Nothing was skipped for lack of a quote:
+every finding the brief carried is on this list. If the Jüri card holds ranks 3
+and 4 as separate items, Phase 7 should check them against this ledger first.
