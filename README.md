@@ -60,7 +60,9 @@ below works against the cached register and the locally compiled policy.
 6. Press **Send edited plan**. The key refuses and names the condition that
    failed and the byte offset where the payload diverged.
 7. Press **Execute the approved plan**. The untouched plan signs under the same
-   wallet and the same policy, and the policy is revoked.
+   policy. With live Privy credentials the policy is then detached from the
+   treasury wallet and revoked; with no keys nothing was installed in Privy, so
+   the audit record says the local lock closed and there was nothing to revoke.
 
 ## The problem
 
