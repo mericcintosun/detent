@@ -1,0 +1,10 @@
+/*
+ * Applied only while a visual baseline is captured (stylePath in
+ * playwright.visual.config.ts). It hides transient overlays that time out on
+ * their own schedule and would otherwise land in a clip at a random moment.
+ * Nothing that is part of a page's layout is hidden here.
+ */
+[data-slot="toast-viewport"],
+nextjs-portal {
+  visibility: hidden !important;
+}
