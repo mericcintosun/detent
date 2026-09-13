@@ -108,3 +108,9 @@ Considered and not added:
 - `shadcn` as a runtime dependency. `init` adds it for `shadcn/tailwind.css`;
   `shadcn eject` inlined the part the components use (the `data-*` state
   variants and `no-scrollbar`) into `app/globals.css` and removed the package.
+
+Added by the orchestrator after Wave 2, 13 September 2026:
+
+| Package | Version | Why |
+| --- | --- | --- |
+| `@axe-core/playwright` (dev) | 4.13.0 | The accessibility gate requires zero serious or critical axe findings; until now it ran only from throwaway scripts. `e2e/axe.spec.ts` makes it part of the suite on every route in both themes. Maintained by Deque, the axe-core authors; published 2 September 2026. |

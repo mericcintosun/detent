@@ -81,3 +81,14 @@ of them has been run against a live service.
 - Coverage thresholds sit just below today's measured baseline rather than at a
   target. `lib/privy.ts`, `lib/hedera.ts` and `lib/anchor.ts` stay low because
   their remaining branches are the live network paths.
+
+## Development dependency advisories (13 September 2026)
+
+`npm audit --omit=dev` reports 0 vulnerabilities. `npm audit` reports 6 in the
+development toolchain, all through vitest 2.1.9 (vitest, @vitest/mocker,
+@vitest/coverage-v8, vite, vite-node, esbuild): path traversal and file read in
+the Vitest UI server and the Vite dev server, neither of which the test scripts
+or CI start. The fix is vitest 5.0.0, three majors up, which needs its own
+upgrade pass (config, coverage provider, the postcss override). Not done before
+the submission deadline; do it as a separate change and rerun the coverage
+thresholds.

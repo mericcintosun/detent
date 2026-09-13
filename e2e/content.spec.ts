@@ -13,14 +13,10 @@ const ROUTES = [
 ] as const;
 
 /**
- * A stand-in for an automated axe pass. No axe-core package is a dependency in
- * this repository (see package.json), so this checks the properties axe would
- * flag as serious or critical that a plain DOM walk can verify without it:
- * exactly one h1, no skipped heading level, every image with an alt
- * attribute, every link and button with an accessible name, no duplicate id,
- * and a lang attribute on the root. Anything this cannot see (colour
- * contrast, ARIA role misuse) is covered instead by the tokens.ts contrast
- * table in 04_DESIGN_SYSTEM.md, which is asserted in tests/design-system.test.ts.
+ * Structural checks axe does not make on its own: exactly one h1, no skipped
+ * heading level, every image with an alt attribute, every link and button with
+ * an accessible name, no duplicate id, and a lang attribute on the root. The
+ * automated axe pass over the same routes, in both themes, is e2e/axe.spec.ts.
  */
 async function assertBasicAccessibility(page: Page) {
   const report = await page.evaluate(() => {
