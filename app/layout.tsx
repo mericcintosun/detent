@@ -4,9 +4,19 @@ import {
   Libre_Caslon_Text,
   Libre_Franklin,
 } from "next/font/google";
+import { OfflineBanner } from "@/components/design/offline-banner";
 import { MotionProvider } from "@/components/motion/motion-provider";
-import { AboutSecurity, Rail } from "@/components/rail";
+import {
+  AppRail,
+  CommandPaletteProvider,
+  SiteFooter,
+  SkipLink,
+  TopBar,
+  type RunModeFlags,
+} from "@/components/shell";
 import { ThemeProvider } from "@/components/theme-provider";
+import { isPrivyLive } from "@/lib/privy";
+import { ADAPTER_MODE, ATS_TOKEN_ADDRESS } from "@/lib/public-config";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -47,10 +57,11 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   /**
-   * metadataBase is what turns app/opengraph-image.png into an absolute og:image
-   * URL in view-source, which is the only form link previews accept. The raster
-   * is the convention file, so there is no openGraph.images field and no
-   * opengraph-image.tsx.
+   * metadataBase turns the URLs the metadata routes generate
+   * (app/opengraph-image.tsx, app/twitter-image.tsx, the icons) into absolute
+   * og:image and twitter:image URLs in view-source, which is the only form link
+   * previews accept. The routes supply the images, so there is no
+   * openGraph.images field here.
    */
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://detent-app.vercel.app",
@@ -77,36 +88,51 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  /* The run mode is read here, on the server, and only two booleans cross into
+     the shell. lib/privy.ts reads PRIVY_APP_SECRET and must never reach a client
+     graph; the live register condition mirrors useLiveRegister() in
+     lib/adapter.ts without importing the adapter. */
+  const runMode: RunModeFlags = {
+    registerLive: ADAPTER_MODE === "real" && Boolean(ATS_TOKEN_ADDRESS),
+    signerLive: isPrivyLive(),
+  };
+
   return (
     // suppressHydrationWarning: next-themes adds the theme class and
     // color-scheme to <html> before React hydrates. It applies to this element's
     // own attributes only, never to its children.
     <html
       lang="en"
-      className={cn(display.variable, body.variable, mono.variable)}
+      className={cn(
+        display.variable,
+        body.variable,
+        mono.variable,
+        // An anchor jump lands below the sticky top bar instead of under it.
+        "scroll-pt-14 lg:scroll-pt-0",
+      )}
       suppressHydrationWarning
     >
-      <body className="min-h-screen antialiased">
+      <body className="min-h-dvh antialiased">
         <ThemeProvider>
           <MotionProvider>
-            <div className="lg:flex lg:items-start">
-              <Rail />
-              <div className="min-w-0 flex-1">
-                <main className="px-5 py-8 sm:px-6 lg:px-12 lg:py-14">
-                  {children}
-                </main>
-                {/* The about and security rows the rail used to spend the phone's
-                first screen on. Rendered once here so they reach / and
-                /record/[planHash] alike; the rail shows the same block again
-                from lg up, where the column has the height for it. */}
-                <section
-                  aria-label="About and security"
-                  className="border-t border-border px-5 py-8 sm:px-6 lg:hidden"
-                >
-                  <AboutSecurity />
-                </section>
+            <CommandPaletteProvider>
+              <SkipLink />
+              <div className="lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
+                <AppRail {...runMode} />
+                <div className="flex min-h-dvh min-w-0 flex-col">
+                  <TopBar {...runMode} />
+                  <main
+                    id="main"
+                    tabIndex={-1}
+                    className="w-full flex-1 px-gutter py-8 outline-none lg:py-12"
+                  >
+                    <div className="mx-auto w-full max-w-page">{children}</div>
+                  </main>
+                  <SiteFooter />
+                </div>
               </div>
-            </div>
+              <OfflineBanner className="fixed inset-x-4 bottom-4 z-(--z-overlay) shadow-xl lg:left-auto lg:w-96" />
+            </CommandPaletteProvider>
           </MotionProvider>
         </ThemeProvider>
       </body>

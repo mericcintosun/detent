@@ -76,3 +76,87 @@ test.describe("record and not found routes", () => {
     ).toBeVisible();
   });
 });
+
+test.describe("app shell", () => {
+  // These run on the not found page, where the 404 document is the expected
+  // answer, so that one console message is allowed and nothing else.
+  test.use({
+    allowedConsoleErrors: [
+      /^Failed to load resource: the server responded with a status of 404 \(Not Found\)$/,
+    ],
+  });
+
+  test("the skip link is the first tab stop and moves focus to main", async ({
+    page,
+  }) => {
+    await page.goto("/no-such-page");
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "Skip to content" });
+    await expect(skip).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("main#main")).toBeFocused();
+  });
+
+  test("the command palette refuses a malformed plan hash and opens a valid one", async ({
+    page,
+  }) => {
+    await page.goto("/no-such-page");
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    // The shortcut listener attaches on hydration, which can trail the load
+    // event under four parallel workers, so the key is pressed until it lands.
+    await expect(async () => {
+      // Never press while it is open: the shortcut toggles, so a slow chunk
+      // would otherwise close the palette the previous press opened.
+      if (!(await palette.isVisible())) await page.keyboard.press("Control+k");
+      await expect(palette).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 15_000 });
+    await expect(palette.getByRole("combobox")).toBeFocused();
+
+    await palette
+      .getByRole("option", { name: "Open a record by plan hash" })
+      .click();
+    const field = palette.getByLabel("Plan hash");
+    await field.fill("0x1234");
+    await field.press("Enter");
+    await expect(palette.getByRole("alert")).toContainText(
+      "64 hexadecimal characters after 0x; this one has 4",
+    );
+    await expect(field).toHaveAttribute("aria-invalid", "true");
+
+    const planHash = `0x${"ab".repeat(32)}`;
+    await field.fill(planHash);
+    await field.press("Enter");
+    await expect(page).toHaveURL(new RegExp(`/record/${planHash}$`));
+    await expect(
+      page.getByRole("heading", { level: 1, name: "On chain plan record" }),
+    ).toBeVisible();
+    await expect(palette).toBeHidden();
+  });
+
+  test("the primary navigation is in the rail on desktop and in a sheet on a phone", async ({
+    page,
+  }) => {
+    await page.goto("/no-such-page");
+    const width = page.viewportSize()?.width ?? 0;
+    if (width >= 1024) {
+      const primary = page.getByRole("navigation", { name: "Primary" });
+      await expect(
+        primary.getByRole("link", { name: "Console" }),
+      ).toBeVisible();
+      await expect(
+        primary.getByRole("link", { name: "Console" }),
+      ).not.toHaveAttribute("aria-current", "page");
+      return;
+    }
+    const menu = page.getByRole("button", { name: "Open the menu" });
+    await menu.click();
+    const sheet = page.getByRole("dialog", { name: "Menu" });
+    await expect(sheet).toBeVisible();
+    await expect(
+      sheet.getByRole("navigation", { name: "Primary" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    await expect(menu).toBeFocused();
+  });
+});
