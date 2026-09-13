@@ -5,6 +5,7 @@ import { PageHeader, StatusPill } from "@/components/design";
 import { Reveal } from "@/components/motion";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { couponWindow } from "@/lib/data";
+import { cn } from "@/lib/utils";
 import type { ConsoleController } from "./use-console";
 
 /**
@@ -42,10 +43,10 @@ export function ConsoleHero({
           <Link
             href="/how-it-works"
             prefetch={false}
-            className={buttonVariants({
-              variant: "outline",
-              className: "border-input",
-            })}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "border-input",
+            )}
           >
             How it works
           </Link>

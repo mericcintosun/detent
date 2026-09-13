@@ -188,7 +188,7 @@ export function PlanSection({ c }: { c: ConsoleController }) {
                         <TableHead className="detent-label text-right">
                           {c.kind === "coupon" ? "Coupon due" : "Units moved"}
                         </TableHead>
-                        <TableHead className="detent-label sticky right-0 border-l border-border bg-card pr-4 text-right">
+                        <TableHead className="detent-label sticky right-0 bg-card pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border">
                           Row
                         </TableHead>
                       </TableRow>
@@ -253,7 +253,7 @@ export function PlanSection({ c }: { c: ConsoleController }) {
                                 control is on screen at any width. */}
                             <TableCell
                               className={cn(
-                                "sticky right-0 border-l border-border py-2 pr-4 text-right",
+                                "sticky right-0 py-2 pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border",
                                 row.held ? "bg-muted" : "bg-card",
                               )}
                             >
