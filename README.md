@@ -17,7 +17,7 @@ which is DEMO step 2.** Everything after that happens on the same page.
 | Artefact | Value |
 | --- | --- |
 | Live app | https://detent-app.vercel.app |
-| Demo video | [demo-video.mp4](https://detent-app.vercel.app/demo-video.mp4), 2:48, recorded from the redesigned console with a synthetic voice, served from the site as a plain mp4 |
+| Demo video | [YouTube, unlisted](https://www.youtube.com/watch?v=0CI1cZj1N_I), 2:48, recorded from the redesigned console with a synthetic voice. The same file is served from the site as [demo-video.mp4](https://detent-app.vercel.app/demo-video.mp4). |
 | ATS equity token, Hedera testnet 296 | Not issued for this submission, so there is no token address to quote. The reader is `lib/hedera.ts`, and with `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` absent the console serves the cached register from `fixtures/register.seed.json` and says so on screen. |
 | `PlanAnchor`, Hedera testnet 296 | [`0x1a393277908834c39D2611Ce9A151474B8Dfea0d`](https://hashscan.io/testnet/contract/0x1a393277908834c39D2611Ce9A151474B8Dfea0d) (`0.0.10522751`), deployed 13 September 2026 in [`0x503314b0`](https://hashscan.io/testnet/transaction/0x503314b069b6dd30f22be18eec345d8d3453397f14f429e2eb599cd09ba36bac). Smoke run: anchor [`0xacf34713`](https://hashscan.io/testnet/transaction/0xacf34713fe8d913b3429cfa0843a7d17c1159d357d239e6d147d1cb31b8d9581), settle [`0x5cadfa24`](https://hashscan.io/testnet/transaction/0x5cadfa24797a125fd85ea0f459e76c9a6c7e333dcd085feccdeb4abd632fd4e8). The live app anchors the demo coupon plan when it is locked, for example [`0xcc8f05ac`](https://hashscan.io/testnet/transaction/0xcc8f05ac92200041d7a3aa80c374c2949b84ef45c39dd8daa4cd8fec45a0731e). |
 
