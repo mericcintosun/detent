@@ -3,6 +3,7 @@
 // which two-step timeline. Pure functions, no React and no network, so every
 // branch the page can take is covered here rather than only by a screenshot.
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildTimeline,
@@ -140,5 +141,26 @@ describe("buildTimeline", () => {
 describe("PLAN_ANCHOR_ENV_HINT", () => {
   it("names the variable lib/public-config.ts actually reads", () => {
     expect(PLAN_ANCHOR_ENV_HINT).toBe("NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS");
+  });
+});
+
+describe("the back link on the record page", () => {
+  // e2e/routes.spec.ts asserts this exact link: name "Back to the audit
+  // record", pointing at the console's ledger section. "Back to the console"
+  // is app/not-found.tsx's link, not this route's, so this page must never
+  // carry that text. A source-text check is cheap and catches a rename before
+  // the e2e suite has to.
+  const source = readFileSync(
+    new URL("../app/record/[planHash]/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it('links to "/#ledger" and names it "Back to the audit record"', () => {
+    expect(source).toContain('href="/#ledger"');
+    expect(source).toContain("Back to the audit record");
+  });
+
+  it('never carries the not-found page\'s "Back to the console" label', () => {
+    expect(source).not.toContain("Back to the console");
   });
 });

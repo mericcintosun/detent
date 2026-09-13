@@ -122,8 +122,16 @@ export default async function PlanRecordPage({
       </Section>
 
       <div className="flex flex-wrap items-center gap-4 border-t border-border pt-6">
-        <Link href="/" className={buttonVariants({ variant: "outline" })}>
-          Back to the console
+        {/* The generic console link belongs to the not-found page
+            (app/not-found.tsx, app-shell). This route's own back link keeps its
+            established name and destination: the console opened this record in
+            a tab of its own, and the audit ledger section is where that
+            session's approvals, lock and audit record still live. */}
+        <Link
+          href="/#ledger"
+          className={buttonVariants({ variant: "outline" })}
+        >
+          Back to the audit record
         </Link>
       </div>
     </div>
