@@ -89,12 +89,12 @@ text (it is a live region and its words must not be delayed).
 
 ## 5. Measured cost
 
-See section 6 of `PERF.md` for the Lighthouse runs. Same origin JS per route,
-gzip level 9, noModule polyfill excluded, before is `refactor/main` at `410963e`:
+The Lighthouse runs are in the "After Motion" section of `PERF.md`. Same origin JS per route,
+gzip level 9, noModule polyfill excluded, before is `refactor/main` at `410963e`, after is the branch with `refactor/main` at `dae3ef0` merged in:
 
 | Route | Before | After |
 | --- | --- | --- |
-| `/` | 280.3 kB | 254.9 kB |
+| `/` | 280.3 kB | 255.0 kB |
 | `/how-it-works` | 217.8 kB | 201.2 kB |
 | `/record/0xab…` | 216.9 kB | 200.4 kB |
 | `/nope` | 174.5 kB | 186.2 kB |
