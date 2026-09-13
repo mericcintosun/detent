@@ -105,7 +105,8 @@ the `react-hooks/refs` disable added in Wave 0 must be removed by fixing
 
 `/record/[planHash]` keeps `notFound()` for invalid hashes via `planHashSchema`
 (HTTP 404 asserted by `e2e/routes.spec.ts`), `revalidate = 30`, the h1 "On chain
-plan record", the "Back to the console" link, and `readPlanRecord` from
+plan record", the "Back to the audit record" link to `/#ledger` ("Back to the
+console" belongs to the not-found page), and `readPlanRecord` from
 `@/lib/anchor` as its only data source. States: anchored, settled, abandoned,
 unknown (the `RecordEmptyState` path), anchor not configured, read failed.
 Hashes and addresses through `HashText`/`AddressText`, explorer links through
