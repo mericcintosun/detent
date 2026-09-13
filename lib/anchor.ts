@@ -202,7 +202,7 @@ export async function readPlanRecord(planHash: Hex): Promise<PlanRecord> {
           ? "The plan was anchored before the policy opened and closed as settled once the payout landed."
           : state === "abandoned"
             ? "The plan was anchored and then closed as abandoned, so the refused run left a complete record."
-            : "The plan is anchored and still open. It closes when the treasury key either signs or refuses.",
+            : "The plan is anchored and still open. It settles when the treasury key signs a real transaction for it, and it is abandoned if the lock expires before anything is sent. A refused edit leaves it open.",
       token: plan.token,
       selector: plan.selector,
       anchoredBy: plan.anchoredBy,
