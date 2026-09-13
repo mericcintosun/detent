@@ -104,8 +104,11 @@ export default async function PlanRecordPage({
         />
       </Reveal>
 
+      {/* The record is short: section padding at the console's rhythm left
+          a screen of empty ground between two paragraphs at 1440px. */}
       <Section
         id="record"
+        className="py-10"
         heading="What the contract holds"
         description="One row in the PlanAnchor register, read with no operator key."
       >
@@ -117,7 +120,11 @@ export default async function PlanRecordPage({
         {view.hasChainData ? <RecordChainDetail record={record} /> : null}
       </Section>
 
-      <Section id="proof" heading="What this record proves">
+      <Section
+        id="proof"
+        heading="What this record proves"
+        className="pt-0 pb-10"
+      >
         <WhatThisProves />
       </Section>
 

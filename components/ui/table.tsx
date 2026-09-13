@@ -3,13 +3,27 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+export interface TableProps extends React.ComponentProps<"table"> {
+  /**
+   * Props for the scroll container: a ref to measure overflow, and `role`,
+   * `aria-label` or `aria-labelledby` when the scroller is the named region.
+   * `className` merges with the container's own classes.
+   */
+  containerProps?: React.ComponentProps<"div">;
+}
+
+function Table({ className, containerProps, ...props }: TableProps) {
+  const { className: containerClassName, ...container } = containerProps ?? {};
   return (
     // Focusable so a keyboard reader can scroll a wide table sideways.
     <div
       data-slot="table-container"
       tabIndex={0}
-      className="relative w-full overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      {...container}
+      className={cn(
+        "relative w-full overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        containerClassName,
+      )}
     >
       <table
         data-slot="table"

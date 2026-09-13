@@ -1,6 +1,6 @@
 // The favicon. LOGO_POLICY in IDENTITY.md is raster-only, so this route never
-// draws a mark: it reads the same public/brand/logo.png the rail's home link
-// already uses (components/rail.tsx) and centres it on the bone ground the
+// draws a mark: it reads the same public/brand/logo.png the shell's home link
+// already uses (components/shell/brand-mark.tsx) and centres it on the bone ground the
 // mark was made for. Replaces the hand-drawn app/icon.svg, which duplicated
 // the mark as a second, vector, drawing of it.
 

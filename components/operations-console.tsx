@@ -41,7 +41,7 @@ export function OperationsConsole({
   return (
     <Toaster>
       <div className="mx-auto flex w-full max-w-content flex-col gap-10">
-        <ConsoleHero c={c} signerLive={signerLive} />
+        <ConsoleHero c={c} />
         <div className="flex flex-col">
           <RegisterSection c={c} readAt={readAt} staleAfterMs={staleAfterMs} />
           <PlanSection c={c} />

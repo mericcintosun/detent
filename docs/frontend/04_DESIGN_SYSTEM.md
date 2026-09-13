@@ -14,7 +14,7 @@ with `DETENT_DESIGN_SYSTEM=1`, and it is never indexed.
 | Theme | next-themes 0.4.6, class on `<html>`, system default | `components/theme-provider.tsx`, `components/theme-toggle.tsx` |
 | Motion | motion 13.2.0 from `motion/react`, `LazyMotion` plus `m.*` | `lib/motion.ts`, `components/motion/**` |
 | Icons | Phosphor 2.1.10, the Lyra default | `@phosphor-icons/react` in client files, `@phosphor-icons/react/ssr` in server files |
-| Class merging | `cn()` on clsx and tailwind-merge | `lib/utils.ts` |
+| Class merging | `cn()` on clsx and tailwind-merge, extended with the Detent type scale, measures, spacing and easings | `lib/utils.ts` |
 
 Why Lyra: the product is a dense, ruled operator console and Lyra is the sharp,
 technical shadcn style (square corners, compact controls, hairline rings). The
@@ -54,7 +54,8 @@ lighter in dark mode, so elevation reads without a shadow.
 Status tokens have three roles. The bare token (`--success`) is safe as text on
 background, card, popover and its own muted surface. `-foreground` is text on a
 solid fill of the token. `-muted` is the tinted surface for pills and callouts.
-`--warning` is a deepened version of the brand warn `#bf8477`, which measures 2.9:1
+Outline buttons draw their rule in `--input`, not `--border`, so the control
+boundary clears 3:1. `--warning` is a deepened version of the brand warn `#bf8477`, which measures 2.9:1
 as text and survives only as a seed. `--info` is a new archival ink blue, and
 `--mirror` is a deep gold for the keyless local mirror mode. `--border` is
 decorative and is exempt from 1.4.11; `--input` and `--ring` clear 3:1.
@@ -208,8 +209,8 @@ Fluid scale. Each step sets size, line height and tracking together.
 | --- | --- | --- | --- | --- |
 | `text-display` | clamp(2.5rem, 1.8rem + 3.5vw, 4.5rem) | 1.02 | -0.025em | Marketing moments only |
 | `text-headline` | clamp(2rem, 1.6rem + 2vw, 3.25rem) | 1.08 | -0.02em | The page h1 |
-| `text-title` | clamp(1.625rem, 1.4rem + 1.1vw, 2.25rem) | 1.15 | -0.015em | Section h2, stat figures |
-| `text-heading` | clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem) | 1.3 | -0.005em | h3, card and dialog titles |
+| `text-title` | clamp(1.625rem, 1.4rem + 1.1vw, 2.25rem) | 1.15 | -0.015em | Section h2 |
+| `text-heading` | clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem) | 1.3 | -0.005em | h3, card and dialog titles, stat figures |
 | `text-lead` | clamp(1.0625rem, 1rem + 0.35vw, 1.25rem) | 1.55 | 0 | The promise under an h1 |
 | `text-body` | 1rem | 1.65 | 0 | Running text |
 | `text-body-sm` | 0.875rem | 1.55 | 0 | Dense text, descriptions |
@@ -329,7 +330,7 @@ bundle cost.
 | Import | Use for |
 | --- | --- |
 | `Button` from `@/components/ui/button` | Actions. Variants `default`, `secondary`, `outline`, `ghost`, `destructive` (the refusal, the loudest control), `link`. Sizes `xs`, `sm`, `default`, `lg`, `icon`, `icon-xs`, `icon-sm`, `icon-lg`. There is no `asChild`: use `render` for Base UI triggers |
-| `buttonVariants` from `@/components/ui/button-variants` | Button styling on `<a>` and `<Link>`; callable from server components |
+| `buttonVariants` from `@/components/ui/button-variants` | Button styling on `<a>` and `<Link>`; callable from server components. Takes `className` and merges it through `cn`, so an override replaces the variant class |
 | `Badge`, `badgeVariants` (`@/components/ui/badge-variants`) | Neutral tags. For run mode, hold and receipt use `StatusPill` |
 | `Card` and parts | Hairline panels. `size="sm"` for dense groups |
 | `Input`, `Textarea`, `Label`, `InputGroup` | Fields, 44px tall |
@@ -340,7 +341,7 @@ bundle cost.
 | `DropdownMenu` | Secondary actions on a row or record |
 | `Command` (with `CommandDialog`) | The Cmd K palette |
 | `Tabs` | Switching views of the same object |
-| `Table` | Tabular data. The container scrolls sideways and is focusable |
+| `Table` | Tabular data. The container scrolls sideways and is focusable; `containerProps` passes a ref, `role` and `aria-label` to it when the scroller is the named region |
 | `Skeleton` | Only through `LoadingState`, unless a layout needs a custom shape |
 | `Alert` | A message attached to a control or form |
 | `Progress` | Signatures collected, a known fraction |
@@ -360,8 +361,8 @@ mounts it around the subtree that first needs a toast.
 
 | Component | Use for |
 | --- | --- |
-| `PageHeader` | The one h1 of a page, its eyebrow (status line), promise, actions and meta |
-| `Section` | A labelled region with an anchor id; the heading gets `${id}-heading` |
+| `PageHeader` | The one h1 of a page, its eyebrow (status line), promise, actions and meta. Actions lead the row under the promise, on the title's left edge |
+| `Section` | A labelled region with an anchor id; the heading gets `${id}-heading`. Actions sit on the heading's row. Pass a tighter `py-*` for a short page; `cn` replaces `py-section` |
 | `StatGroup`, `Stat` | Headline figures in a hairline grid, with tone |
 | `KeyValueList`, `KeyValue` (alias `DataRow`) | Ledger rows of term and value; `mono` for hashes |
 | `HashText` | A truncated hash with the full value in a tooltip, in the accessible name, and a copy control |
@@ -393,6 +394,8 @@ mounts it around the subtree that first needs a toast.
   from `@/components/ui/button-variants`; labels and roles are unchanged.
 - `buttonVariants` and `badgeVariants` moved out of the client component files.
 - `Badge` renders a `<span>`, not a `<div>`.
+- `cn()` knows the custom utilities: `text-caption text-success` keeps both, so
+  no wrapper span is needed to hold a size next to a tone colour.
 - `Card` padding comes from `--card-spacing` (1.5rem, 1rem at `size="sm"`).
 - A global `* { border-color: var(--border) }` is in the base layer, so a bare
   `border-t` draws the hairline.

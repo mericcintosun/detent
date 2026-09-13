@@ -6,7 +6,11 @@ export interface PageHeaderProps {
   /** A detent-label line above the title, such as the run mode status line. */
   eyebrow?: React.ReactNode;
   description?: React.ReactNode;
-  /** Buttons or links aligned to the end of the title row from md up. */
+  /**
+   * Buttons or links. They lead the row under the description, on the same
+   * left edge as the title, so no width and no entrance wipe can clip them at
+   * the far end of the column.
+   */
   actions?: React.ReactNode;
   /** Badges or pills under the description. */
   meta?: React.ReactNode;
@@ -31,25 +35,23 @@ export function PageHeader({
       )}
     >
       {eyebrow ? <p className="detent-label">{eyebrow}</p> : null}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="flex min-w-0 flex-col gap-3">
-          <h1 className="font-display text-headline text-foreground">
-            {title}
-          </h1>
-          {description ? (
-            <p className="max-w-measure-md text-lead text-muted-foreground">
-              {description}
-            </p>
-          ) : null}
-        </div>
-        {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {actions}
-          </div>
+      <div className="flex min-w-0 flex-col gap-3">
+        <h1 className="font-display text-headline text-foreground">{title}</h1>
+        {description ? (
+          <p className="max-w-measure-md text-lead text-muted-foreground">
+            {description}
+          </p>
         ) : null}
       </div>
-      {meta ? (
-        <div className="flex flex-wrap items-center gap-2">{meta}</div>
+      {actions || meta ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-3">{actions}</div>
+          ) : null}
+          {meta ? (
+            <div className="flex flex-wrap items-center gap-2">{meta}</div>
+          ) : null}
+        </div>
       ) : null}
     </header>
   );
