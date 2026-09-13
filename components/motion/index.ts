@@ -1,4 +1,3 @@
-export { MotionProvider } from "./motion-provider";
 export { Reveal, type RevealProps } from "./reveal";
 export {
   Stagger,
