@@ -12,11 +12,14 @@ import { CopyButton } from "@/components/design";
 
 export function PlanHash({ value }: { value: string }) {
   return (
-    <span className="inline-flex max-w-full flex-wrap items-center gap-1">
-      <span className="amount min-w-0 break-all font-mono text-caption text-foreground">
+    // No flex-wrap: at phone widths the 66 character hash breaks inside its own
+    // column and the copy control stays beside its first line instead of
+    // dropping onto a row of its own.
+    <span className="flex max-w-full items-start gap-1">
+      <span className="amount min-w-0 flex-1 break-all font-mono text-caption text-foreground">
         {value}
       </span>
-      <CopyButton value={value} label="plan hash" />
+      <CopyButton value={value} label="plan hash" className="shrink-0" />
     </span>
   );
 }
