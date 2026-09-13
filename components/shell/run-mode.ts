@@ -8,7 +8,7 @@ import type { RunMode } from "@/components/design/status-pill";
 export interface RunModeFlags {
   /** ADAPTER_MODE is real and a token address is configured. */
   registerLive: boolean;
-  /** isPrivyLive(): real mode plus Privy credentials. */
+  /** isPrivyLive(): both Privy credentials, whatever the register mode. */
   signerLive: boolean;
 }
 

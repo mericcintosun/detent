@@ -38,7 +38,7 @@ no address and no transaction hash is quoted anywhere.
 | --- | --- | --- |
 | The plan, the quorum, the compiled policy, the refusal with its byte offset, the audit record | **Runs today**, on the live URL and on a fresh clone with an empty `.env.local`. The policy is compiled and evaluated by `lib/privy.ts` locally. | Nothing. `npm install && npm run dev`. |
 | The register read: `balanceOfByPartition` and `canTransferByPartition` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio, checks each credit from the configured treasury, and falls back to the cached register on any failure or missing configuration. A dry run against a mock ATS token rendered the twelve holders with the three held rows and their reasons. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS`, optionally `NEXT_PUBLIC_ATS_PARTITION`, after issuing the token through the ATS factory. |
-| The signature: policy installed on a Privy server wallet under a key quorum of two, then revoked | **Written, not exercised against live credentials.** Without them the same evaluator answers locally, which is why the demo produces a real refusal with no keys. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID`. |
+| The signature: policy installed on a Privy server wallet under a key quorum of two, then revoked | **Runs live on Hedera testnet.** The treasury key is a Privy server wallet owned by a two of two key quorum. The live walk installed and bound the policy, had Privy sign and broadcast the approved coupon as [`0x0ea98410…`](https://hashscan.io/testnet/transaction/0x0ea98410bcf52005df36892322bcb204f63a7fffb4045d1c518e1ff2f6d94f2f), settled PlanAnchor in [`0xaf2aaf4f…`](https://hashscan.io/testnet/transaction/0xaf2aaf4f7792d16ccaf12e10d1d86a3b22d961236fd5eacbbe274b1ac492a470), then detached and revoked the policy. An edited amount is refused by the server's exact calldata check, because Privy's conditions cannot compare the coupon's arrays. With no credentials the same evaluator answers locally. | `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_TREASURY_WALLET_ADDRESS`, `PRIVY_KEY_QUORUM_ID`, `PRIVY_AUTHORIZATION_KEYS`, all set on the live deployment. |
 | The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Runs today on Hedera testnet.** `PlanAnchor` is deployed and the live app writes to it: the lock step anchors the plan hash before the policy opens, and `/record/[planHash]` reads it back with no key. On the keyless path the send produces a synthetic receipt, which is not a transaction, so the row stays anchored rather than settled; a refused edit leaves it anchored too, and an unspent lock abandons it on expiry. | `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`, both set on the live deployment. See "On chain proof". |
 
 The demo video and the live URL both run the first row, and the console prints
@@ -319,18 +319,19 @@ npm run dev                  # http://localhost:3000
 With an empty `.env.local` the console runs on the cached register in
 `lib/data.ts` and evaluates the compiled policy locally. That is enough to click
 through the entire flow, including the refusal. The recorded demo runs on exactly
-that path, which is why the video and the live URL both read
-`Cached register · Treasury key, policy evaluated locally`.
+that path, which is why the video reads
+`Cached register · Treasury key, policy evaluated locally`. The live URL now has
+Privy credentials, so it reads `Cached register · Privy server wallet`.
 
 ### Which keys flip the status line
 
 The first line on the fold names the mode, and these are the only keys that
 change it. Every name below already has a line in `.env.example`; none is new.
 
-**The treasury key half.** `isPrivyLive()` in `lib/privy.ts` is true only when
-`NEXT_PUBLIC_ADAPTER_MODE=real` and both `PRIVY_APP_ID` and `PRIVY_APP_SECRET`
-are set. With those three the line reads `Privy server wallet`; without any one of
-them it reads `Treasury key, policy evaluated locally`. Two more are needed for
+**The treasury key half.** `isPrivyLive()` in `lib/privy.ts` is true when both
+`PRIVY_APP_ID` and `PRIVY_APP_SECRET` are set, whatever `NEXT_PUBLIC_ADAPTER_MODE`
+says. With both the line reads `Privy server wallet`; without either it reads
+`Treasury key, policy evaluated locally`. Two more are needed for
 the install itself to succeed rather than merely be attempted:
 `PRIVY_TREASURY_WALLET_ID`, the server wallet the policy is installed against,
 and `PRIVY_KEY_QUORUM_ID`, the threshold-two quorum that owns it. Without the

@@ -231,6 +231,29 @@ describe("the documented request shapes", () => {
     ]);
   });
 
+  it("reads the signer as live from its own credentials, whatever the register mode", async () => {
+    const { privy } = await loadLive({ NEXT_PUBLIC_ADAPTER_MODE: "fake" });
+    expect(privy.isPrivyLive()).toBe(true);
+    const keyless = await loadLive({ PRIVY_APP_SECRET: "" });
+    expect(keyless.privy.isPrivyLive()).toBe(false);
+  });
+
+  it("sends caip2 on eth_signTransaction never, because the live API refuses it there", async () => {
+    const { privy } = await loadLive();
+    const request = privy.walletRpcRequest(WALLET, "eth_signTransaction", 296, {
+      to: plan.target,
+      data: plan.calldata,
+      chain_id: 296,
+    });
+    expect(JSON.parse(request.body ?? "{}")).toEqual({
+      method: "eth_signTransaction",
+      chain_type: "ethereum",
+      params: {
+        transaction: { to: plan.target, data: plan.calldata, chain_id: 296 },
+      },
+    });
+  });
+
   it("sends method, caip2, chain_type and params.transaction on the rpc", async () => {
     const { privy } = await loadLive();
     const request = privy.walletRpcRequest(WALLET, "eth_sendTransaction", 296, {
@@ -539,6 +562,19 @@ describe("the authorization signature", () => {
     expect(payload.toString()).toBe(
       '{"body":{"method":"personal_sign","params":{"encoding":"utf-8","message":"Hello from Privy!"}},"headers":{"privy-app-id":"<insert-app-id>"},"method":"POST","url":"https://api.privy.io/v1/wallets/<insert-wallet-id>/rpc","version":1}',
     );
+    // A request with no body is signed with body "", which is what the live API
+    // accepts for the policy DELETE (omitted, {} and null all answer 401).
+    expect(
+      privy
+        .signaturePayload({
+          method: "DELETE",
+          url: "https://api.privy.io/v1/policies/pol",
+          headers: { "privy-app-id": "app" },
+        })
+        .toString(),
+    ).toBe(
+      '{"body":"","headers":{"privy-app-id":"app"},"method":"DELETE","url":"https://api.privy.io/v1/policies/pol","version":1}',
+    );
     expect(privy.canonicalJson({ b: [1, { d: 2, c: null }], a: 1.5 })).toBe(
       '{"a":1.5,"b":[1,{"c":null,"d":2}]}',
     );
@@ -603,6 +639,13 @@ describe("the authorization signature", () => {
       `PATCH /v1/wallets/${WALLET}`,
       `DELETE /v1/policies/${POLICY_ID}`,
     ]);
+
+    // The signed DELETE carries no body and so no Content-Type, which is the
+    // pairing the live API accepts with body "" in the signed payload.
+    const revoke = recorded[5];
+    expect(revoke.method).toBe("DELETE");
+    expect(revoke.headers["Content-Type"]).toBeUndefined();
+    expect(recorded[2].headers["Content-Type"]).toBe("application/json");
 
     const rpc = recorded[3];
     const publicKey = createPublicKey({

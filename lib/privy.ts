@@ -45,7 +45,6 @@ import {
   type Hex,
 } from "viem";
 import {
-  ADAPTER_MODE,
   LOG_PREFIX,
   PRIVY_API_URL,
   PRIVY_APP_ID,
@@ -97,13 +96,15 @@ export type {
 
 const WALLET_ID = PRIVY_TREASURY_WALLET_ID ?? treasury.walletId;
 
-/** The live Privy path needs the mode and both credentials. Nothing else. */
+/**
+ * The live Privy path needs both credentials. Nothing else. It does not read
+ * NEXT_PUBLIC_ADAPTER_MODE: that switch is the register half (a live ATS read
+ * or the cached register), and the treasury key half turns on with its own
+ * credentials, so a deployment with Privy keys and no ATS token signs live
+ * against the cached register and the status line says both.
+ */
 export function isPrivyLive(): boolean {
-  return (
-    ADAPTER_MODE === "real" &&
-    Boolean(PRIVY_APP_ID) &&
-    Boolean(PRIVY_APP_SECRET)
-  );
+  return Boolean(PRIVY_APP_ID) && Boolean(PRIVY_APP_SECRET);
 }
 
 /* --- Authorization signatures ---------------------------------------------- */
@@ -137,14 +138,22 @@ export interface SignatureInput {
   headers: Record<string, string>;
 }
 
-/** The exact bytes Privy expects to be signed, per the direct implementation guide. */
+/**
+ * The exact bytes Privy expects to be signed, per the direct implementation guide.
+ * A request with no body (the policy DELETE) is signed with `body` set to the
+ * empty string, and requestHeaders sends it without a Content-Type. Verified
+ * against the live API: that DELETE answers 200 signed over `""` and 401 signed
+ * with `body` omitted, `{}` or `null`. Sent with `Content-Type: application/json`
+ * instead, Privy reads the empty body as `{}`, so the signed `""` no longer
+ * matches and the same call answers 401.
+ */
 export function signaturePayload(input: SignatureInput): Buffer {
   return Buffer.from(
     canonicalJson({
       version: 1,
       method: input.method,
       url: input.url,
-      body: input.body,
+      body: input.body === undefined ? "" : input.body,
       headers: input.headers,
     }),
   );
@@ -223,7 +232,9 @@ function requestHeaders(call: PrivyCall): Record<string, string> {
       : undefined;
   return {
     Authorization: `Basic ${basic}`,
-    "Content-Type": "application/json",
+    // Only on a request that has a body: see signaturePayload for why a
+    // body-less signed call must not claim a JSON body.
+    ...(call.body === undefined ? {} : { "Content-Type": "application/json" }),
     ...privyHeaders,
     ...(signature ? { "privy-authorization-signature": signature } : {}),
   };
@@ -632,7 +643,12 @@ export function policyRevokeRequest(policyId: string): PrivyRequest {
   return { path: `/v1/policies/${policyId}`, method: "DELETE" };
 }
 
-/** POST /v1/wallets/{wallet_id}/rpc, with the chain_type the reference lists. */
+/**
+ * POST /v1/wallets/{wallet_id}/rpc, with the chain_type the reference lists.
+ * `caip2` goes on eth_sendTransaction only: the eth_signTransaction reference has
+ * no such field, and the live API refuses it there with 400 "Unrecognized key(s)
+ * in object: 'caip2'". The chain travels in `params.transaction.chain_id`.
+ */
 export function walletRpcRequest(
   walletId: string,
   method: "eth_sendTransaction" | "eth_signTransaction",
@@ -644,7 +660,7 @@ export function walletRpcRequest(
     method: "POST",
     body: JSON.stringify({
       method,
-      caip2: `eip155:${chainId}`,
+      ...(method === "eth_sendTransaction" ? { caip2: `eip155:${chainId}` } : {}),
       chain_type: "ethereum",
       params: { transaction },
     }),

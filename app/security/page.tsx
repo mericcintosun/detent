@@ -129,17 +129,18 @@ export default function SecurityPage() {
       <Section
         id="not-verified"
         heading="Not verified live"
-        description="Stated exactly as README.md and SECURITY.md state it: written and tested, not run against a live service."
+        description="Stated exactly as README.md and SECURITY.md state it: what has run against a live service and what has not."
       >
         <Callout
           tone="warning"
-          title="No live credentials exist in this environment"
+          title="The Privy signer runs live; the coupon amounts are held by the server"
         >
-          Every Privy call is covered by offline tests of its exact request
-          shape and by a dry run against a local mock that enforces the
-          published request shapes, the owner signature and idempotency. Neither
-          is a run against the real Privy engine, so the condition value formats
-          it expects have not been confirmed live.
+          The treasury key is a Privy server wallet owned by a two of two key
+          quorum, and the lock, the signed send, the detach and the revoke have
+          run against the real Privy API on Hedera testnet. Privy&apos;s
+          conditions cannot compare the coupon&apos;s holder and amount arrays,
+          so an edited amount is refused by this server&apos;s exact calldata
+          check, before the wallet is asked, and the console labels it that way.
         </Callout>
         <ul className="mt-6 flex flex-col gap-4 text-body-sm leading-relaxed text-muted-foreground">
           <li>
@@ -151,10 +152,11 @@ export default function SecurityPage() {
             labels it as cached.
           </li>
           <li>
-            <strong className="text-foreground">The signature.</strong> With no
-            Privy credentials set, the same policy evaluator answers locally,
-            which is why the demo produces a real refusal with no keys and no
-            broadcast.
+            <strong className="text-foreground">The signature.</strong> Live on
+            the deployed site: the approved plan is signed and broadcast by the
+            Privy wallet under the attached policy. A fresh clone with no Privy
+            credentials still runs the same policy evaluator locally, which is
+            why the demo produces a real refusal with no keys and no broadcast.
           </li>
           <li>
             <strong className="text-foreground">The on chain record.</strong>{" "}

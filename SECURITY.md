@@ -144,10 +144,13 @@ route never sends such a payload, but the guarantee for those two arguments is
 this server's, not Privy's. The same conditions are written for
 `eth_sendTransaction` and `eth_signTransaction`, because the relay fallback
 signs. The wire policy has no `default_action` field: Privy denies whatever no
-rule allows. None of these conditions has been evaluated by the real Privy
-engine, so the value formats (checksum case of an address, hex for a `uint256`)
-are this build's best reading of the reference, and a mismatch fails closed as a
-refused send.
+rule allows. The coupon conditions have run against the real Privy engine: Privy
+accepted the policy, signed the approved coupon under it, and refused a
+transaction to another address with `400 policy_violation`. A sign-only probe
+confirmed the gap above from Privy's side: it rejects `distributeCoupon.amounts[0]`
+as a field ("Argument 'amounts[0]' does not exist on the provided abi function")
+and it signed a coupon whose amount had been edited. The forced transfer's `hex`
+value format for a `uint256` has not been run live.
 
 **Where the limit is enforced.** A compiled policy constrains nothing until it is
 bound to the wallet. `installPolicy` in `lib/privy.ts` reads the treasury wallet
@@ -185,12 +188,24 @@ headers, signed with ECDSA P-256 over SHA-256, base64 DER, one signature per key
 comma separated. Privy publishes no test vector, so the tests verify each
 signature against its own public key and the canonical form against the payload
 printed in the guide. A policy owned by a threshold two quorum needs two
-authorization keys of that quorum in the variable.
+authorization keys of that quorum in the variable. Two details come from the
+live API rather than the guide: a request with no body (the policy DELETE) is
+signed with `body` set to `""` and sent without a `Content-Type`, because Privy
+answers 401 to every other pairing it was tried with; and `caip2` goes only on
+`eth_sendTransaction`, because `eth_signTransaction` refuses the field.
 
-**Not verified live.** No Privy credentials exist in this environment. Every
-Privy call is covered by offline tests of its exact request, and by a dry run
-against a local mock that enforces the published request shapes, the owner
-signature and idempotency. Neither is a run against Privy.
+**Verified live on 13 September 2026.** The treasury wallet
+`0x3b37C83664370c331FB0f203C617A848efeC5F81` is a Privy server wallet owned by
+a two of two key quorum, and the same quorum owns every policy. One walk of the
+console installed a policy, read it back from Privy, bound it through
+`policy_ids`, had Privy sign and broadcast the approved coupon on eip155:296 as
+[`0x0ea98410…`](https://hashscan.io/testnet/transaction/0x0ea98410bcf52005df36892322bcb204f63a7fffb4045d1c518e1ff2f6d94f2f), settled the PlanAnchor record in
+[`0xaf2aaf4f…`](https://hashscan.io/testnet/transaction/0xaf2aaf4f7792d16ccaf12e10d1d86a3b22d961236fd5eacbbe274b1ac492a470), then detached the policy and
+deleted it (Privy answers 404 for it afterwards). The edited send in the same
+walk was refused by this server's exact calldata check, labelled
+`local-mirror`, for the reason given above. The payout target is the seed token
+address, which holds no contract code, so Hedera recorded the call as a success
+that executed nothing.
 
 ## 4. What the API route trusts, and what it does not
 

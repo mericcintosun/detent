@@ -12,7 +12,6 @@ of them has been run against a live service.
 | Item | What it needs | What to do once it exists |
 | --- | --- | --- |
 | Issue an Asset Tokenization Studio token | A funded Hedera testnet ECDSA key: about 40 to 60 HBAR with tuned gas limits, about 120 HBAR with the SDK default limits. The ATS SDK does not accept a raw private key, so the programmatic path calls the ATS factory contract directly; the fallback is the ATS web app with MetaMask on chain 296. | Deploy the equity through the factory, add the issuer, grant KYC and add each holder to the control list, issue balances on the default partition, then block one holder through the control list and let one KYC lapse. Set `NEXT_PUBLIC_ADAPTER_MODE=real`, `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`, and `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS` to a treasury that holds a balance and passes KYC and the control list. |
-| Run the Privy server wallet path live | A Privy app, a server wallet, a key quorum with threshold two, and the authorization keys that own them | Set `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID` and, for an owned wallet or a quorum owned policy, `PRIVY_AUTHORIZATION_KEYS`. Then run lock and send once and confirm the binding, the send and the cleanup against the real API. |
 | Static analysis on the contract | `slither` installed | Run it on `contracts/src/PlanAnchor.sol`. Until then the contract rests on 34 tests, 9 of them fuzz, at 100% branch coverage. |
 
 ## Decisions that belong to the author
@@ -35,17 +34,20 @@ of them has been run against a live service.
 
 ## Limits of the backend fixes
 
-- The Privy authorization signature is implemented from the published algorithm
-  (an RFC 8785 canonical payload signed with ECDSA P-256 over SHA-256), but Privy
-  publishes no test vector, so it is verified only against its own public key. A
-  quorum of two sends two signatures joined by a comma, which the documentation
-  states for the wallet RPC header and not for policy deletion.
+- The Privy server wallet path runs live (done 13 September 2026): a two of two
+  key quorum owns the treasury wallet and every policy, and the live walk bound
+  a policy, had Privy broadcast the approved coupon as
+  [`0x0ea98410…`](https://hashscan.io/testnet/transaction/0x0ea98410bcf52005df36892322bcb204f63a7fffb4045d1c518e1ff2f6d94f2f), settled PlanAnchor in
+  [`0xaf2aaf4f…`](https://hashscan.io/testnet/transaction/0xaf2aaf4f7792d16ccaf12e10d1d86a3b22d961236fd5eacbbe274b1ac492a470), then detached and revoked the
+  policy. The authorization signature, with two signatures joined by a comma, is
+  accepted by the live API on the wallet update, the rpc and the policy delete.
 - The policy installed in Privy cannot pin the coupon's full calldata, because
   Privy's calldata conditions cannot compare the holder and amount arrays. The
   exact calldata is enforced by the server, which refuses a tampered payload
-  before it reaches the wallet. The condition value formats, the body of a real
-  policy violation response and how a signed DELETE treats its body are inferred
-  from the documentation and have not run against the live engine.
+  before it reaches the wallet. Privy confirmed this live: it rejects an indexed
+  array field and signed an edited coupon in a sign-only probe. The coupon
+  condition formats and the policy violation body (`400 policy_violation`) are
+  verified live; the forced transfer's `uint256` value format is not.
 - The lock record, the rate limiter and the idempotency store live in the memory
   of one serverless instance. When a lock and its submit land on different
   instances the submit is refused with `lock_unknown`, and the limiter is a

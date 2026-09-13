@@ -201,7 +201,7 @@ export function TreasuryKeyBanner({
           <p className={cn(PROSE, "text-foreground")}>
             {engineLive
               ? "Refused by the Privy server wallet under the installed policy."
-              : "Refused by the local mirror of the same policy evaluator, before any wallet was asked. With Privy credentials set, the wallet returns this refusal instead."}
+              : "Refused by the local mirror of the same policy evaluator, before any wallet was asked. This check stays on the server even with a live Privy wallet, because the wallet policy cannot compare the coupon's holder and amount arrays."}
           </p>
           <p className={cn(PROSE, "text-muted-foreground")}>
             This is the key doing its job. Restore the approved amount and send
