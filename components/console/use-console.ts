@@ -10,7 +10,7 @@
 // ref.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/components/ui/toast-manager";
 import { actions, type ActionKind } from "@/lib/data";
 import { MIRROR_FEE_SENTENCE, readFeeQuote, type FeeQuote } from "@/lib/fees";
 import {
