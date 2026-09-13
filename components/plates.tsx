@@ -6,12 +6,19 @@
 // decorative: alt is empty and aria-hidden is set, so a screen reader reads the
 // sentence beside it and nothing else.
 //
+// The plates are rasters painted on parchment, which read as bright cards on the
+// dark ground. In dark mode each one is inverted and turned half way round the
+// hue wheel, which puts the parchment near the dark ground, the ink near bone
+// and the gold back on gold, then dimmed a step so it sits under the text beside
+// it. No colour value is introduced: the filter only moves the plate's own.
+//
 // unoptimized is deliberate. Next's image optimizer refuses SVG unless
 // dangerouslyAllowSVG is turned on in next.config.ts, and touching that file is
 // out of fence; these are 1 KB of flat shapes on the IDENTITY palette, so there
 // is nothing to optimize anyway.
 
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 export type PlateName = "plan" | "policy" | "refusal" | "register" | "record";
 
@@ -42,7 +49,10 @@ export function Plate({
       width={width}
       height={height}
       unoptimized
-      className={className}
+      className={cn(
+        "dark:opacity-80 dark:mix-blend-lighten dark:hue-rotate-180 dark:invert",
+        className,
+      )}
     />
   );
 }
