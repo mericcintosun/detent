@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { OperationsConsole } from "@/components/operations-console";
 import { Plate, type PlateName } from "@/components/plates";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getRegisterSnapshot, isPrivyLive } from "@/lib/register";
 
 /**
@@ -94,9 +94,12 @@ export default async function ConsolePage() {
             corporate action, and the plan they accept on this page becomes the
             only thing the treasury key can sign.
           </p>
-          <Button variant="outline" asChild>
-            <a href="#register">Start at the register</a>
-          </Button>
+          <a
+            href="#register"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Start at the register
+          </a>
         </div>
 
         {/* The strip wipes in on its own scroll progress where the browser

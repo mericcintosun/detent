@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 export const metadata: Metadata = {
   title: "No page here",
@@ -18,9 +18,9 @@ export default function NotFound() {
         Detent is one console on one route. Every step of the coupon run lives
         on that page, under its own section.
       </p>
-      <Button asChild variant="outline">
-        <Link href="/">Back to the console</Link>
-      </Button>
+      <Link href="/" className={buttonVariants({ variant: "outline" })}>
+        Back to the console
+      </Link>
     </div>
   );
 }

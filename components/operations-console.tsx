@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Card,
   CardContent,
@@ -1451,18 +1452,17 @@ export function OperationsConsole({
             <Button variant="outline" onClick={downloadAudit}>
               Download the record
             </Button>
-            <Button variant="outline" asChild>
-              {/* A new tab, so reading the record never unloads this session:
-                  the lock, the approvals and the entries below live only here. */}
-              <Link
-                href={`/record/${plan.planHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open the permanent record
-                <span className="sr-only"> (opens in a new tab)</span>
-              </Link>
-            </Button>
+            {/* A new tab, so reading the record never unloads this session:
+                the lock, the approvals and the entries below live only here. */}
+            <Link
+              href={`/record/${plan.planHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Open the permanent record
+              <span className="sr-only"> (opens in a new tab)</span>
+            </Link>
           </div>
         </div>
 

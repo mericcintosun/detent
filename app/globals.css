@@ -1,50 +1,250 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/* Every colour in Detent comes from IDENTITY.md (D11 museum). Components never
-   carry a raw hex: they use these tokens or the Tailwind classes generated from
-   them below. Ground #f4f1ea, surface #ece7dc, line #e2dccd, ink #191713,
-   accent gold #ad8c3a, second oxide-red #9c3b2a. */
+/*
+ * Detent design system tokens. docs/frontend/04_DESIGN_SYSTEM.md is the
+ * reference and app/design-system/page.tsx renders every value below.
+ *
+ * Rules: components never carry a raw colour, they use the semantic utilities
+ * generated in @theme. Every value is OKLCH. The brand palette in IDENTITY.md is
+ * the seed; the light theme reproduces it exactly and the dark theme is derived
+ * from it (a warm near-black ground from ink, bone foregrounds, gold and oxide
+ * lifted for contrast). components/design/tokens.ts mirrors these values and
+ * tests/design-system.test.ts fails if the two drift or a pair drops below AA.
+ */
+
+/* Dark mode is a class on <html>, written by next-themes before first paint. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Ejected from shadcn@4.21.0: the state variants the Base UI primitives use. */
+/* Custom variants */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-unchecked {
+  &:where([data-state="unchecked"]),
+  &:where([data-unchecked]:not([data-unchecked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-selected {
+  &:where([data-selected="true"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-active {
+  &:where([data-state="active"]),
+  &:where([data-active]:not([data-active="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 :root {
-  --ground: #f4f1ea;
-  --surface: #ece7dc;
-  --surface-deep: #e2dccd;
-  --line: #e2dccd;
-  --ink: #191713;
-  --gold: #ad8c3a;
-  --oxide: #9c3b2a;
+  color-scheme: light;
 
-  --background: var(--ground);
-  --foreground: var(--ink);
-  --card: var(--surface);
-  --card-foreground: var(--ink);
-  --popover: var(--surface);
-  --popover-foreground: var(--ink);
-  --primary: var(--gold);
-  /* Ink, not ground: ground on gold is 2.8:1, ink on gold is 5.6:1 (WCAG AA). */
-  --primary-foreground: var(--ink);
-  --secondary: var(--surface-deep);
-  --secondary-foreground: var(--ink);
-  --muted: var(--surface-deep);
-  /* 70 percent ink clears 4.5:1 on ground, surface and surface-deep alike. */
-  --muted-foreground: color-mix(in srgb, var(--ink) 70%, var(--ground));
-  --accent: var(--surface-deep);
-  --accent-foreground: var(--ink);
-  --destructive: var(--oxide);
-  --destructive-foreground: var(--ground);
-  --border: var(--line);
-  --input: var(--line);
-  /* The focus ring is gold deepened with ink, so it clears 3:1 on every surface. */
-  --ring: color-mix(in srgb, var(--gold) 70%, var(--ink));
+  /* Brand seeds, IDENTITY.md. Referenced by the semantic tokens only. */
+  --brand-bone: oklch(0.959 0.01 87.5); /* #f4f1ea ground */
+  --brand-parchment: oklch(0.929 0.016 86.4); /* #ece7dc surface */
+  --brand-bone-shadow: oklch(0.895 0.021 88.7); /* #e2dccd line */
+  --brand-ink: oklch(0.205 0.008 84.6); /* #191713 */
+  --brand-gold: oklch(0.655 0.107 86.9); /* #ad8c3a accent */
+  --brand-oxide: oklch(0.485 0.133 32.1); /* #9c3b2a second and bad */
+  --brand-ok: oklch(0.47 0.095 154.6); /* #256a42 */
+  --brand-warn: oklch(0.669 0.076 32.9); /* #bf8477, a fill, never text */
 
-  /* Semantic states. WARN is a 60 percent oxide-red tint over the ground,
-     declared this way in IDENTITY.md because the accent is already warm. */
-  /* Deepened from #2e7d4f, which measured 4.1:1 on the surface; this clears 4.5:1
-     on ground, surface and surface-deep. */
-  --ok: #256a42;
-  --warn: #bf8477;
-  --bad: #9c3b2a;
+  /* Surfaces and text */
+  --background: var(--brand-bone);
+  --foreground: var(--brand-ink);
+  --card: var(--brand-parchment);
+  --card-foreground: var(--brand-ink);
+  --popover: oklch(0.975 0.007 87.5);
+  --popover-foreground: var(--brand-ink);
+  --primary: var(--brand-gold);
+  --primary-foreground: var(--brand-ink);
+  --secondary: var(--brand-bone-shadow);
+  --secondary-foreground: var(--brand-ink);
+  --muted: var(--brand-bone-shadow);
+  --muted-foreground: oklch(0.45 0.015 85);
+  --accent: var(--brand-bone-shadow);
+  --accent-foreground: var(--brand-ink);
+
+  /* Status. The bare token is safe as text on background, card, popover and its
+     own -muted surface; -foreground is text on a solid fill of the token. */
+  --destructive: var(--brand-oxide);
+  --destructive-foreground: var(--brand-bone);
+  --destructive-muted: oklch(0.915 0.03 35);
+  --success: var(--brand-ok);
+  --success-foreground: var(--brand-bone);
+  --success-muted: oklch(0.915 0.03 155);
+  --warning: oklch(0.5 0.09 40);
+  --warning-foreground: var(--brand-bone);
+  --warning-muted: oklch(0.915 0.035 45);
+  --info: oklch(0.47 0.07 235);
+  --info-foreground: var(--brand-bone);
+  --info-muted: oklch(0.915 0.02 235);
+  --mirror: oklch(0.5 0.09 80);
+  --mirror-foreground: var(--brand-bone);
+  --mirror-muted: oklch(0.915 0.035 86);
+
+  /* Lines. border is decorative; input and ring clear 3:1 for WCAG 1.4.11. */
+  --border: oklch(0.87 0.022 88);
+  --input: oklch(0.6 0.03 85);
+  --ring: oklch(0.52 0.09 85);
+  --hairline: var(--brand-gold);
+  /* Behind dialogs and sheets. Ink at low alpha, never pure black. */
+  --scrim: oklch(0.205 0.008 84.6 / 0.32);
+
+  --chart-1: oklch(0.58 0.1 85);
+  --chart-2: var(--brand-oxide);
+  --chart-3: var(--brand-ok);
+  --chart-4: oklch(0.47 0.07 235);
+  --chart-5: oklch(0.45 0.015 85);
+
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* Elevation: a hairline first, a soft warm ink shadow second. */
+  --elevation-1: 0 1px 0 0 oklch(0.205 0.008 84.6 / 0.06);
+  --elevation-2:
+    0 0 0 1px oklch(0.205 0.008 84.6 / 0.05),
+    0 1px 3px 0 oklch(0.205 0.008 84.6 / 0.1);
+  --elevation-3:
+    0 0 0 1px oklch(0.205 0.008 84.6 / 0.06),
+    0 6px 16px -4px oklch(0.205 0.008 84.6 / 0.14);
+  --elevation-4:
+    0 0 0 1px oklch(0.205 0.008 84.6 / 0.08),
+    0 18px 44px -10px oklch(0.205 0.008 84.6 / 0.24);
 
   --radius: 0.125rem;
+
+  /* Stacking order. Use as z-(--z-modal). */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-rail: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+  --z-toast: 70;
+  --z-tooltip: 80;
+
+  /* Motion durations, mirrored in seconds by lib/motion.ts. */
+  --duration-instant: 0ms;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-wipe: 600ms;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.165 0.006 80);
+  --foreground: oklch(0.945 0.012 87);
+  --card: oklch(0.205 0.008 82);
+  --card-foreground: oklch(0.945 0.012 87);
+  --popover: oklch(0.235 0.009 82);
+  --popover-foreground: oklch(0.945 0.012 87);
+  --primary: oklch(0.76 0.115 86);
+  --primary-foreground: oklch(0.165 0.006 80);
+  --secondary: oklch(0.275 0.01 84);
+  --secondary-foreground: oklch(0.945 0.012 87);
+  --muted: oklch(0.275 0.01 84);
+  --muted-foreground: oklch(0.76 0.018 85);
+  --accent: oklch(0.275 0.01 84);
+  --accent-foreground: oklch(0.945 0.012 87);
+
+  --destructive: oklch(0.68 0.13 35);
+  --destructive-foreground: oklch(0.165 0.006 80);
+  --destructive-muted: oklch(0.26 0.045 35);
+  --success: oklch(0.72 0.1 155);
+  --success-foreground: oklch(0.165 0.006 80);
+  --success-muted: oklch(0.26 0.04 155);
+  --warning: oklch(0.76 0.075 45);
+  --warning-foreground: oklch(0.165 0.006 80);
+  --warning-muted: oklch(0.26 0.04 45);
+  --info: oklch(0.74 0.06 235);
+  --info-foreground: oklch(0.165 0.006 80);
+  --info-muted: oklch(0.26 0.03 235);
+  --mirror: oklch(0.78 0.1 86);
+  --mirror-foreground: oklch(0.165 0.006 80);
+  --mirror-muted: oklch(0.265 0.04 86);
+
+  --border: oklch(0.31 0.012 84);
+  --input: oklch(0.52 0.02 85);
+  --ring: oklch(0.72 0.1 86);
+  --hairline: oklch(0.62 0.1 86);
+  --scrim: oklch(0.08 0.004 80 / 0.62);
+
+  --chart-1: oklch(0.76 0.115 86);
+  --chart-2: oklch(0.68 0.13 35);
+  --chart-3: oklch(0.72 0.1 155);
+  --chart-4: oklch(0.74 0.06 235);
+  --chart-5: oklch(0.76 0.018 85);
+
+  /* On a dark ground a shadow barely reads, so each level adds a faint bone
+     edge on top and the surface itself gets lighter (card, then popover). */
+  --elevation-1: 0 1px 0 0 oklch(0 0 0 / 0.4);
+  --elevation-2:
+    0 0 0 1px oklch(0.945 0.012 87 / 0.06), 0 1px 3px 0 oklch(0 0 0 / 0.5);
+  --elevation-3:
+    0 0 0 1px oklch(0.945 0.012 87 / 0.08), 0 8px 20px -4px oklch(0 0 0 / 0.6);
+  --elevation-4:
+    0 0 0 1px oklch(0.945 0.012 87 / 0.1), 0 20px 48px -8px oklch(0 0 0 / 0.7);
 }
 
 @theme inline {
@@ -64,61 +264,204 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-muted: var(--destructive-muted);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-muted: var(--success-muted);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-muted: var(--warning-muted);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-muted: var(--info-muted);
+  --color-mirror: var(--mirror);
+  --color-mirror-foreground: var(--mirror-foreground);
+  --color-mirror-muted: var(--mirror-muted);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-hairline: var(--gold);
-  --color-ok: var(--ok);
-  --color-warn: var(--warn);
-  --color-bad: var(--bad);
+  --color-hairline: var(--hairline);
+  --color-scrim: var(--scrim);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Detent domain tokens. Aliases of the status set, so a status colour change
+     carries to every run mode, hold and receipt pill at once. */
+  --color-mode-live: var(--success);
+  --color-mode-live-muted: var(--success-muted);
+  --color-mode-mirror: var(--mirror);
+  --color-mode-mirror-muted: var(--mirror-muted);
+  --color-hold-lapsed: var(--warning);
+  --color-hold-lapsed-muted: var(--warning-muted);
+  --color-hold-refused: var(--destructive);
+  --color-hold-refused-muted: var(--destructive-muted);
+  --color-hold-paused: var(--info);
+  --color-hold-paused-muted: var(--info-muted);
+  --color-receipt-onchain: var(--success);
+  --color-receipt-onchain-muted: var(--success-muted);
+  --color-receipt-synthetic: var(--mirror);
+  --color-receipt-synthetic-muted: var(--mirror-muted);
+
+  /* Names the console already uses, kept so nothing restyles by accident. */
+  --color-ok: var(--success);
+  --color-warn: var(--warning);
+  --color-bad: var(--destructive);
 
   --font-sans:
     var(--font-franklin), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --font-display: var(--font-caslon), Georgia, "Times New Roman", serif;
+  --font-heading: var(--font-caslon), Georgia, "Times New Roman", serif;
+  --font-mono:
+    var(--font-jetbrains), ui-monospace, "SFMono-Regular", Menlo, Consolas,
+    monospace;
 
+  /* Sharp: the scale tops out at 6px, and components default to none. */
+  --radius-xs: calc(var(--radius) * 0.5);
   --radius-sm: var(--radius);
-  --radius-md: var(--radius);
-  --radius-lg: var(--radius);
-  --radius-xl: var(--radius);
+  --radius-md: calc(var(--radius) * 1.5);
+  --radius-lg: calc(var(--radius) * 2);
+  --radius-xl: calc(var(--radius) * 3);
+  --radius-2xl: calc(var(--radius) * 3);
+  --radius-3xl: calc(var(--radius) * 3);
+  --radius-4xl: calc(var(--radius) * 3);
+
+  --shadow-2xs: var(--elevation-1);
+  --shadow-xs: var(--elevation-1);
+  --shadow-sm: var(--elevation-2);
+  --shadow-md: var(--elevation-3);
+  --shadow-lg: var(--elevation-3);
+  --shadow-xl: var(--elevation-4);
+  --shadow-2xl: var(--elevation-4);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    var(--font-franklin), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+@theme {
+  /* Fluid type scale. Each step carries its line height and tracking, so
+     text-title sets all three. rem plus vw keeps browser zoom working. */
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1.35;
+  --text-label--letter-spacing: 0.16em;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.45;
+  --text-caption--letter-spacing: 0.01em;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.55;
+  --text-body: 1rem;
+  --text-body--line-height: 1.65;
+  --text-lead: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+  --text-lead--line-height: 1.55;
+  --text-heading: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --text-heading--line-height: 1.3;
+  --text-heading--letter-spacing: -0.005em;
+  --text-title: clamp(1.625rem, 1.4rem + 1.1vw, 2.25rem);
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.015em;
+  --text-headline: clamp(2rem, 1.6rem + 2vw, 3.25rem);
+  --text-headline--line-height: 1.08;
+  --text-headline--letter-spacing: -0.02em;
+  --text-display: clamp(2.5rem, 1.8rem + 3.5vw, 4.5rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.025em;
+
+  /* Reading measures, replacing the ad hoc max-w-[..ch] values. */
+  --container-measure-2xs: 28ch;
+  --container-measure-xs: 48ch;
+  --container-measure-sm: 56ch;
+  --container-measure-md: 64ch;
+  --container-measure-lg: 72ch;
+  --container-measure-xl: 78ch;
+  /* Layout widths. */
+  --container-content: 72rem;
+  --container-page: 90rem;
+
+  /* Named spacing on top of the 0.25rem base scale. */
+  --spacing-touch: 2.75rem;
+  --spacing-gutter: clamp(1.25rem, 0.9rem + 1.6vw, 3rem);
+  --spacing-section: clamp(3rem, 2rem + 4vw, 6rem);
+
+  --breakpoint-xs: 23.4375rem;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-wipe: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --animate-wipe: detent-wipe 600ms cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 
-/* The display face carries every h1 and h2, per IDENTITY.md. */
-h1,
-h2 {
-  font-family: var(--font-caslon), Georgia, "Times New Roman", serif;
-  font-weight: 400;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* The display face carries every h1 and h2, per IDENTITY.md. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 35%, transparent);
+    color: var(--foreground);
+  }
+}
+
+/* Amounts, hashes and counts: aligned digits that do not jitter as they change. */
+@utility amount {
+  font-variant-numeric: tabular-nums lining-nums slashed-zero;
 }
 
 /* Wide-tracked small caps label every column, per IDENTITY.md. */
 .detent-label {
-  font-size: 0.6875rem;
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--text-label--letter-spacing);
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
 
 /* Gold hairline instead of a border, the register-page treatment. */
 .detent-hairline {
-  border-color: var(--gold);
+  border-color: var(--hairline);
 }
 
-/* The ruled ledger sheet, drawn once here and reused as a surface. */
+/* The ruled ledger sheet, drawn once here and reused as a surface. The raster
+   under public/ paints a parchment tile, which would be a bright block on the
+   dark ground, so dark mode draws the same 2.25rem rule from tokens instead. */
 .detent-ruled {
   background-image: url("/illustrations/ledger-rule.svg");
   background-repeat: repeat;
   background-size: auto 2.25rem;
 }
+.dark .detent-ruled {
+  background-color: var(--card);
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(100% - 1px),
+    color-mix(in oklch, var(--hairline) 35%, transparent) calc(100% - 1px)
+  );
+}
 
-/* MOTION M4 wipe: clip-path inset reveal, 600ms, cubic-bezier(0.65, 0, 0.35, 1).
-   Stagger rides nth-child rules, never an inline delay custom property. */
+/* MOTION M4 wipe: clip-path inset reveal, 600ms, the wipe ease. Motion's
+   variants in lib/motion.ts reproduce it for client components; this CSS path
+   stays for server rendered markup. Stagger rides nth-child rules. */
 @keyframes detent-wipe {
   from {
     clip-path: inset(0 100% 0 0);
@@ -131,7 +474,7 @@ h2 {
 }
 
 .detent-enter {
-  animation: detent-wipe 600ms cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation: var(--animate-wipe);
 }
 
 .detent-stagger > *:nth-child(1) {
@@ -156,10 +499,8 @@ h2 {
   animation-delay: 240ms;
 }
 
-/* The same wipe, driven by the band's own progress through the viewport rather
-   than by the load. No second keyframe and no new colour: detent-wipe is reused
-   as is. The class is inert on its own, so a browser without scroll-driven
-   animations renders a plain band and never a hidden one. */
+/* The same wipe driven by the band's own progress through the viewport. Inert
+   where scroll-driven animations are unsupported. */
 .detent-band {
   /* Intentionally empty: the whole behaviour lives in the @supports block. */
 }
@@ -180,5 +521,14 @@ h2 {
     animation-timeline: auto !important;
     clip-path: none !important;
     opacity: 1 !important;
+  }
+  /* Overlay and skeleton animations from tw-animate-css collapse to a frame. */
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
