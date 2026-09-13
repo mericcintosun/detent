@@ -1,4 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
+import type { ClassValue } from "clsx";
+import { cn } from "@/lib/utils";
 
 /**
  * shadcn base-lyra button, adapted to Detent.
@@ -9,10 +11,13 @@ import { cva, type VariantProps } from "class-variance-authority";
  * oxide fill on a 2px oxide rule in wide-tracked capitals, because the refusal
  * is the one moment the screen spends that colour on.
  *
+ * Outline: the rule is `border-input`, which clears 3:1 against the ground and
+ * the card in both themes; `border-border` is decorative and vanished in light.
+ *
  * Links: Base UI renders a real <button>. For navigation put `buttonVariants()`
  * on an <a> or next/link <Link> so the element keeps its link role.
  */
-export const buttonVariants = cva(
+const buttonVariantsBase = cva(
   "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-none border border-transparent bg-clip-padding text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-(--duration-fast) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
@@ -22,7 +27,7 @@ export const buttonVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:text-muted-foreground",
         outline:
-          "border-border bg-transparent hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent disabled:text-muted-foreground dark:border-input",
+          "border-input bg-transparent hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent disabled:text-muted-foreground",
         ghost:
           "hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent disabled:text-muted-foreground",
         destructive:
@@ -47,4 +52,18 @@ export const buttonVariants = cva(
   },
 );
 
-export type ButtonVariantsProps = VariantProps<typeof buttonVariants>;
+export type ButtonVariantsProps = VariantProps<typeof buttonVariantsBase> & {
+  className?: ClassValue;
+};
+
+/**
+ * The variant classes, with `className` merged through `cn`, so a caller's
+ * override (a border, a padding) replaces the variant's class instead of
+ * competing with it in the cascade.
+ */
+export function buttonVariants({
+  className,
+  ...variants
+}: ButtonVariantsProps = {}): string {
+  return cn(buttonVariantsBase(variants), className);
+}

@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -165,119 +166,116 @@ export function PlanSection({ c }: { c: ConsoleController }) {
                     stay pinned on the right.
                   </p>
                 ) : null}
-                <div
-                  ref={tableRef}
-                  role="region"
-                  aria-label={`${plan.label}, ${plan.rows.length} rows`}
-                  tabIndex={0}
-                  className="overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                <Table
+                  className="min-w-3xl text-body-sm"
+                  containerProps={{
+                    ref: tableRef,
+                    role: "region",
+                    "aria-label": `${plan.label}, ${plan.rows.length} rows`,
+                    className: "focus-visible:ring-inset",
+                  }}
                 >
-                  <table
-                    data-slot="table"
-                    className="w-full min-w-3xl caption-bottom text-body-sm"
-                  >
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead className="detent-label pl-4">
-                          Holder
-                        </TableHead>
-                        <TableHead className="detent-label">Account</TableHead>
-                        <TableHead className="detent-label text-right">
-                          Position
-                        </TableHead>
-                        <TableHead className="detent-label text-right">
-                          {c.kind === "coupon" ? "Coupon due" : "Units moved"}
-                        </TableHead>
-                        <TableHead className="detent-label sticky right-0 bg-card pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border">
-                          Row
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {plan.rows.map((row) => {
-                        const state = compliance.get(row.holderId);
-                        return (
-                          <TableRow
-                            key={row.holderId}
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="detent-label pl-4">
+                        Holder
+                      </TableHead>
+                      <TableHead className="detent-label">Account</TableHead>
+                      <TableHead className="detent-label text-right">
+                        Position
+                      </TableHead>
+                      <TableHead className="detent-label text-right">
+                        {c.kind === "coupon" ? "Coupon due" : "Units moved"}
+                      </TableHead>
+                      <TableHead className="detent-label sticky right-0 bg-card pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border">
+                        Row
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {plan.rows.map((row) => {
+                      const state = compliance.get(row.holderId);
+                      return (
+                        <TableRow
+                          key={row.holderId}
+                          className={cn(
+                            "align-top",
+                            row.held && "bg-muted hover:bg-muted",
+                          )}
+                        >
+                          <TableCell className="py-3 pl-4 whitespace-normal">
+                            <div className="flex min-w-0 flex-col gap-1">
+                              <span className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={cn(
+                                    "font-medium",
+                                    row.held && "text-destructive",
+                                  )}
+                                >
+                                  {row.legalName}
+                                </span>
+                                {row.held && state ? (
+                                  <StatusPill kind="hold" value={state} />
+                                ) : null}
+                              </span>
+                              <span className="flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
+                                {row.jurisdiction}
+                                <HashText
+                                  value={row.address}
+                                  label={`${row.legalName} address`}
+                                  copyable={false}
+                                />
+                              </span>
+                              {row.held ? (
+                                <p className="max-w-measure-xs text-caption text-destructive">
+                                  {row.holdReason}
+                                </p>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3 font-mono text-caption text-muted-foreground">
+                            {row.accountId}
+                          </TableCell>
+                          <TableCell className="amount py-3 text-right">
+                            {formatTokens(row.balance)}
+                          </TableCell>
+                          <TableCell
                             className={cn(
-                              "align-top",
-                              row.held && "bg-muted hover:bg-muted",
+                              "amount py-3 text-right",
+                              !row.included &&
+                                "text-muted-foreground line-through",
                             )}
                           >
-                            <TableCell className="py-3 pl-4 whitespace-normal">
-                              <div className="flex min-w-0 flex-col gap-1">
-                                <span className="flex flex-wrap items-center gap-2">
-                                  <span
-                                    className={cn(
-                                      "font-medium",
-                                      row.held && "text-destructive",
-                                    )}
-                                  >
-                                    {row.legalName}
-                                  </span>
-                                  {row.held && state ? (
-                                    <StatusPill kind="hold" value={state} />
-                                  ) : null}
-                                </span>
-                                <span className="flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
-                                  {row.jurisdiction}
-                                  <HashText
-                                    value={row.address}
-                                    label={`${row.legalName} address`}
-                                    copyable={false}
-                                  />
-                                </span>
-                                {row.held ? (
-                                  <p className="max-w-measure-xs text-caption text-destructive">
-                                    {row.holdReason}
-                                  </p>
-                                ) : null}
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-3 font-mono text-caption text-muted-foreground">
-                              {row.accountId}
-                            </TableCell>
-                            <TableCell className="amount py-3 text-right">
-                              {formatTokens(row.balance)}
-                            </TableCell>
-                            <TableCell
-                              className={cn(
-                                "amount py-3 text-right",
-                                !row.included &&
-                                  "text-muted-foreground line-through",
-                              )}
-                            >
-                              {formatMicros(row.amountMicros)}
-                            </TableCell>
-                            {/* Pinned to the scroller's right edge, so the row
+                            {formatMicros(row.amountMicros)}
+                          </TableCell>
+                          {/* Pinned to the scroller's right edge, so the row
                                 control is on screen at any width. */}
-                            <TableCell
-                              className={cn(
-                                "sticky right-0 py-2 pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border",
-                                row.held ? "bg-muted" : "bg-card",
-                              )}
+                          <TableCell
+                            className={cn(
+                              "sticky right-0 py-2 pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border",
+                              row.held ? "bg-muted" : "bg-card",
+                            )}
+                          >
+                            <Button
+                              variant={row.included ? "outline" : "ghost"}
+                              size="sm"
+                              disabled={c.locked}
+                              onClick={() => c.toggleRow(row)}
                             >
-                              <Button
-                                variant={row.included ? "outline" : "ghost"}
-                                size="sm"
-                                disabled={c.locked}
-                                onClick={() => c.toggleRow(row)}
-                              >
-                                {row.held
-                                  ? row.included
-                                    ? "Hold again"
-                                    : "Force in"
-                                  : row.included
-                                    ? "Defer"
-                                    : "Restore"}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </table>
-                </div>
+                              {row.held
+                                ? row.included
+                                  ? "Hold again"
+                                  : "Force in"
+                                : row.included
+                                  ? "Defer"
+                                  : "Restore"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </>
             )}
           </CardContent>
