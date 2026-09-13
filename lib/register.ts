@@ -8,6 +8,9 @@
 //
 // Server side only, like lib/hedera.ts itself.
 
+import { REGISTER_CACHE_MS } from "@/lib/config";
+import type { RegisterSnapshot } from "@/lib/types";
+
 export { getRegisterSnapshot } from "@/lib/hedera";
 export type { RegisterSnapshot } from "@/lib/types";
 
@@ -17,3 +20,18 @@ export type { RegisterSnapshot } from "@/lib/types";
 // snapshot does, so app/page.tsx never imports lib/privy.ts by name and the
 // console keeps receiving a boolean rather than a module.
 export { isPrivyLive } from "@/lib/privy";
+
+// The snapshot's read time, and how old it may get before the console says so.
+// fetchedAt is stamped by the adapter at the moment of the read, and a reused
+// snapshot keeps the stamp of the read it came from, so the page can hand the
+// console one honest time. Past twice the reuse window the page has missed at
+// least one refresh and the console shows a stale banner.
+export { REGISTER_CACHE_MS };
+
+/** How old a snapshot may be before it is called stale, in milliseconds. */
+export const REGISTER_STALE_AFTER_MS = 2 * REGISTER_CACHE_MS;
+
+/** When this snapshot was read off its source, as ISO 8601. */
+export function snapshotReadAt(snapshot: RegisterSnapshot): string {
+  return snapshot.fetchedAt;
+}

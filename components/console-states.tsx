@@ -4,18 +4,19 @@
 //
 // The treasury key banner has a named branch per member of TreasuryKeyState, so
 // the compiler proves the set is covered: add a state to lib/wallet-state.ts and
-// this switch stops building until it is rendered. The empty states carry the
-// markup that used to sit inline in components/operations-console.tsx, each one
-// ending in the next click rather than a shrug. There is no loading skeleton: a
-// streamed loading.tsx boundary broke both the record route's 404 and hydration
-// under load, so every route renders complete HTML.
+// this switch stops building until it is rendered. The empty and error states
+// are built on the design system's EmptyState and ErrorState, each one ending in
+// the next click rather than a shrug.
 //
-// Tokens only, per IDENTITY.md: oxide-red is spent on the refused row and
-// nowhere else, infrastructure trouble is muted.
+// Destructive colour is spent on the refusal and on failed calls; infrastructure
+// trouble and resting states stay neutral.
 
 import type { ReactNode } from "react";
+import { EmptyState, ErrorState } from "@/components/design";
+import { Presence } from "@/components/motion";
 import { Plate } from "@/components/plates";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { TreasuryKeyState } from "@/lib/wallet-state";
 
 /* --- The treasury key banner ---------------------------------------------- */
@@ -46,40 +47,54 @@ export interface TreasuryKeyBannerProps {
   receiptKind?: "on-chain" | "synthetic" | "none";
 }
 
+const FRAME_TONE = {
+  neutral: "border-border bg-background",
+  bad: "border-destructive bg-destructive-muted",
+  ok: "border-success bg-success-muted",
+} as const;
+
 /**
- * Every branch of the banner replaces the one before it in place, which is a
- * change a sighted reader sees and a screen reader would otherwise miss
- * entirely. So the frame is the console's live region: polite for the states
- * that merely report progress, an assertive alert for the refusal, which is the
- * one answer the operator must not scroll past.
+ * Every branch of the banner replaces the one before it in place. The frame is
+ * the console's live region and stays mounted across branches, polite for the
+ * states that report progress and an assertive alert for the refusal; only its
+ * content is swapped, with a short fade, so an announcement is never lost to a
+ * remount.
  */
 function Frame({
   tone,
   label,
   children,
 }: {
-  tone: "neutral" | "bad" | "ok";
+  tone: keyof typeof FRAME_TONE;
   label: string;
   children: ReactNode;
 }) {
-  const border =
-    tone === "bad"
-      ? "border-bad"
-      : tone === "ok"
-        ? "border-ok"
-        : "border-border";
   return (
     <div
       role={tone === "bad" ? "alert" : "status"}
       aria-live={tone === "bad" ? "assertive" : "polite"}
       aria-atomic="true"
-      className={`detent-enter space-y-2 border px-4 py-4 ${border}`}
+      className={cn("border-l-2 px-4 py-4", FRAME_TONE[tone])}
     >
-      <p className="detent-label">{label}</p>
-      {children}
+      <Presence show presenceKey={label} variant="fade">
+        <div className="flex flex-col gap-2">
+          <p
+            className={cn(
+              "detent-label",
+              tone === "bad" && "text-destructive",
+              tone === "ok" && "text-success",
+            )}
+          >
+            {label}
+          </p>
+          {children}
+        </div>
+      </Presence>
     </div>
   );
 }
+
+const PROSE = "max-w-measure-lg text-body-sm";
 
 export function TreasuryKeyBanner({
   state,
@@ -95,7 +110,7 @@ export function TreasuryKeyBanner({
     case "disconnected":
       return (
         <Frame tone="neutral" label="Treasury key, compiled locally">
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-muted-foreground")}>
             No Privy credentials are configured on the server, so the policy is
             compiled and evaluated here and the receipt is a stub. The refusal
             is the same one the wallet returns, which is why this path is the
@@ -107,7 +122,7 @@ export function TreasuryKeyBanner({
     case "connecting":
       return (
         <Frame tone="neutral" label="Treasury key, opening the policy">
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-muted-foreground")}>
             Installing the compiled policy on the treasury wallet under the key
             quorum. Nothing can be signed until it lands.
           </p>
@@ -117,13 +132,18 @@ export function TreasuryKeyBanner({
     case "wrong-network":
       return (
         <Frame tone="neutral" label="Treasury key, chain refused">
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-muted-foreground")}>
             The wallet would not broadcast to Hedera testnet, chain 296. The
             policy still governs the signing request, so take the signature from
             the same wallet and put the transaction on chain through the Hedera
             relay instead.
           </p>
-          <Button variant="outline" disabled={busy} onClick={onSignAndRelay}>
+          <Button
+            variant="outline"
+            className="w-fit"
+            disabled={busy}
+            onClick={onSignAndRelay}
+          >
             Sign and relay through Hedera instead
           </Button>
         </Frame>
@@ -132,7 +152,7 @@ export function TreasuryKeyBanner({
     case "idle":
       return (
         <Frame tone="neutral" label="Treasury key, live and idle">
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-muted-foreground")}>
             The treasury server wallet is reachable and nothing is in flight.
             Lock a plan to give the key a limit, then send it.
           </p>
@@ -142,7 +162,7 @@ export function TreasuryKeyBanner({
     case "tx-pending":
       return (
         <Frame tone="neutral" label="Treasury key, asking the wallet">
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-muted-foreground")}>
             The payload is with the wallet. The policy is evaluated before any
             signature is produced, so this either comes back signed or comes
             back refused.
@@ -160,15 +180,13 @@ export function TreasuryKeyBanner({
               : "Treasury key, signed, nothing broadcast"
           }
         >
-          <p className="max-w-[72ch] text-sm leading-relaxed">
+          <p className={cn(PROSE, "text-foreground")}>
             {receiptKind === "on-chain"
               ? "The payload matched the approved calldata byte for byte, the wallet signed it, and the policy is revoked."
               : "The payload matched the approved calldata byte for byte and the policy allowed it. No key signed and nothing went to Hedera testnet: the receipt is synthetic, so there is nothing to open on HashScan."}
           </p>
           {note ? (
-            <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
-              {note}
-            </p>
+            <p className={cn(PROSE, "text-muted-foreground")}>{note}</p>
           ) : null}
         </Frame>
       );
@@ -176,16 +194,16 @@ export function TreasuryKeyBanner({
     case "tx-rejected":
       return (
         <Frame tone="bad" label="Treasury key, refused">
-          <p className="max-w-[72ch] text-sm leading-relaxed text-bad">
+          <p className={cn(PROSE, "font-mono text-destructive")}>
             {reason ??
               "The policy refused this payload, so nothing was signed and nothing was broadcast."}
           </p>
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-foreground")}>
             {engineLive
               ? "Refused by the Privy server wallet under the installed policy."
               : "Refused by the local mirror of the same policy evaluator, before any wallet was asked. With Privy credentials set, the wallet returns this refusal instead."}
           </p>
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-muted-foreground")}>
             This is the key doing its job. Restore the approved amount and send
             the plan again with the same wallet under the same policy.
           </p>
@@ -195,11 +213,16 @@ export function TreasuryKeyBanner({
     case "tx-failed":
       return (
         <Frame tone="neutral" label="Treasury key, no answer">
-          <p className="max-w-[72ch] text-sm leading-relaxed text-muted-foreground">
+          <p className={cn(PROSE, "text-muted-foreground")}>
             {note ??
               "The provider did not return a usable answer. The plan is untouched and nothing was signed."}
           </p>
-          <Button variant="outline" disabled={busy} onClick={onRetry}>
+          <Button
+            variant="outline"
+            className="w-fit"
+            disabled={busy}
+            onClick={onRetry}
+          >
             Send the approved plan again
           </Button>
         </Frame>
@@ -213,8 +236,10 @@ export interface SendErrorStateProps {
   /** A short label naming what went wrong, from describeFailure. */
   title?: string;
   hint: string;
+  /** The API error code, printed under the sentence. */
+  code?: string;
   blockers?: string[];
-  /** The control under the sentence. Omit it and no control is drawn. */
+  /** The control under the sentence. Omit onRetry and no control is drawn. */
   actionLabel?: string;
   onRetry?: () => void;
   busy: boolean;
@@ -223,40 +248,45 @@ export interface SendErrorStateProps {
 /**
  * A failed call, with the way out as a control rather than a sentence. Used by
  * both the lock step and the send step, so the same answer from the server reads
- * the same in either place.
+ * the same in either place. Announced as an alert: nothing else on screen moves
+ * when a call fails, so this is the one thing a reader could miss.
  */
 export function SendErrorState({
   title,
   hint,
+  code,
   blockers,
   actionLabel = "Try the send again",
   onRetry,
   busy,
 }: SendErrorStateProps) {
   return (
-    // A failed call is the one thing on this page a reader can miss entirely,
-    // because nothing else on screen moves. role="alert" is the announcement,
-    // and the retry underneath is the way out of it.
-    <div role="alert" aria-live="assertive" className="space-y-3">
-      <div className="space-y-1 border border-bad px-4 py-3">
-        {title ? <p className="detent-label text-bad">{title}</p> : null}
-        <p className="text-sm leading-relaxed text-bad">{hint}</p>
-      </div>
-      {blockers && blockers.length > 0 ? (
-        <ul className="space-y-1 px-4">
-          {blockers.map((blocker) => (
-            <li key={blocker} className="text-sm leading-relaxed text-bad">
-              {blocker}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {onRetry ? (
-        <Button variant="outline" disabled={busy} onClick={onRetry}>
-          {actionLabel}
-        </Button>
-      ) : null}
-    </div>
+    <ErrorState
+      live
+      title={title ?? "The call did not go through"}
+      code={code}
+      description={
+        <>
+          {hint}
+          {blockers && blockers.length > 0 ? (
+            <span className="mt-2 flex flex-col gap-1">
+              {blockers.map((blocker) => (
+                <span key={blocker} className="block">
+                  {blocker}
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </>
+      }
+      action={
+        onRetry ? (
+          <Button variant="outline" disabled={busy} onClick={onRetry}>
+            {actionLabel}
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -264,51 +294,33 @@ export function SendErrorState({
 
 export function PlanEmptyState({ partition }: { partition: string }) {
   return (
-    <div className="px-6 py-6">
-      {/* A register with no rows is still a register: hairline rules top and
-          bottom on the surface colour, the way an empty ledger page reads, and
-          the ruled sheet itself above the sentence rather than blank space. */}
-      <div className="flex flex-col items-center gap-4 border-y border-border bg-card px-6 py-10 text-center">
-        <Plate
-          name="register"
-          width={160}
-          height={120}
-          className="h-24 w-auto"
-        />
-        <p className="detent-label">No rows in this register</p>
-        <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
-          The register returned no holders for partition {partition}, so there
-          is nothing to preview and nothing to sign. Pick the coupon run to
-          rebuild the plan against the current snapshot.
-        </p>
-      </div>
-    </div>
+    <EmptyState
+      className="border-y-0"
+      icon={<Plate name="register" className="h-20 w-auto" />}
+      title="No rows in this register"
+      description={`The register returned no holders for partition ${partition}, so there is nothing to preview and nothing to sign. Pick the coupon run to rebuild the plan against the current snapshot.`}
+    />
   );
 }
 
 export function PolicyEmptyState() {
   return (
-    <div className="space-y-3 border border-border bg-card p-6">
-      <p className="detent-label">No policy installed</p>
-      <p className="max-w-[52ch] text-sm leading-relaxed text-muted-foreground">
-        Until the plan is locked, the treasury key can sign anything the
-        contract exposes. That is the state this product exists to end. Collect
-        both approvals to install the policy.
-      </p>
-    </div>
+    <EmptyState
+      className="border-y-0 bg-background"
+      icon={<Plate name="policy" className="h-20 w-auto" />}
+      title="No policy installed"
+      description="Until the plan is locked, the treasury key can sign anything the contract exposes. That is the state this product exists to end. Collect both approvals to install the policy."
+    />
   );
 }
 
 export function LedgerEmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 border-y border-border bg-card px-6 py-10 text-center">
-      {/* The seal on a closed ledger line: what this panel fills up with. */}
-      <Plate name="record" width={160} height={120} className="h-24 w-auto" />
-      <p className="detent-label">Nothing recorded yet</p>
-      <p className="mx-auto max-w-[48ch] pt-2 text-sm leading-relaxed text-muted-foreground">
-        Entries land here as the wallet answers. Lock a plan, then send it.
-      </p>
-    </div>
+    <EmptyState
+      icon={<Plate name="record" className="h-20 w-auto" />}
+      title="Nothing recorded yet"
+      description="Entries land here as the wallet answers. Lock a plan, then send it."
+    />
   );
 }
 
@@ -343,13 +355,13 @@ export function RecordEmptyState({
   return (
     <div className="space-y-3 border border-border bg-card p-6">
       <p className="detent-label">{label}</p>
-      <p className="max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
+      <p className="max-w-measure-md text-body-sm text-muted-foreground">
         {sentence}
       </p>
       {/* The unwired note repeats the sentence above word for word, so it is
           printed only for the states where it adds a detail. */}
       {note && kind !== "unwired" ? (
-        <p className="max-w-[62ch] text-xs leading-relaxed text-muted-foreground">
+        <p className="max-w-measure-md text-caption text-muted-foreground">
           {note}
         </p>
       ) : null}

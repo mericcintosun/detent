@@ -194,6 +194,37 @@ export function describeFailure(
   }
 }
 
+/**
+ * The control printed under a failure, as plain data. The console maps `run` to
+ * its own handler at click time, so nothing here closes over component state
+ * and the render path never builds a callback that reaches a ref.
+ */
+export type FailureRun = "relock" | "reload" | "retry-lock" | "retry-send";
+
+export interface FailureControl {
+  label: string;
+  run: FailureRun;
+}
+
+export function failureControlFor(
+  action: FailureAction,
+  stage: "lock" | "send",
+): FailureControl | null {
+  switch (action) {
+    case "relock":
+      return { label: "Lock the plan again", run: "relock" };
+    case "reload":
+      return { label: "Reload the page", run: "reload" };
+    case "retry":
+    case "wait":
+      return stage === "lock"
+        ? { label: "Try the lock again", run: "retry-lock" }
+        : { label: "Try the send again", run: "retry-send" };
+    case "none":
+      return null;
+  }
+}
+
 /* --- What an allowed send did to the policy ------------------------------- */
 
 export interface PolicyReleaseInput {

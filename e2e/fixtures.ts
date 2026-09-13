@@ -62,9 +62,13 @@ export const test = base.extend<GuardOptions>({
   },
 });
 
-/** The first line of the fold, which states the mode the page runs in. */
+/**
+ * The run mode status line, which states the mode the page runs in. It sits in
+ * the console hero above the five steps, so it is addressed by its own id
+ * rather than as a paragraph inside #register.
+ */
 export function statusLine(page: Page) {
-  return page.locator('#register p[role="status"]');
+  return page.locator('#console-status[role="status"]');
 }
 
 export interface ConsoleMode {
