@@ -92,6 +92,9 @@ describe("entrance variants", () => {
 
   it("knocks with two identical labels and draws the lock rule", () => {
     expect(knock.knockA).toEqual(knock.knockB);
+    // A move to the right would widen the document at 320 px (A11Y-02).
+    const { x } = knock.knockA as { x: number[] };
+    expect(Math.max(...x)).toBe(0);
     expect(lockRule.locked).toMatchObject({ scaleX: 1 });
     expect(lockRule.open).toMatchObject({ scaleX: 0 });
   });

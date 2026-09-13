@@ -155,13 +155,15 @@ export const press = {
 } as const;
 
 /**
- * The refusal: the send card knocks sideways once, like a detent that will not
- * turn. Two labels with the same keyframes, so a second refusal in a row plays
+ * The refusal: the send card knocks against its stop twice, like a detent that
+ * will not turn. It only ever moves left: the card fills the column, and a move
+ * to the right would widen the document at a phone width for the length of the
+ * knock. Two labels with the same keyframes, so a second refusal in a row plays
  * again when the label flips. A transform, so reduced motion drops it and the
  * oxide ring and the alert carry the refusal alone.
  */
 const knockTarget: Variant = {
-  x: [0, -6, 5, -3, 0],
+  x: [0, -6, 0, -3, 0],
   transition: { duration: duration.slow, ease: easing.standard },
 };
 export const knock: Variants = {

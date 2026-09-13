@@ -78,8 +78,11 @@ export function HashText({
     };
   }, [Loaded]);
 
+  // The last three classes are the 24px hit area TooltipTrigger adds for
+  // WCAG 2.5.8 (A11Y-06). The plain span carries them too, so the target is
+  // the same size before and after the tooltip loads.
   const triggerClass =
-    "amount min-w-0 truncate font-mono text-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "amount min-w-0 truncate font-mono text-caption text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring relative after:absolute after:-inset-1 after:content-['']";
   const content = (
     <>
       <span aria-hidden="true">{short}</span>

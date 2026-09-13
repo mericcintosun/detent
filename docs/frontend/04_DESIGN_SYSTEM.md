@@ -309,7 +309,7 @@ percent opacity like the keyframe), `scaleIn` for overlays, and
 `staggerContainer(step)`. Each has `hidden`, `visible` and `exit`; `hidden` is
 instant, and `visible` reads `custom={{ reduced, delay }}`. Interaction
 variants: `press` (a 0.97 tap on `spring.snappy`), `knock` (the refusal, `x`
-0, -6, 5, -3, 0 px over `duration.slow`) and `lockRule` (the gold rule drawn on
+0, -6, 0, -3, 0 px over `duration.slow`) and `lockRule` (the gold rule drawn on
 `transition.wipe` when a plan is locked).
 
 Architecture: `MotionProvider` in the root layout is `MotionConfig
