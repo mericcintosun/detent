@@ -52,6 +52,22 @@ export const runtime = "nodejs";
 // treasury wallet on the live path. Put the wallet back and revoke the policy
 // then, instead of leaving it attached with no lock left to spend it.
 lockVault.onExpire((lock) => {
+  // The plan was anchored when the lock opened and nothing was sent under it, so
+  // close the on chain row as abandoned. A refused edit does not do this: the
+  // lock stays open for the approved send, which settles the same row.
+  void abandonPlan(lock.plan.planHash, "lock expired before the plan was sent")
+    .then((receipt) => {
+      if (receipt.anchored) {
+        console.info(
+          `${LOG_PREFIX} expired lock abandoned plan ${lock.plan.planHash}`,
+        );
+      }
+    })
+    .catch(() => {
+      console.error(
+        `${LOG_PREFIX} expired lock could not abandon plan ${lock.plan.planHash}`,
+      );
+    });
   if (!lock.live || !lock.policyAttached) return;
   void releasePolicy({
     walletId: lock.walletId,
@@ -427,10 +443,13 @@ export async function POST(request: Request) {
       lockVault.release(lock.lockId);
     }
 
-    // Close the on chain record either way: settled when the key signed,
-    // abandoned when the policy refused the payload. settlePlan takes only a real
-    // 32 byte transaction hash, so a synthetic receipt leaves the plan anchored
-    // and open rather than closing it on something that is not a transaction.
+    // Settle the on chain record when the key signed. A refusal leaves it
+    // anchored and open: the lock is still live, and the operator's next move is
+    // the approved send, which must be able to settle this same row. Abandoned is
+    // terminal in PlanAnchor, so closing it here would make the record read
+    // abandoned for a plan that was then sent. An unspent lock is abandoned on
+    // expiry instead (lockVault.onExpire above). settlePlan takes only a real
+    // 32 byte transaction hash, so a synthetic receipt also leaves it anchored.
     const anchor = result.verdict.allowed
       ? await settlePlan(
           plan.planHash,
@@ -438,10 +457,7 @@ export async function POST(request: Request) {
             ? result.receipt.transactionHash
             : undefined,
         )
-      : await abandonPlan(
-          plan.planHash,
-          "policy refused the submitted payload",
-        );
+      : await anchorPlan(plan.planHash, plan.target, plan.selector);
 
     const data: SubmitResult = {
       ...result,
