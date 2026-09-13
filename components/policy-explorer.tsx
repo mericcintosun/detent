@@ -16,6 +16,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PolicyCondition } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /** Which part of the call a condition pins. */
 type Fragment = "chain" | "to" | "selector" | "data";
@@ -86,7 +87,7 @@ export function PolicyExplorer({
           role="region"
           aria-label="The compiled call, chain, destination, selector and calldata"
           tabIndex={0}
-          className="max-h-48 overflow-y-auto pt-2 text-sm leading-relaxed break-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="max-h-48 overflow-y-auto pt-2 font-mono text-caption leading-relaxed break-all outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
           <span className={tone("chain")}>
             chain {chainCondition ? chainCondition.value : ""}
@@ -101,7 +102,7 @@ export function PolicyExplorer({
         </p>
       </div>
 
-      <p className="text-xs leading-relaxed text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Four conditions, one ALLOW rule. Take any of them with the pointer or
         the keyboard and the part of the call it pins lights up above.
       </p>
@@ -115,9 +116,10 @@ export function PolicyExplorer({
               <Button
                 type="button"
                 variant="ghost"
-                className={`h-auto w-full flex-col items-start justify-start gap-1 whitespace-normal border-l-2 px-3 py-3 text-left focus-visible:ring-2 focus-visible:ring-ring ${
-                  isActive ? "border-hairline bg-accent" : "border-transparent"
-                }`}
+                className={cn(
+                  "h-auto w-full flex-col items-start justify-start gap-1 border-l-2 px-3 py-3 text-left whitespace-normal",
+                  isActive ? "border-hairline bg-accent" : "border-transparent",
+                )}
                 onMouseEnter={() => setActive(fragment)}
                 onMouseLeave={() => setActive(null)}
                 onFocus={() => setActive(fragment)}
@@ -126,11 +128,11 @@ export function PolicyExplorer({
                 <span className="detent-label">
                   {condition.field} {condition.operator}
                 </span>
-                <span className="w-full text-sm leading-relaxed break-all">
+                <span className="w-full font-mono text-caption break-all">
                   {condition.value}
                 </span>
                 {isActive ? (
-                  <span className="w-full text-xs leading-relaxed text-muted-foreground">
+                  <span className="w-full text-caption text-muted-foreground">
                     {glossOf(condition)}
                   </span>
                 ) : null}
@@ -140,9 +142,11 @@ export function PolicyExplorer({
         })}
       </ul>
 
-      <div className="border-t border-border pt-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <p className="detent-label">default action</p>
-        <p className="pt-1 text-sm text-bad">{defaultAction}</p>
+        <p className="font-mono text-body-sm font-semibold text-destructive">
+          {defaultAction}
+        </p>
       </div>
     </div>
   );

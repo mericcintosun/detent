@@ -62,18 +62,6 @@ const eslintConfig = defineConfig([
     rules: { "react-hooks/rules-of-hooks": "off" },
   },
   {
-    // eslint-plugin-react-hooks 7 (pulled in by eslint-config-next 16) adds the
-    // React Compiler diagnostics. react-hooks/refs reports failureControl() in
-    // this file because the closures it returns call send(), which touches a
-    // ref. Those closures only run from click handlers, never during render, so
-    // the report is a false positive for the code as written. The component
-    // belongs to the frontend workstream; restructuring failureControl into
-    // plain data plus handlers is the real fix, and this override should be
-    // deleted in the same change.
-    files: ["components/operations-console.tsx"],
-    rules: { "react-hooks/refs": "off" },
-  },
-  {
     // Node scripts and config files are not part of the app bundle.
     files: ["scripts/**/*.mjs", "*.config.{mjs,ts}"],
     rules: { "no-console": "off" },
