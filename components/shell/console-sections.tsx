@@ -1,8 +1,7 @@
 "use client";
 
-import { m, useScroll } from "motion/react";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { CONSOLE_SECTIONS } from "./nav";
 
@@ -93,17 +92,49 @@ export function ConsoleSections({
   );
 }
 
-/** Decorative: the position is already announced by aria-current. */
+/**
+ * Decorative: the position is already announced by aria-current. A passive
+ * scroll listener writes the fill once per frame. It used Motion's useScroll,
+ * which pulled the scroll timeline and animation engine into the first load
+ * bundle of every route just to scale one hairline.
+ */
 function ScrollTrack() {
-  const { scrollYProgress } = useScroll();
+  const fill = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const node = fill.current;
+    if (!node) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const root = document.documentElement;
+      const range = root.scrollHeight - window.innerHeight;
+      const progress =
+        range > 0 ? Math.min(1, Math.max(0, window.scrollY / range)) : 0;
+      node.style.transform = `scaleY(${progress})`;
+    };
+    const schedule = () => {
+      if (frame === 0) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, []);
+
   return (
     <span
       aria-hidden="true"
       className="absolute inset-y-2 left-0 w-0.5 bg-border"
     >
-      <m.span
+      <span
+        ref={fill}
         className="absolute inset-0 origin-top bg-hairline"
-        style={{ scaleY: scrollYProgress }}
+        style={{ transform: "scaleY(0)" }}
       />
     </span>
   );
