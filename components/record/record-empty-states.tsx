@@ -21,7 +21,7 @@ export function UnknownRecordState() {
 /** No PlanAnchor address is configured for this deployment. */
 export function AnchorNotConfiguredState() {
   return (
-    <Callout tone="warning" title="No anchor contract configured">
+    <Callout tone="neutral" title="No anchor contract configured">
       This deployment has no PlanAnchor address, so there is nothing on chain to
       read back. Set{" "}
       <code className="font-mono text-caption">{PLAN_ANCHOR_ENV_HINT}</code> to

@@ -31,7 +31,9 @@ const PILL: Record<RecordViewKind, { label: string; tone: RecordTone }> = {
   settled: { label: "Settled", tone: "success" },
   abandoned: { label: "Abandoned", tone: "destructive" },
   unknown: { label: "Not anchored", tone: "muted" },
-  unwired: { label: "Anchor not configured", tone: "warning" },
+  // A deployment without an anchor address is configured that way, it has
+  // not failed: the neutral tone keeps destructive for a read that failed.
+  unwired: { label: "Anchor not configured", tone: "muted" },
   unreadable: { label: "Read failed", tone: "destructive" },
 };
 
