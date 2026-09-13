@@ -61,6 +61,7 @@ export function LedgerSection({ c }: { c: ConsoleController }) {
           {c.log.map((entry) => (
             <StaggerItem
               as="li"
+              layout
               key={entry.id}
               className="grid gap-2 py-4 sm:grid-cols-[6rem_minmax(0,1fr)]"
             >

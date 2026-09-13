@@ -12,7 +12,7 @@ import {
   StatGroup,
   StatusPill,
 } from "@/components/design";
-import { NumberTicker } from "@/components/motion";
+import { NumberTicker, pressable } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -253,7 +253,8 @@ export function PlanSection({ c }: { c: ConsoleController }) {
                               )}
                             >
                               <Button
-                                  variant={row.included ? "outline" : "ghost"}
+                                render={pressable}
+                                variant={row.included ? "outline" : "ghost"}
                                 size="sm"
                                 disabled={c.locked}
                                 onClick={() => c.toggleRow(row)}

@@ -5,6 +5,7 @@ import {
   Libre_Franklin,
 } from "next/font/google";
 import { OfflineBanner } from "@/components/design/offline-banner";
+import { MotionProvider } from "@/components/motion/motion-provider";
 import {
   AppRail,
   CommandPaletteProvider,
@@ -113,24 +114,26 @@ export default function RootLayout({
     >
       <body className="min-h-dvh antialiased">
         <ThemeProvider>
-          <CommandPaletteProvider>
-            <SkipLink />
-            <div className="lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
-              <AppRail {...runMode} />
-              <div className="flex min-h-dvh min-w-0 flex-col">
-                <TopBar {...runMode} />
-                <main
-                  id="main"
-                  tabIndex={-1}
-                  className="w-full flex-1 px-gutter py-8 outline-none lg:py-12"
-                >
-                  <div className="mx-auto w-full max-w-page">{children}</div>
-                </main>
-                <SiteFooter />
+          <MotionProvider>
+            <CommandPaletteProvider>
+              <SkipLink />
+              <div className="lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
+                <AppRail {...runMode} />
+                <div className="flex min-h-dvh min-w-0 flex-col">
+                  <TopBar {...runMode} />
+                  <main
+                    id="main"
+                    tabIndex={-1}
+                    className="w-full flex-1 px-gutter py-8 outline-none lg:py-12"
+                  >
+                    <div className="mx-auto w-full max-w-page">{children}</div>
+                  </main>
+                  <SiteFooter />
+                </div>
               </div>
-            </div>
-            <OfflineBanner className="fixed inset-x-4 bottom-4 z-(--z-overlay) shadow-xl lg:left-auto lg:w-96" />
-          </CommandPaletteProvider>
+              <OfflineBanner className="fixed inset-x-4 bottom-4 z-(--z-overlay) shadow-xl lg:left-auto lg:w-96" />
+            </CommandPaletteProvider>
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>
