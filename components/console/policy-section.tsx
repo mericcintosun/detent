@@ -42,7 +42,7 @@ export function PolicySection({ c }: { c: ConsoleController }) {
       }
       className="border-t border-border"
     >
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
         <Card>
           <CardHeader className="border-b border-border">
             <CardTitle className="font-display text-heading">
@@ -99,7 +99,7 @@ export function PolicySection({ c }: { c: ConsoleController }) {
 
             <Button
               size="lg"
-              className="w-full"
+              className="w-full text-center"
               disabled={
                 c.locked ||
                 c.pending !== null ||

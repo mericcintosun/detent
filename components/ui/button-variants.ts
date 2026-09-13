@@ -18,7 +18,12 @@ import { cn } from "@/lib/utils";
  * on an <a> or next/link <Link> so the element keeps its link role.
  */
 const buttonVariantsBase = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-none border border-transparent bg-clip-padding text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-(--duration-fast) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  // No whitespace-nowrap here (A11Y-02, WCAG 1.4.10 Reflow): a long label on a
+  // full-width control must be free to wrap at 320 CSS px, or its min-content
+  // width can force the whole page wider than the viewport. Every size still
+  // sets a min-height, not a fixed height, so a wrapped two-line label simply
+  // grows past the 44px floor instead of being clipped.
+  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-none border border-transparent bg-clip-padding text-sm font-medium tracking-wide transition-colors duration-(--duration-fast) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
