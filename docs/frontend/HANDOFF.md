@@ -254,13 +254,12 @@ written). Re-measured after the Motion reintroduction and the accessibility fixe
 Same-origin JS gzip by route after the Motion merge: `/` 255.0 kB,
 `/how-it-works` 201.2 kB, `/record/[hash]` 200.4 kB, `/nope` 186.2 kB (341.5 /
 279.2 / 278.5 / 246.3 kB before the perf pass; `/nope` rose by Motion's 11.6 kB
-static base, which every route now carries). The LCP gap is mostly first-party console and
-design-system code; `PERF.md` section "Proposed changes for other owners" has
-five unapplied diffs (toast region after hydration, tooltip popup on demand,
-prefetch on the console's "How it works" link, stale doc comments naming the
-deleted `MotionProvider`, and moving the first plan computation server-side to
-drop viem from the first load) that whoever owns those files next should
-evaluate.
+static base, which every route now carries). The LCP gap is now mostly React DOM and the router (about 115 kB) and the three
+preloaded fonts (63 kB), which Lighthouse's simulation charges to LCP even
+though the LCP paragraph paints with first paint. `PERF.md` proposals A to D are
+applied; proposal E, computing the first plan on the server so viem and abitype
+(about 12 kB) leave the first load, is still open and needs the owner of
+`lib/plan.ts` and `app/page.tsx`.
 
 ## Accessibility status
 
