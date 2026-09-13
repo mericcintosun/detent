@@ -89,7 +89,7 @@ Added in Wave 1 (design system), 13 September 2026. Versions are the ones in
 | `@base-ui/react` | 1.8.0 | The primitive layer under every shadcn `base-*` component: dialog, menu, tooltip, toast, tabs, switch, toggle, scroll area. The default shadcn base since July 2026 |
 | `@phosphor-icons/react` | 2.1.10 | The icon library the `base-lyra` style generates against. It has a server safe entry (`/ssr`), so icons in server components add no client code |
 | `cmdk` | 1.1.1 | The shadcn `command` component, the Cmd K palette in `05_IA.md` |
-| `motion` | 13.2.0 | Motion for React, imported from `motion/react`. Loaded through `LazyMotion` with `domAnimation` on a dynamic import, so only the `m` components ship up front |
+| `motion` | 13.2.0 | Motion for React. `m` from `motion/react-m` (the `motion/react` entry builds `m` from a namespace of the whole library), `LazyMotion`, `MotionConfig`, `AnimatePresence` and hooks from `motion/react`. `LazyMotion strict` loads `domMax` on a dynamic import after hydration; about 11.6 kB gzip of motion-dom stays in every first load. See `docs/frontend/07_MOTION.md` |
 | `next-themes` | 0.4.6 | Light, dark and system themes with no flash: it writes the theme class before hydration |
 | `tw-animate-css` | 1.4.0 | CSS only. The enter and exit utilities (`animate-in`, `fade-in-0`, `zoom-in-95`) the shadcn overlays use |
 
