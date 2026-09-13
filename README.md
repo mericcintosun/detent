@@ -298,11 +298,12 @@ provider. The third bounty slot the event allows is left empty on purpose, see
 
 ## Tech stack
 
-Next.js 15 (App Router), TypeScript strict, Tailwind CSS v4, shadcn primitives,
-viem, Hedera testnet (chain 296) over Hashio, Asset Tokenization Studio
-contracts (ERC-1400 / 1410 / 1594 / 1643 / 1644), Privy REST server wallets with
-policies and key quorums, Foundry for `PlanAnchor`, HashScan for receipts,
-Vercel for hosting.
+Next.js 16 (App Router, React Compiler on), React 19, TypeScript strict,
+Tailwind CSS v4, the shadcn CLI on Base UI (style `base-lyra`), Motion for
+React, next-themes for light, dark and system theming, viem, Hedera testnet
+(chain 296) over Hashio, Asset Tokenization Studio contracts (ERC-1400 / 1410
+/ 1594 / 1643 / 1644), Privy REST server wallets with policies and key
+quorums, Foundry for `PlanAnchor`, HashScan for receipts, Vercel for hosting.
 
 `PlanAnchor` was not deployed for this submission, so there is no address and no
 transaction hash to quote; its five Foundry tests, three of
@@ -350,6 +351,23 @@ Two more keys turn on the rest of the path:
 | `OPERATOR_PRIVATE_KEY` | The ECDSA key that deployed `PlanAnchor`. The contract pins its operator to the deployer, so anchoring from the app needs that same key. No `NEXT_PUBLIC_` prefix: it never reaches the browser. |
 
 Contract build and deploy commands are in `contracts/README.md`.
+
+### The pages, the theme and the command palette
+
+The console at `/` is still where the demo happens. Around it the app now has
+a full page set: `/how-it-works` (the explanation that used to sit at the top
+of the console), `/security` (what is enforced by the server, the wallet and
+the contract, and what has not run live), `/faucet` (funding a Hedera testnet
+account), and `/privacy` and `/terms`. `/design-system` is a living style
+guide: it is always served in development, and in a production build it
+answers 404 unless the server runs with `DETENT_DESIGN_SYSTEM=1`.
+
+The app follows the system color scheme by default, with a light, dark and
+system toggle in the rail (desktop) or the menu sheet (mobile); the choice is
+kept in `localStorage` and applied before first paint, so there is no flash.
+Press Cmd+K or Ctrl+K anywhere to open the command palette: it jumps to any
+page or console section, opens a permanent record by plan hash, switches the
+theme, and copies the token and anchor addresses when they are configured.
 
 ## The anchor lifecycle
 
@@ -444,14 +462,23 @@ deploy step rewrites only `.env.local` and this file.
 ## Tests
 
 ```bash
-npm test              # vitest: the edge schemas and the policy evaluator
+npm test              # vitest: the edge schemas, the policy evaluator and the design system
+npm run test:coverage # vitest with coverage thresholds
+npm run test:e2e      # Playwright: builds the app, serves it on :3120, runs the demo path, axe and both viewports
 cd contracts && forge test   # PlanAnchor, five tests, three of them fuzz
 ```
 
-`npm test` covers the two mechanisms the demo turns on: the zod validation at
-the API edge, and the policy evaluation that produces the refusal with the
-failing condition and the byte offset. Foundry is deliberately not wired into
-the npm scripts, so the contract suite runs from `contracts/`.
+`npm test` covers the mechanisms the demo turns on: the zod validation at the
+API edge, the policy evaluation that produces the refusal with the failing
+condition and the byte offset, and the design system's own contrast check
+(every published color pair must clear WCAG 2.2 AA). `npm run test:e2e` runs
+the full end to end suite: the six-step demo path, a mobile viewport pass, and
+axe on every route in both themes with zero serious or critical findings
+allowed. It rate-limits per client address like the API does, so a test that
+calls `/api/detent` or `/api/fee` directly needs the `x-forwarded-for` header
+`e2e/fixtures.ts` sets automatically for anything using its `test`/`expect`.
+Foundry is deliberately not wired into the npm scripts, so the contract suite
+runs from `contracts/`.
 
 ## Lint and format
 
