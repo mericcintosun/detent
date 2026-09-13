@@ -1,23 +1,53 @@
 "use client";
 
+import Link from "next/link";
+import { PageHeader } from "@/components/design/page-header";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 /**
- * Nothing from the error object reaches the page: an operator console should not
- * print a stack trace over a register.
+ * A route failed to render. Nothing from the error object reaches the page but
+ * its digest, the opaque reference the server log carries: an operator console
+ * never prints a message or a stack trace over a register.
  */
-export default function Error({ reset }: { error: Error; reset: () => void }) {
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
-    <div className="max-w-[62ch] space-y-6 py-20">
-      <p className="detent-label">Detent</p>
-      <h1 className="text-4xl leading-[1.05] tracking-tight">
-        This page did not finish loading
-      </h1>
-      <p className="leading-relaxed text-muted-foreground">
-        The register read failed on the way out. Nothing was signed and no
-        policy was installed, so it is safe to run it again.
-      </p>
-      <Button onClick={() => reset()}>Try again</Button>
+    <div className="flex max-w-measure-xl flex-col gap-8 py-8 lg:py-16">
+      <PageHeader
+        eyebrow="Something failed"
+        title="This page did not finish loading"
+        description="Rendering a page never signs or sends anything, so trying again is safe. If it fails the same way twice, the register or the relay is likely unreachable."
+        meta={
+          <>
+            <Button type="button" onClick={() => reset()}>
+              Try again
+            </Button>
+            <Link
+              href="/"
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "border-input",
+              )}
+            >
+              Back to the console
+            </Link>
+          </>
+        }
+      />
+      {error.digest ? (
+        <p className="text-caption text-muted-foreground">
+          Reference{" "}
+          <code className="font-mono text-foreground">{error.digest}</code>.
+          Quote it when you report the failure; it matches the server log.
+        </p>
+      ) : null}
     </div>
   );
 }
