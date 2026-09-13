@@ -1,26 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { PageHeader, StatusPill } from "@/components/design";
+import { PageHeader } from "@/components/design";
 import { Reveal } from "@/components/motion";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { couponWindow } from "@/lib/data";
-import { cn } from "@/lib/utils";
 import type { ConsoleController } from "./use-console";
 
 /**
  * The compact top of the console: the run mode status line, the product name,
  * one sentence and the way to the explanation. The status line is a polite live
  * region because the policy id joins it the moment a plan is locked.
+ *
+ * The status line is the hero's only statement of the run mode. It already names
+ * the register source and the signer, which two pills under the description
+ * used to repeat, and the shell's rail or top bar carries the mode pill.
  */
-export function ConsoleHero({
-  c,
-  signerLive,
-}: {
-  c: ConsoleController;
-  signerLive: boolean;
-}) {
-  const registerLive = c.snapshot.source === "hedera-testnet";
+export function ConsoleHero({ c }: { c: ConsoleController }) {
   return (
     <Reveal variant="wipe" trigger="mount">
       <PageHeader
@@ -43,26 +39,15 @@ export function ConsoleHero({
           <Link
             href="/how-it-works"
             prefetch={false}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "border-input",
-            )}
+            className={buttonVariants({ variant: "outline" })}
           >
             How it works
           </Link>
         }
         meta={
-          <>
-            <StatusPill kind="mode" value={registerLive ? "live" : "mirror"}>
-              {registerLive ? "Register read on chain" : "Seed register"}
-            </StatusPill>
-            <StatusPill kind="mode" value={signerLive ? "live" : "mirror"}>
-              {signerLive ? "Privy signer" : "Local mirror signer"}
-            </StatusPill>
-            <span className="text-caption text-muted-foreground">
-              {c.snapshot.token.standard}, {couponWindow.reference} window
-            </span>
-          </>
+          <span className="text-caption text-muted-foreground">
+            {c.snapshot.token.standard}, {couponWindow.reference} window
+          </span>
         }
       />
     </Reveal>

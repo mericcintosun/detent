@@ -34,9 +34,12 @@ export function Section({
       data-slot="section"
       className={cn("scroll-mt-24 py-section first:pt-0", className)}
     >
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="flex min-w-0 flex-col gap-2">
-          {eyebrow ? <p className="detent-label">{eyebrow}</p> : null}
+      {/* One column on one measure: the actions (a step badge, a download)
+          sit on the heading's own row, beside the words they qualify, instead
+          of floating at the far end of the content column. */}
+      <div className="mb-6 flex min-w-0 flex-col gap-2">
+        {eyebrow ? <p className="detent-label">{eyebrow}</p> : null}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
           <Heading
             id={headingId}
             className={cn(
@@ -46,16 +49,14 @@ export function Section({
           >
             {heading}
           </Heading>
-          {description ? (
-            <p className="max-w-measure-md text-body-sm text-muted-foreground">
-              {description}
-            </p>
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-3">{actions}</div>
           ) : null}
         </div>
-        {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {actions}
-          </div>
+        {description ? (
+          <p className="max-w-measure-md text-body-sm text-muted-foreground">
+            {description}
+          </p>
         ) : null}
       </div>
       {children}
