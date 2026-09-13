@@ -19,8 +19,8 @@ coverage/
 fixtures/register.seed.report.json
 
 # Local-only working notes. They are not part of the published project.
-HANDOFF.md
-.farm-delta.md
+/HANDOFF.md
+/.farm-delta.md
 .farm-scaffold.json
 
 # Secret material. Never commit a key, a certificate or a keystore.
