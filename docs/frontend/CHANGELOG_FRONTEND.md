@@ -89,7 +89,12 @@ merge commit; `git show --stat <hash>` lists the exact files it touched.
   `scope="col"` on table headers, and a 24 px hit area on hash tooltip
   triggers. Adds `e2e/a11y-regressions.spec.ts`.
 
-TODO(orchestrator): add the Motion reintroduction merge once it lands.
+- `21fa89d` Motion reintroduced as the motion engine after the perf pass had
+  removed it: `LazyMotion` with `domMax` loaded after hydration, `m` components
+  from `motion/react-m`, server rendered entrances stay visible without JS, the
+  toast region and the HashText tooltip load after hydration, and the plan
+  table's held row reason gets its own full width line (QA-02). `/` initial JS
+  255.0 kB gzip. Inventory in `07_MOTION.md`.
 
 ## Breaking for contributors
 

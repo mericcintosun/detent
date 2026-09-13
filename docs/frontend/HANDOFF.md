@@ -237,22 +237,24 @@ Other env-driven UI behavior worth knowing:
 Source: `docs/frontend/PERF.md`, measured on `refactor/main` at `4bd9cb5` with
 `fa0b989` and `df9125b` merged in (before the a11y and assets merges, and
 before whatever the parallel motion/a11y-fix agents land after this file is
-written). **TODO(orchestrator): re-measure after the motion and a11y fix
-agents merge**, since both can plausibly move bytes or the LCP path.
+written). Re-measured after the Motion reintroduction and the accessibility fixes
+(merge `21fa89d`), mobile Lighthouse medians of three runs; details in
+`PERF.md` under "After Motion".
 
 | Gate | Budget | Measured | Pass |
 | --- | --- | --- | --- |
-| Lighthouse mobile Performance, `/` | ≥ 80 | 92 | yes |
+| Lighthouse mobile Performance, `/` | ≥ 80 | 90 | yes |
 | Accessibility, Best Practices, SEO | 100 each | 100, 100, 100 | yes |
-| LCP, mobile `/` | < 2.0s | 3.32s (simulated) | no, and was not met before the redesign either (2.5s on Next 15.5) |
+| LCP, mobile `/` | < 2.0s | 3.67s (simulated) | no, and was not met before the redesign either (2.5s on Next 15.5) |
 | CLS | < 0.05 | 0 | yes |
 | TBT | < 150ms | 8ms | yes |
-| Initial JS, `/`, gzip | < 300 kB | 280.3 kB | yes |
+| Initial JS, `/`, gzip | < 300 kB | 255.0 kB | yes |
 | React #418 under 60 parallel cold loads | 0 | 0 | yes |
 
-Same-origin JS gzip by route: `/` 280.3 kB, `/how-it-works` 217.8 kB,
-`/record/[hash]` 216.9 kB, `/nope` 174.5 kB (down from 341.5 / 279.2 / 278.5 /
-246.3 kB before the perf pass). The LCP gap is mostly first-party console and
+Same-origin JS gzip by route after the Motion merge: `/` 255.0 kB,
+`/how-it-works` 201.2 kB, `/record/[hash]` 200.4 kB, `/nope` 186.2 kB (341.5 /
+279.2 / 278.5 / 246.3 kB before the perf pass; `/nope` rose by Motion's 11.6 kB
+static base, which every route now carries). The LCP gap is mostly first-party console and
 design-system code; `PERF.md` section "Proposed changes for other owners" has
 five unapplied diffs (toast region after hydration, tooltip popup on demand,
 prefetch on the console's "How it works" link, stale doc comments naming the
