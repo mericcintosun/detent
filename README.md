@@ -19,11 +19,11 @@ which is DEMO step 2.** Everything after that happens on the same page.
 | Live app | https://detent-app.vercel.app |
 | Demo video | [demo-video.mp4](https://detent-app.vercel.app/demo-video.mp4), 3:01, narrated, served from the site as a plain mp4 |
 | ATS equity token, Hedera testnet 296 | Not issued for this submission, so there is no token address to quote. The reader is `lib/hedera.ts`, and with `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` absent the console serves the cached register from `fixtures/register.seed.json` and says so on screen. |
-| `PlanAnchor`, Hedera testnet 296 | Not deployed for this submission, so there is no address and no transaction hash to quote. The contract is `contracts/src/PlanAnchor.sol` and its five Foundry tests, three of them fuzz, are in `contracts/test/PlanAnchor.t.sol`; the deploy and the smoke run are `contracts/script/Deploy.s.sol` and `contracts/script/Smoke.s.sol`. With `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` absent the app renders its documented `unwired` state instead of implying a record it does not have. |
+| `PlanAnchor`, Hedera testnet 296 | [`0x1a393277908834c39D2611Ce9A151474B8Dfea0d`](https://hashscan.io/testnet/contract/0x1a393277908834c39D2611Ce9A151474B8Dfea0d) (`0.0.10522751`), deployed 13 September 2026 in [`0x503314b0`](https://hashscan.io/testnet/transaction/0x503314b069b6dd30f22be18eec345d8d3453397f14f429e2eb599cd09ba36bac). Smoke run: anchor [`0xacf34713`](https://hashscan.io/testnet/transaction/0xacf34713fe8d913b3429cfa0843a7d17c1159d357d239e6d147d1cb31b8d9581), settle [`0x5cadfa24`](https://hashscan.io/testnet/transaction/0x5cadfa24797a125fd85ea0f459e76c9a6c7e333dcd085feccdeb4abd632fd4e8). The live app anchors the demo coupon plan when it is locked, for example [`0xcc8f05ac`](https://hashscan.io/testnet/transaction/0xcc8f05ac92200041d7a3aa80c374c2949b84ef45c39dd8daa4cd8fec45a0731e). |
 
-Those last two rows are a decision, not an omission. Issuing the token and
-deploying `PlanAnchor` both need a funded testnet account, and rather than ship a
-table of empty angle brackets the claim is withdrawn until the addresses exist.
+The token row is a decision, not an omission. Issuing it through the ATS factory
+needs 40 to 120 testnet HBAR, and rather than ship an empty address the claim is
+withdrawn until the token exists.
 "On chain proof" below carries the two commands that fill the anchor row,
 `DELIVERY.md` is the checklist a human works, and `docs/VIDEO.md` is the shot
 list the recording follows.
@@ -39,7 +39,7 @@ no address and no transaction hash is quoted anywhere.
 | The plan, the quorum, the compiled policy, the refusal with its byte offset, the audit record | **Runs today**, on the live URL and on a fresh clone with an empty `.env.local`. The policy is compiled and evaluated by `lib/privy.ts` locally. | Nothing. `npm install && npm run dev`. |
 | The register read: `balanceOfByPartition` and `canTransferByPartition` against an ATS token | **Written, not exercised against a live token.** `lib/hedera.ts` issues the reads over Hashio, checks each credit from the configured treasury, and falls back to the cached register on any failure or missing configuration. A dry run against a mock ATS token rendered the twelve holders with the three held rows and their reasons. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `NEXT_PUBLIC_ATS_TOKEN_ADDRESS` and `NEXT_PUBLIC_ATS_CHECK_FROM_ADDRESS`, optionally `NEXT_PUBLIC_ATS_PARTITION`, after issuing the token through the ATS factory. |
 | The signature: policy installed on a Privy server wallet under a key quorum of two, then revoked | **Written, not exercised against live credentials.** Without them the same evaluator answers locally, which is why the demo produces a real refusal with no keys. | `NEXT_PUBLIC_ADAPTER_MODE=real`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_TREASURY_WALLET_ID`, `PRIVY_KEY_QUORUM_ID`. |
-| The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Written and tested in Foundry, not deployed.** 37 tests pass, 9 of them fuzz, and the deploy and smoke scripts run end to end under test. The app renders its `unwired` state instead of implying a record. | `forge script script/Deploy.s.sol` from `contracts/`, then `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`. See "On chain proof". |
+| The on chain record: `anchor`, `settle`, `abandon` and the read back at `/record/[planHash]` | **Runs today on Hedera testnet.** `PlanAnchor` is deployed and the live app writes to it: the lock step anchors the plan hash before the policy opens, and `/record/[planHash]` reads it back with no key. On the keyless path the send produces a synthetic receipt, which is not a transaction, so the row stays anchored rather than settled; a refused edit leaves it anchored too, and an unspent lock abandons it on expiry. | `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` and `OPERATOR_PRIVATE_KEY`, both set on the live deployment. See "On chain proof". |
 
 The demo video and the live URL both run the first row, and the console prints
 which half it is on: `Cached register · Treasury key, policy evaluated locally`.
@@ -305,9 +305,8 @@ React, next-themes for light, dark and system theming, viem, Hedera testnet
 / 1594 / 1643 / 1644), Privy REST server wallets with policies and key
 quorums, Foundry for `PlanAnchor`, HashScan for receipts, Vercel for hosting.
 
-`PlanAnchor` was not deployed for this submission, so there is no address and no
-transaction hash to quote; its five Foundry tests, three of
-them fuzz, are in `contracts/test/PlanAnchor.t.sol`.
+`PlanAnchor` is deployed on Hedera testnet at `0x1a393277908834c39D2611Ce9A151474B8Dfea0d`; its Foundry tests are in
+`contracts/test/PlanAnchor.t.sol`.
 
 ## Quickstart
 
@@ -422,20 +421,21 @@ the record already on chain and the screen looks identical.
 
 ## On chain proof
 
-**What is on chain today: nothing.** `PlanAnchor` has never been deployed, so
-this section quotes no address and no transaction hash. Every read path against
-Hedera testnet is written and reachable (`lib/hedera.ts` for the register,
-`lib/anchor.ts` for `planOf`), and every write path is unproven against the
-relay. The console and `/record/[planHash]` both name that state on screen rather
-than hiding it: with `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` absent the record route
-renders `unwired` and the audit entry carries the anchor note instead of a
-HashScan link.
+**What is on chain today.** `PlanAnchor` at [`0x1a393277908834c39D2611Ce9A151474B8Dfea0d`](https://hashscan.io/testnet/contract/0x1a393277908834c39D2611Ce9A151474B8Dfea0d)
+(`0.0.10522751`), operator `0x664FB4A18FfA663a68337eFa5A132854920493e1`.
 
-**What would be here after the deploy:** the `PlanAnchor` address, plus the two
-`Smoke.s.sol` transaction hashes, one `anchor` and one `settle`, as proof of a
-live interaction.
+| Transaction | Hash |
+| --- | --- |
+| Deploy | [`0x503314b069b6dd30f22be18eec345d8d3453397f14f429e2eb599cd09ba36bac`](https://hashscan.io/testnet/transaction/0x503314b069b6dd30f22be18eec345d8d3453397f14f429e2eb599cd09ba36bac) |
+| Smoke `anchor` | [`0xacf34713fe8d913b3429cfa0843a7d17c1159d357d239e6d147d1cb31b8d9581`](https://hashscan.io/testnet/transaction/0xacf34713fe8d913b3429cfa0843a7d17c1159d357d239e6d147d1cb31b8d9581) |
+| Smoke `settle` | [`0x5cadfa24797a125fd85ea0f459e76c9a6c7e333dcd085feccdeb4abd632fd4e8`](https://hashscan.io/testnet/transaction/0x5cadfa24797a125fd85ea0f459e76c9a6c7e333dcd085feccdeb4abd632fd4e8) |
+| The app anchoring the demo coupon plan `0xb43da729...9910` | [`0xcc8f05ac92200041d7a3aa80c374c2949b84ef45c39dd8daa4cd8fec45a0731e`](https://hashscan.io/testnet/transaction/0xcc8f05ac92200041d7a3aa80c374c2949b84ef45c39dd8daa4cd8fec45a0731e) |
 
-**Exactly two commands fill it.** Both run from `contracts/`, with
+The smoke plan reads settled at `/record/0x088f6243f038cd0d6d719d3b5e05164eb2e52a8bff1cb489ca4a00e9e4b541cd`,
+and the demo coupon plan reads anchored at
+`/record/0xb43da729424748e5aaa28d8f13a1be304e9a455635c7c8d846726d148e849910`.
+
+**To deploy your own.**  Both run from `contracts/`, with
 `RPC_URL=https://testnet.hashio.io/api` and a funded `DEPLOYER_PRIVATE_KEY`
 exported, and both need `--legacy` because the Hedera relay rejects typed
 transactions:

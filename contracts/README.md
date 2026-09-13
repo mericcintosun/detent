@@ -120,8 +120,8 @@ Record both transaction hashes under "On chain proof" in the root `README.md`.
 Put the deployed address in `.env.local` as `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`
 and the chain in `NEXT_PUBLIC_CHAIN_ID` (296). Whoever runs the deploy above
 should then verify the contract on Sourcify for chain 296 so HashScan shows the
-source; nothing in this repo has been verified yet, because nothing has been
-deployed yet.
+source. The live deployment is `0x1a393277908834c39D2611Ce9A151474B8Dfea0d` on
+chain 296, submitted to Sourcify on 13 September 2026.
 
 The app writes to this contract too, from `lib/anchor.ts`: `anchor` on the lock
 step, `settle` or `abandon` on the send step. `onlyOperator` pins the writer to
@@ -133,7 +133,7 @@ The `Plan` struct the app decodes from `planOf` changed shape in this pass: the
 field formerly called `settledAt` is now `closedAt`, because `abandon` writes it
 too, and the field order is `token, selector, anchoredAt, anchoredBy, closedAt,
 status`. See `tests/contracts-notes.md` for the exact ABI string `lib/anchor.ts`
-needs. Nothing is deployed yet, so no live consumer breaks.
+needs. The deployed contract already has this shape.
 
 Anchoring is read before write: `lib/anchor.ts` calls `planOf` first and reuses
 an existing record rather than reverting on `AlreadyAnchored`. A plan hash is

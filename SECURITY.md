@@ -20,10 +20,10 @@ address is read from `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`, falling back to
 (`PLAN_ANCHOR_ADDRESS`). That module is the only reader of either name, and no
 anchor address is ever a literal in code.
 
-`PlanAnchor` was not deployed for this submission, so this file quotes no
-address and the `On chain proof` section of `README.md` quotes none either. The
-human writes the address in here by hand after the contract deploy step runs,
-because that step rewrites only `.env.local` and `README.md`.
+`PlanAnchor` is deployed on Hedera testnet at `0x1a393277908834c39D2611Ce9A151474B8Dfea0d` (`0.0.10522751`), with the
+operator pinned to `0x664FB4A18FfA663a68337eFa5A132854920493e1`. The transaction
+hashes are in the `On chain proof` section of `README.md`. `OPERATOR_PRIVATE_KEY`
+is set only as a server side environment variable on the deployment.
 
 **The equity token.** The ATS equity token address comes from
 `NEXT_PUBLIC_ATS_TOKEN_ADDRESS`. With it empty the console serves the cached
