@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
   // skips any function it cannot prove safe, so it never changes behaviour of
   // code that breaks the rules of React; it only leaves that code unoptimized.
   reactCompiler: true,
+  // `next dev` otherwise rewrites the tracked CLAUDE.md with its managed agent
+  // rules block whenever it detects a coding agent, which dirties the tree on
+  // every start. The project keeps its own agent instructions.
+  agentRules: false,
 };
 
 export default nextConfig;

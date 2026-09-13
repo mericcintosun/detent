@@ -31,9 +31,6 @@ export function PrimaryNav({ onNavigate }: { onNavigate?: () => void }) {
             <li key={href}>
               <Link
                 href={href}
-                // The content routes land with page-content in the same wave;
-                // until then a viewport prefetch would log a 404 on every page.
-                prefetch={href === "/" ? undefined : false}
                 aria-current={current ? "page" : undefined}
                 onClick={onNavigate}
                 className={cn(
