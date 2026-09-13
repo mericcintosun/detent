@@ -45,8 +45,8 @@ level footer, no theme toggle, no global nav.
   (`https://github.com/mericcintosun/detent`), ETHOnline 2026
   (`https://ethglobal.com/events/ethonline2026`), "Built for ETHOnline 2026 on
   Hedera testnet, chain 296."
-- The about and security rows (`AboutSecurity` in `components/rail.tsx`) leave
-  the shell; their content moves to `/security`.
+- The about and security rows live on `/security`; the shell does not repeat
+  them.
 - Universal states: `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`.
   No `loading.tsx` on `/` or `/record/[planHash]`: measured on Next 16, a loading
   boundary there turns the record 404 into a 200. Static content routes do not
