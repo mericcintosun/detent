@@ -17,8 +17,7 @@ export function SiteFooter() {
           <ul className="flex flex-wrap items-center gap-x-6">
             {FOOTER_NAV.map(({ href, label }) => (
               <li key={href}>
-                {/* No prefetch: these routes land with page-content. */}
-                <Link href={href} prefetch={false} className={FOOTER_LINK}>
+                <Link href={href} className={FOOTER_LINK}>
                   {label}
                 </Link>
               </li>

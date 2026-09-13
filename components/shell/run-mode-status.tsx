@@ -20,14 +20,9 @@ export function RunModeStatus({
         <h2 id={labelId} className="detent-label font-sans">
           Run mode
         </h2>
-        {/* The caption size sits on a wrapper: inside StatusPill, cn() reads
-            text-caption and the tone's text colour as one group and drops the
-            size, so the pill would inherit the body size. */}
-        <span className="text-caption">
-          <StatusPill kind="mode" value={copy.mode}>
-            {copy.label}
-          </StatusPill>
-        </span>
+        <StatusPill kind="mode" value={copy.mode} className="text-caption">
+          {copy.label}
+        </StatusPill>
       </div>
       <p className="text-caption text-foreground">{copy.line}</p>
       <p className="text-caption text-muted-foreground">
@@ -44,12 +39,14 @@ export function RunModePill({
 }: RunModeFlags & { className?: string }) {
   const copy = describeRunMode(flags);
   return (
-    <span className={cn("text-caption", className)}>
-      <StatusPill kind="mode" value={copy.mode}>
-        <span className="sr-only">Run mode: </span>
-        {copy.label}
-        <span className="sr-only">. {copy.line}.</span>
-      </StatusPill>
-    </span>
+    <StatusPill
+      kind="mode"
+      value={copy.mode}
+      className={cn("text-caption", className)}
+    >
+      <span className="sr-only">Run mode: </span>
+      {copy.label}
+      <span className="sr-only">. {copy.line}.</span>
+    </StatusPill>
   );
 }
