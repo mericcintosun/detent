@@ -14,6 +14,7 @@ import {
   SpinnerIcon,
 } from "@phosphor-icons/react";
 
+/** The one manager the region renders. Callers raise toasts through ./toast-manager. */
 const toast = ToastPrimitive.createToastManager();
 
 function ToastProvider({ ...props }: ToastPrimitive.Provider.Props) {

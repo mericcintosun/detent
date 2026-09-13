@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { PlanEmptyState } from "@/components/console-states";
 import {
   Callout,
@@ -12,7 +12,7 @@ import {
   StatGroup,
   StatusPill,
 } from "@/components/design";
-import { NumberTicker } from "@/components/motion";
+import { NumberTicker, pressable } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -196,82 +196,102 @@ export function PlanSection({ c }: { c: ConsoleController }) {
                     {plan.rows.map((row) => {
                       const state = compliance.get(row.holderId);
                       return (
-                        <TableRow
-                          key={row.holderId}
-                          className={cn(
-                            "align-top",
-                            row.held && "bg-muted hover:bg-muted",
-                          )}
-                        >
-                          <TableCell className="py-3 pl-4 whitespace-normal">
-                            <div className="flex min-w-0 flex-col gap-1">
-                              <span className="flex flex-wrap items-center gap-2">
-                                <span
-                                  className={cn(
-                                    "font-medium",
-                                    row.held && "text-destructive",
-                                  )}
-                                >
-                                  {row.legalName}
+                        <Fragment key={row.holderId}>
+                          <TableRow
+                            className={cn(
+                              "align-top",
+                              row.held && "border-b-0 bg-muted hover:bg-muted",
+                            )}
+                          >
+                            <TableCell className="py-3 pl-4 whitespace-normal">
+                              {/* Below 375px the pinned Row cell leaves about
+                                  126px of this column on screen, so the name
+                                  and the address wrap inside that width. */}
+                              <div className="flex max-w-31 min-w-0 flex-col gap-1 xs:max-w-none">
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      "font-medium",
+                                      row.held && "text-destructive",
+                                    )}
+                                  >
+                                    {row.legalName}
+                                  </span>
                                 </span>
-                                {row.held && state ? (
-                                  <StatusPill kind="hold" value={state} />
-                                ) : null}
-                              </span>
-                              <span className="flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
-                                {row.jurisdiction}
-                                <HashText
-                                  value={row.address}
-                                  label={`${row.legalName} address`}
-                                  copyable={false}
-                                />
-                              </span>
-                              {row.held ? (
-                                <p className="max-w-measure-xs text-caption text-destructive">
-                                  {row.holdReason}
-                                </p>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3 font-mono text-caption text-muted-foreground">
-                            {row.accountId}
-                          </TableCell>
-                          <TableCell className="amount py-3 text-right">
-                            {formatTokens(row.balance)}
-                          </TableCell>
-                          <TableCell
-                            className={cn(
-                              "amount py-3 text-right",
-                              !row.included &&
-                                "text-muted-foreground line-through",
-                            )}
-                          >
-                            {formatMicros(row.amountMicros)}
-                          </TableCell>
-                          {/* Pinned to the scroller's right edge, so the row
-                                control is on screen at any width. */}
-                          <TableCell
-                            className={cn(
-                              "sticky right-0 py-2 pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border",
-                              row.held ? "bg-muted" : "bg-card",
-                            )}
-                          >
-                            <Button
-                              variant={row.included ? "outline" : "ghost"}
-                              size="sm"
-                              disabled={c.locked}
-                              onClick={() => c.toggleRow(row)}
+                                <span className="flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
+                                  {row.jurisdiction}
+                                  <HashText
+                                    value={row.address}
+                                    label={`${row.legalName} address`}
+                                    lead={8}
+                                    copyable={false}
+                                  />
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-3 font-mono text-caption text-muted-foreground">
+                              {row.accountId}
+                            </TableCell>
+                            <TableCell className="amount py-3 text-right">
+                              {formatTokens(row.balance)}
+                            </TableCell>
+                            <TableCell
+                              className={cn(
+                                "amount py-3 text-right",
+                                !row.included &&
+                                  "text-muted-foreground line-through",
+                              )}
                             >
-                              {row.held
-                                ? row.included
-                                  ? "Hold again"
-                                  : "Force in"
-                                : row.included
-                                  ? "Defer"
-                                  : "Restore"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
+                              {formatMicros(row.amountMicros)}
+                            </TableCell>
+                            {/* Pinned to the scroller's right edge, so the row
+                                control is on screen at any width. */}
+                            <TableCell
+                              className={cn(
+                                "sticky right-0 py-2 pr-4 text-right before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border",
+                                row.held ? "bg-muted" : "bg-card",
+                              )}
+                            >
+                              <Button
+                                render={pressable}
+                                variant={row.included ? "outline" : "ghost"}
+                                size="sm"
+                                disabled={c.locked}
+                                onClick={() => c.toggleRow(row)}
+                              >
+                                {row.held
+                                  ? row.included
+                                    ? "Hold again"
+                                    : "Force in"
+                                  : row.included
+                                    ? "Defer"
+                                    : "Restore"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          {row.held ? (
+                            // The hold, on its own line under the holder. At a
+                            // phone width the table scrolls sideways under the
+                            // pinned Row column, so the pill and the reason stick
+                            // to the scroller's left edge on a width that fits a
+                            // 320px screen instead of sitting under that column.
+                            <TableRow className="bg-muted hover:bg-muted">
+                              <TableCell
+                                colSpan={5}
+                                className="pt-0 pr-4 pb-3 pl-4 whitespace-normal"
+                              >
+                                <div className="sticky left-4 flex max-w-3xs flex-col items-start gap-1 sm:max-w-measure-xs">
+                                  {state ? (
+                                    <StatusPill kind="hold" value={state} />
+                                  ) : null}
+                                  <p className="text-caption text-destructive">
+                                    {row.holdReason}
+                                  </p>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : null}
+                        </Fragment>
                       );
                     })}
                   </TableBody>

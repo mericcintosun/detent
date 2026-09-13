@@ -12,7 +12,7 @@ with `DETENT_DESIGN_SYSTEM=1`, and it is never indexed.
 | Primitives | shadcn CLI 4.21.0, style `base-lyra` on Base UI 1.8.0 | `components.json`, `components/ui/**` |
 | Styling | Tailwind CSS 4, CSS first, OKLCH tokens | `app/globals.css` |
 | Theme | next-themes 0.4.6, class on `<html>`, system default | `components/theme-provider.tsx`, `components/theme-toggle.tsx` |
-| Motion | motion 13.2.0 from `motion/react`, `LazyMotion` plus `m.*` | `lib/motion.ts`, `components/motion/**` |
+| Motion | motion 13.2.0: `m` from `motion/react-m`, `LazyMotion` and the rest from `motion/react`; CSS keyframes (tw-animate-css, `detent-wipe`) for the first paint | `lib/motion.ts`, `components/motion/**`, `docs/frontend/07_MOTION.md` |
 | Icons | Phosphor 2.1.10, the Lyra default | `@phosphor-icons/react` in client files, `@phosphor-icons/react/ssr` in server files |
 | Class merging | `cn()` on clsx and tailwind-merge, extended with the Detent type scale, measures, spacing and easings | `lib/utils.ts` |
 
@@ -306,22 +306,35 @@ Tokens in `lib/motion.ts`, mirrored by CSS variables:
 
 Variants: `fade`, `rise`, `wipe` (the Detent clip-path reveal, starting at 35
 percent opacity like the keyframe), `scaleIn` for overlays, and
-`staggerContainer(step)`. Each has `hidden`, `visible` and `exit`.
+`staggerContainer(step)`. Each has `hidden`, `visible` and `exit`; `hidden` is
+instant, and `visible` reads `custom={{ reduced, delay }}`. Interaction
+variants: `press` (a 0.97 tap on `spring.snappy`), `knock` (the refusal, `x`
+0, -6, 0, -3, 0 px over `duration.slow`) and `lockRule` (the gold rule drawn on
+`transition.wipe` when a plan is locked).
 
-Architecture: `MotionProvider` (in the layout) is `MotionConfig
-reducedMotion="user"` around `LazyMotion strict`, and loads `domAnimation`
-through a dynamic import, so the animation engine is not in the first load
-bundle. Use `m.*`, never `motion.*` (strict mode throws). With reduced motion,
-transforms drop and only opacity animates; the CSS reduced motion block collapses
-`tw-animate-css` overlay animations and the `detent-*` classes to a frame.
+Architecture: `MotionProvider` in the root layout is `MotionConfig
+reducedMotion="user"` around `LazyMotion strict`, and loads `domMax` through a
+dynamic import that starts after hydration. Use `m` from `motion/react-m`,
+never `motion.*` (strict mode throws) and never `m` from `motion/react` (it
+ships the whole library). A server rendered mount entrance plays in CSS from
+the HTML (`Reveal trigger="mount"`, a server rendered `Stagger`); a client
+mounted entrance, every view entrance, `Presence`, `NumberTicker`, the step
+badges, the ledger, press feedback, the lock rule and the refusal knock run on
+Motion. A view entrance renders visible and hides only once it is known to be
+off screen, so nothing is hidden before JavaScript runs.
+
+Reduced motion: transforms and layout jump through `MotionConfig`; opacity and
+clip-path entrances collapse to a 200 ms fade through `custom`; the CSS reduced
+motion block collapses the CSS entrances and the `detent-*` classes to a frame.
 
 The CSS `detent-wipe` keyframe, `detent-enter`, `detent-stagger` and `detent-band`
-are kept working for server rendered markup. Wave 2 may migrate a consumer to
-`Reveal` or `Stagger`; remove a class only when its last consumer is gone.
+stay for server rendered markup. Remove a class only when its last consumer is
+gone.
 
-Layout transitions: `domAnimation` has no layout animation. A page that needs
-`layout` props swaps the provider's feature import for `domMax` and records the
-bundle cost.
+Layout transitions: `domMax` is the feature set, so `layout` works (the step
+badge width, the audit record entries). Its cost is in the after hydration
+chunk, not the first load; `07_MOTION.md` has the numbers and the full
+inventory of animated elements.
 
 ## 9. Component catalogue
 

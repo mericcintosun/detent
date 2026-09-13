@@ -1,3 +1,4 @@
+export { MotionProvider } from "./motion-provider";
 export { Reveal, type RevealProps } from "./reveal";
 export {
   Stagger,
@@ -7,3 +8,4 @@ export {
 } from "./stagger";
 export { Presence, type PresenceProps } from "./presence";
 export { NumberTicker, type NumberTickerProps } from "./number-ticker";
+export { pressable } from "./press";

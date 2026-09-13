@@ -1,11 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useInView } from "motion/react";
+import * as m from "motion/react-m";
+import { useEffect, useRef, useState } from "react";
 import type * as React from "react";
-import type { VariantName } from "@/lib/motion";
+import { variants, type VariantName } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { useClientMount, useMotionCustom } from "./use-client-mount";
 
 type RevealTag = "div" | "section" | "article" | "li" | "header" | "p";
+
+/*
+ * `m` comes from motion/react-m, never motion/react: the latter builds its `m`
+ * export from a namespace import of the whole library, which puts the full
+ * animation engine in the first load. Static member reads keep only these tags.
+ */
+const MOTION_TAG = {
+  div: m.div,
+  section: m.section,
+  article: m.article,
+  li: m.li,
+  header: m.header,
+  p: m.p,
+} as const;
 
 export interface RevealProps {
   children: React.ReactNode;
@@ -17,7 +34,8 @@ export interface RevealProps {
   /**
    * `view` waits until a fifth of the element is on screen, `mount` plays on
    * load. Never wrap the largest element on the first screen with `rise` or
-   * `fade`: they start at zero opacity. Use `wipe`, which starts at 35 percent.
+   * `fade` on a client navigation: they start at zero opacity. Use `wipe`,
+   * which starts at 35 percent.
    */
   trigger?: "view" | "mount";
   once?: boolean;
@@ -26,11 +44,11 @@ export interface RevealProps {
 }
 
 /*
- * Every entrance is CSS: the tw-animate-css enter keyframe and the detent-wipe
- * keyframe in app/globals.css. A mount entrance plays from the server HTML
- * without waiting for hydration or for a JavaScript animation engine, and the
- * reduced motion block in app/globals.css collapses all of them to a frame.
- * The class strings are written out in full so Tailwind can find them.
+ * A server rendered mount entrance is CSS: the tw-animate-css enter keyframe and
+ * the detent-wipe keyframe in app/globals.css. It plays from the HTML without
+ * waiting for hydration or for Motion, and the reduced motion block in
+ * app/globals.css collapses it to a frame. The class strings are written out in
+ * full so Tailwind can find them.
  */
 const ON_MOUNT: Record<VariantName, string> = {
   fade: "animate-in fade-in duration-(--duration-base) ease-standard fill-mode-both",
@@ -40,54 +58,35 @@ const ON_MOUNT: Record<VariantName, string> = {
     "animate-in fade-in zoom-in-96 duration-(--duration-base) ease-standard fill-mode-both",
 };
 
-const IN_VIEW: Record<VariantName, string> = {
-  fade: "data-[reveal=waiting]:opacity-0 data-[reveal=playing]:animate-in fade-in duration-(--duration-base) ease-standard fill-mode-both",
-  rise: "data-[reveal=waiting]:opacity-0 data-[reveal=playing]:animate-in fade-in slide-in-from-bottom-2 duration-(--duration-slow) ease-emphasized fill-mode-both",
-  wipe: "data-[reveal=waiting]:opacity-0 data-[reveal=playing]:animate-wipe",
-  scaleIn:
-    "data-[reveal=waiting]:opacity-0 data-[reveal=playing]:animate-in fade-in zoom-in-96 duration-(--duration-base) ease-standard fill-mode-both",
-};
+type Phase = "rest" | "waiting";
 
 /**
- * Moves the element's data-reveal attribute from waiting to playing when a
- * share of it scrolls into view. An element already on screen when the page
- * hydrates keeps its server rendered state, so nothing visible blinks out. React
- * never renders data-reveal, so a re-render cannot reset it.
+ * The view entrance state. Every element renders visible on the server and on
+ * the first client render. After mount, an element that is off screen is
+ * hidden at once (the hidden variants are instant) and plays when a share of it
+ * scrolls into view; an element already on screen stays as the server drew it.
+ * Before Motion's features load, nothing is hidden at all.
  */
 export function useViewEntrance(
   ref: React.RefObject<HTMLElement | null>,
-  enabled: boolean,
   { once = true, amount = 0.2 }: { once?: boolean; amount?: number } = {},
-) {
+): "hidden" | "visible" {
+  const [phase, setPhase] = useState<Phase>("rest");
+  const inView = useInView(ref, { once, amount });
+
   useEffect(() => {
     const node = ref.current;
-    if (!enabled || !node || typeof IntersectionObserver === "undefined") {
-      return;
-    }
+    if (!node) return;
     const rect = node.getBoundingClientRect();
     const onScreen = rect.top < window.innerHeight && rect.bottom > 0;
-    if (onScreen && once) return;
-    if (!onScreen) node.dataset.reveal = "waiting";
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry) return;
-        if (entry.isIntersecting) {
-          node.dataset.reveal = "playing";
-          if (once) observer.disconnect();
-        } else if (!once && node.dataset.reveal === "playing") {
-          node.dataset.reveal = "waiting";
-        }
-      },
-      { threshold: amount },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [ref, enabled, once, amount]);
+    if (!onScreen) setPhase("waiting");
+  }, [ref]);
+
+  return phase === "waiting" && !inView ? "hidden" : "visible";
 }
 
 /** Plays one entrance variant on an element, on mount or when scrolled into view. */
 export function Reveal({
-  children,
   variant = "rise",
   as = "div",
   delay = 0,
@@ -95,20 +94,99 @@ export function Reveal({
   once = true,
   className,
   id,
+  children,
 }: RevealProps) {
+  const clientMount = useClientMount();
+  if (trigger === "view") {
+    return (
+      <ViewReveal
+        variant={variant}
+        as={as}
+        delay={delay}
+        once={once}
+        className={className}
+        id={id}
+      >
+        {children}
+      </ViewReveal>
+    );
+  }
+  if (clientMount) {
+    return (
+      <MountReveal
+        variant={variant}
+        as={as}
+        delay={delay}
+        className={className}
+        id={id}
+      >
+        {children}
+      </MountReveal>
+    );
+  }
   const Component = as as React.ElementType;
-  const ref = useRef<HTMLElement>(null);
-  useViewEntrance(ref, trigger === "view", { once });
-
   return (
     <Component
-      ref={ref}
       id={id}
-      className={cn(
-        trigger === "mount" ? ON_MOUNT[variant] : IN_VIEW[variant],
-        className,
-      )}
+      className={cn(ON_MOUNT[variant], className)}
       style={delay ? { animationDelay: `${delay}s` } : undefined}
+    >
+      {children}
+    </Component>
+  );
+}
+
+type InnerProps = Required<Pick<RevealProps, "variant" | "as" | "delay">> &
+  Pick<RevealProps, "className" | "id" | "children">;
+
+/** A client mounted entrance, through Motion. */
+function MountReveal({
+  variant,
+  as,
+  delay,
+  className,
+  id,
+  children,
+}: InnerProps) {
+  const Component = MOTION_TAG[as];
+  const custom = useMotionCustom(delay);
+  return (
+    <Component
+      id={id}
+      className={className}
+      variants={variants[variant]}
+      custom={custom}
+      initial="hidden"
+      animate="visible"
+    >
+      {children}
+    </Component>
+  );
+}
+
+function ViewReveal({
+  variant,
+  as,
+  delay,
+  once,
+  className,
+  id,
+  children,
+}: InnerProps & { once: boolean }) {
+  const Component = MOTION_TAG[as];
+  const ref = useRef<HTMLElement>(null);
+  const state = useViewEntrance(ref, { once });
+  const custom = useMotionCustom(delay);
+  return (
+    <Component
+      // m[as] is a union of element components; the ref is an HTMLElement.
+      ref={ref as React.Ref<never>}
+      id={id}
+      className={className}
+      variants={variants[variant]}
+      custom={custom}
+      initial={false}
+      animate={state}
     >
       {children}
     </Component>

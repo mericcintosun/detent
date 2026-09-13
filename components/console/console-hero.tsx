@@ -33,12 +33,11 @@ export function ConsoleHero({ c }: { c: ConsoleController }) {
         title="Detent"
         description="Preview a corporate action line by line, then lock the treasury key to exactly that transaction."
         actions={
-          // prefetch off: the explanation is a separate static page, and a
-          // prefetch on first paint would spend a request the operator did not
-          // ask for.
+          // Prefetched like the shell links: on a phone this is the only link
+          // to the explanation on the first screen, and the prefetch runs at
+          // idle after load (docs/frontend/PERF.md, proposal C).
           <Link
             href="/how-it-works"
-            prefetch={false}
             className={buttonVariants({ variant: "outline" })}
           >
             How it works

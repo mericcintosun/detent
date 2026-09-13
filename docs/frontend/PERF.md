@@ -315,3 +315,84 @@ once nothing needs it.
 the 35 kB console chunk) cannot be deferred without changing when the plan is
 computed. Computing the first plan on the server and passing it as a prop would
 remove it; that is a contract change, not a performance tweak.
+
+## After Motion
+
+Owner: the Wave 3 motion agent. Branch `feat/motion`, from `refactor/main` at
+`410963e`, with `refactor/main` at `dae3ef0` merged in (accessibility fixes and
+the visual suite). Same method as above: production build, `next start`, seed
+mode, Lighthouse 13.4.1 mobile medians of three runs. The before column was
+measured again on the same machine in the same session, because this machine
+was noisier than the one behind the tables above; compare the two columns
+below with each other only.
+
+Same origin JS, gzip level 9:
+
+| Route           | Before   | After    |
+| --------------- | -------- | -------- |
+| `/`             | 280.3 kB | 255.0 kB |
+| `/how-it-works` | 217.8 kB | 201.2 kB |
+| `/record/0xab…` | 216.9 kB | 200.4 kB |
+| `/nope`         | 174.5 kB | 186.2 kB |
+
+Lighthouse medians, mobile (Performance with the three runs, LCP, TBT, CLS):
+
+| Route           | Before                    | After                     |
+| --------------- | ------------------------- | ------------------------- |
+| `/`             | 88 (82/88/88), 3.84 s, 29 ms, 0 | 90 (89/90/90), 3.67 s, 14 ms, 0 |
+| `/how-it-works` | 94 (94/90/94), 3.01 s, 7 ms, 0  | 91 (91/91/95), 3.52 s, 7 ms, 0  |
+| `/record/0xab…` | 92 (92/92/92), 3.39 s, 11 ms, 0 | 92 (92/92/92), 3.29 s, 7 ms, 0  |
+
+Accessibility, Best Practices and SEO are 100 on every run. The LCP elements
+and their render delay (47 to 61 ms) did not change. `/how-it-works` after
+matches the 91 and 3.52 s recorded for it after the perf pass; the 3.01 s
+before run is the outlier of its set, not a regression of 0.5 s, and its JS
+went down by 16.6 kB.
+
+What changed on `/`:
+
+1. Motion is back (`docs/frontend/07_MOTION.md`). Its static floor is about
+   11.6 kB gzip on every route: `LazyMotion`'s loader imports
+   `setFeatureDefinitions`, which lives in motion-dom's `VisualElement` module
+   and pulls the value system and the WAAPI classes that every `m` element
+   needs anyway. The `m` primitives and `AnimatePresence` add about 10 kB on the
+   pages that use them. `domMax` (about 29 kB) loads after hydration.
+2. `m` must come from `motion/react-m`. Imported from `motion/react`, it went
+   through that entry's `import * as fm from "framer-motion"` namespace and
+   Turbopack shipped the whole library: `/` measured 328.6 kB.
+3. Proposal A, applied. Base UI exposes the toast parts only as the `Toast`
+   namespace, so the proposed `toast-manager.ts` that imported it still
+   shipped the whole region. The manager is now a forwarder that imports the
+   region's own manager on the first call, and the region mounts with
+   `next/dynamic` after hydration: 11.5 kB off the first load.
+4. Proposal B, applied in a stronger form. The `Tooltip` namespace has the same
+   problem, so moving only `TooltipContent` saved nothing. `HashText` renders a
+   plain focusable span with the same classes, the same accessible name and the
+   A11Y-06 hit area, and loads the whole Base UI tooltip module after
+   hydration, handing focus to the new trigger if a reader was on the span:
+   about 24 kB off `/`, `/how-it-works` and the record page.
+5. Proposal C, applied. The console hero's link to `/how-it-works` is
+   prefetched. The prefetch runs at idle after load and the Lighthouse numbers
+   above include it.
+6. Proposal D, applied: the motion sections of `04_DESIGN_SYSTEM.md` and
+   `01_STACK.md` and the comment in `lib/motion.ts` describe the setup as built.
+7. Proposal E, not applied. It needs the viem free helpers of `lib/plan.ts`
+   (`formatMicros`, `formatTokens`, `microsToInput`, `shortHex`, `CHAIN_ID`)
+   split from `buildPlan` and `decideTamperedSend`, and the first plan computed
+   in `app/page.tsx`; neither file is owned by the console. The estimate stays
+   viem 7.1 kB and abitype 5.2 kB. Plan recomputation on a row toggle would
+   then import them on demand.
+
+The LCP gate. Mobile LCP on `/` moved from 3.84 s to 3.67 s and is still over
+2.0 s. The cause is the one recorded above: the paragraph paints with the
+first paint, and Lighthouse's simulation charges LCP for every script and font
+requested before it. Taking 25 kB of script off the first load bought about
+0.17 s; the rest is React DOM and the Next router (about 115 kB), the console
+and shell code, and the three preloaded font files (63 kB). A lower LCP would
+need proposal E and fewer preloaded fonts, not less motion.
+
+Checks on the merged result: React #418 in 0 of 60 parallel cold loads; the
+end to end suite 72 of 72, including `e2e/a11y-regressions.spec.ts`,
+`e2e/axe.spec.ts` and the new `e2e/motion.spec.ts`; `verify.ts` 16 of 16; no
+horizontal overflow at 320 or 390 px on any frame through the lock and the
+refusal.

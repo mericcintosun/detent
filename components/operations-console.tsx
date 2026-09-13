@@ -4,10 +4,13 @@
 //
 // State and every server call live in components/console/use-console.ts; each
 // step renders from that one controller in its own file under
-// components/console/. The toast region is mounted here, around the console
-// subtree, because the console is the only surface that raises a toast.
+// components/console/. The toast region is mounted here, beside the console
+// subtree, because the console is the only surface that raises a toast. It
+// loads after hydration: use-console.ts raises toasts through the plain manager
+// in components/ui/toast-manager.ts, and the first toast always follows an
+// operator action, long after the region has mounted.
 
-import { Toaster } from "@/components/ui/toast";
+import dynamic from "next/dynamic";
 import type { RegisterSnapshot } from "@/lib/types";
 import { ConsoleHero } from "./console/console-hero";
 import { LedgerSection } from "./console/ledger-section";
@@ -16,6 +19,11 @@ import { PolicySection } from "./console/policy-section";
 import { RegisterSection } from "./console/register-section";
 import { SendSection } from "./console/send-section";
 import { useConsole } from "./console/use-console";
+
+const Toaster = dynamic(
+  () => import("@/components/ui/toast").then((mod) => mod.Toaster),
+  { ssr: false },
+);
 
 export interface OperationsConsoleProps {
   snapshot: RegisterSnapshot;
@@ -39,7 +47,7 @@ export function OperationsConsole({
 }: OperationsConsoleProps) {
   const c = useConsole({ snapshot, signerLive });
   return (
-    <Toaster>
+    <>
       <div className="mx-auto flex w-full max-w-content flex-col gap-10">
         <ConsoleHero c={c} />
         <div className="flex flex-col">
@@ -50,6 +58,7 @@ export function OperationsConsole({
           <LedgerSection c={c} />
         </div>
       </div>
-    </Toaster>
+      <Toaster />
+    </>
   );
 }
