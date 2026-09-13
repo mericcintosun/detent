@@ -1,13 +1,16 @@
 # The demo video, shot by shot
 
-Derived from `DEMO.md` steps 1 to 6. Recorded against the live URL,
-**https://detent-app.vercel.app**, in a cold private window at 1440px, not
-against `localhost`: a judge watching the video and a judge opening the link must
-see the same page.
+Derived from `DEMO.md` steps 1 to 6. The current take was recorded on
+13 September 2026 from a production build of the redesigned console (the same
+commit the live URL deploys), at 1920x1080, with `PlanAnchor` deployed and
+`NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS` set, so the record page reads the plan back off
+Hedera testnet. The narration is a synthetic macOS voice rendered by the same
+Playwright and ffmpeg pipeline the author uses for demo videos.
 
-**Length.** The take that shipped, `public/demo-video.mp4`, runs **3:01**, which
-is the number `README.md` quotes. The shot plan below was written to **2:00 to
-2:30** and the real delivery ran longer on narration; both sit well inside the
+**Length.** The take that ships, `public/demo-video.mp4`, runs **2:48**, which
+is the number `README.md` quotes. It follows nine scenes rather than the shot
+plan below, and it misses one of the two marks: the problem is stated by 0:14,
+but the refusal lands at about 1:20, not 0:45. Both lengths sit well inside the
 cap. The hard cap is **5:00**, set by the
 `🪙 Tokenization of Anything` row, which also requires issuance, configuration
 and at least one lifecycle operation to be visible. Issuance and configuration
