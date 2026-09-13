@@ -1,8 +1,8 @@
 // The five engraved plates, and the one wrapper that renders them.
 //
 // These are section visuals, not brand marks. The single mark is
-// public/brand/logo.png inside the home Link in components/rail.tsx, and none of
-// the files below is rendered there or in the register masthead. Each plate is
+// public/brand/logo.png inside the home Link in components/shell/brand-mark.tsx,
+// and none of the files below is rendered there or in the console hero. Each plate is
 // decorative: alt is empty and aria-hidden is set, so a screen reader reads the
 // sentence beside it and nothing else.
 //
