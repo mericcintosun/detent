@@ -84,6 +84,11 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
+      // A11Y-05: WCAG 1.3.1. A bare <th> relies on browsers and screen readers
+      // inferring column headers by position; scope makes it explicit for
+      // older or less common assistive tech. {...props} stays last so a
+      // caller can still pass scope="row" for a row header.
+      scope={props.scope ?? "col"}
       className={cn(
         "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
         className,
