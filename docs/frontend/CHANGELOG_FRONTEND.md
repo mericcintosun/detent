@@ -75,15 +75,21 @@ merge commit; `git show --stat <hash>` lists the exact files it touched.
 
 ## Motion and accessibility fixes
 
-TODO(orchestrator): the motion agent and the a11y fix agent were still working
-in parallel while this file was written (Wave 5, DOCS). Neither had merged at
-the time of this commit. Add their merge commit hash(es) here once they land,
-and re-check the "Breaking for contributors" list below and `HANDOFF.md`'s
-accessibility status section against whatever they actually changed,
-especially A11Y-01 (forced-colors focus ring, proposed owner
-`app/globals.css`) and A11Y-02 (320px reflow, proposed owners
-`components/ui/button-variants.ts` and `components/console/policy-section.tsx`)
-from `docs/frontend/A11Y_AUDIT.md`.
+- `acbc5bd` Handoff, this changelog, `CLAUDE.md` and the README frontend
+  sections.
+- `9e9f1cc` Visual regression suite: eight routes and the demo states in light
+  and dark at 375, 768 and 1440 px (`npm run test:visual`,
+  `npm run test:visual:update`), and `QA_REPORT.md`.
+- `256c045` Record page: the plan hash copy control stays beside the hash on
+  phones (QA-03).
+- `1399f9e` Accessibility fixes for all six audit findings: a forced colors
+  focus outline and control borders, no horizontal scroll at 320 px (buttons
+  wrap, the policy grid has a single column base, prose breaks long tokens), a
+  focus loop in the Sheet and the command palette, tooltip collision handling,
+  `scope="col"` on table headers, and a 24 px hit area on hash tooltip
+  triggers. Adds `e2e/a11y-regressions.spec.ts`.
+
+TODO(orchestrator): add the Motion reintroduction merge once it lands.
 
 ## Breaking for contributors
 
