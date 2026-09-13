@@ -42,7 +42,11 @@ export interface StatProps {
   className?: string;
 }
 
-/** One figure with its label. Must sit inside StatGroup or another dl. */
+/**
+ * One figure with its label. Must sit inside StatGroup or another dl. The figure
+ * is set in the heading step: a seven digit amount in a quarter of the register
+ * column does not fit at the title step.
+ */
 export function Stat({
   label,
   value,
@@ -58,7 +62,7 @@ export function Stat({
     >
       <dt className="detent-label">{label}</dt>
       <dd className="flex flex-col gap-1">
-        <span className={cn("amount font-display text-title", TONE[tone])}>
+        <span className={cn("amount font-display text-heading", TONE[tone])}>
           {value}
           {unit ? (
             <span className="ml-1.5 font-sans text-body-sm text-muted-foreground">
