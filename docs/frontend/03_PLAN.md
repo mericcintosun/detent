@@ -11,7 +11,7 @@ risk of a framework upgrade and a redesign inside that window.
 | --- | --- | --- | --- |
 | 0 | Next.js 16 upgrade, React Compiler and Cache Components if green, loading boundary and hydration measurements | next-upgrade | every existing gate green on Next 16 |
 | 1 | Design system: shadcn on Base UI with the Lyra style, OKLCH light and dark tokens seeded from the brand palette, typography, spacing, elevation and motion tokens, Motion primitives, design primitives, the `/design-system` route, `04_DESIGN_SYSTEM.md`, the `IDENTITY.md` amendment | design-system | tokens and primitives published; orchestrator writes `06_CONTRACTS.md` |
-| 2 | Shell and pages, in parallel | app-shell, page-console, page-record, page-content, page-legal-seo | each branch green, merged in the order shell, console, record, content, legal |
+| 2 | Shell and pages, in parallel | app-shell, page-console, page-record, page-content (which also takes the privacy and terms pages; the metadata routes already merged) | each branch green, merged in the order shell, console, record, content |
 | 3 | Polish, read mostly, in parallel | motion, a11y, perf | `07_MOTION.md`, zero serious axe findings, budgets met |
 | 4 | Quality | qa | visual baselines at 375, 768 and 1440 px in light and dark, `QA_REPORT.md` |
 | 5 | Assets and handoff | assets, docs | `ASSETS.md`, `HANDOFF.md`, `CHANGELOG_FRONTEND.md` |
