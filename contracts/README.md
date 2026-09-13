@@ -121,7 +121,7 @@ Put the deployed address in `.env.local` as `NEXT_PUBLIC_PLAN_ANCHOR_ADDRESS`
 and the chain in `NEXT_PUBLIC_CHAIN_ID` (296). Whoever runs the deploy above
 should then verify the contract on Sourcify for chain 296 so HashScan shows the
 source. The live deployment is `0x1a393277908834c39D2611Ce9A151474B8Dfea0d` on
-chain 296, submitted to Sourcify on 13 September 2026.
+chain 296, verified on Sourcify with an exact match on 13 September 2026.
 
 The app writes to this contract too, from `lib/anchor.ts`: `anchor` on the lock
 step, `settle` or `abandon` on the send step. `onlyOperator` pins the writer to
