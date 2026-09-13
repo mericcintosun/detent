@@ -268,33 +268,33 @@ require zero serious/critical axe findings and pass one keyboard walk; the
 audit covers WCAG 2.2's newer criteria, reflow, forced colors, and a wider
 keyboard walk). No source file was changed to produce it.
 
-**TODO(orchestrator): an a11y fix agent was working in parallel while this
-file was written. Confirm which of the findings below are fixed before relying
-on this section**, and update `CHANGELOG_FRONTEND.md`'s "Motion and
-accessibility fixes" section with the merge hash.
+All six findings are fixed on `refactor/main` (merge `1399f9e`), and each has
+a **Status: fixed** line with its evidence in `A11Y_AUDIT.md`:
 
-- 2 blockers: forced-colors mode strips every focus ring (proposed fix: one
-  `@media (forced-colors: active)` rule in `app/globals.css`); the console
-  overflows horizontally at 320px, traced mainly to a `whitespace-nowrap`
-  full-width button in `components/console/policy-section.tsx` plus an
-  untraced second contributor inside `PolicyEmptyState`.
-- 3 should-fix: Base UI's dialog focus guard leaks focus to the page behind
-  the command palette and the mobile sheet on the second lap around the trap
-  (needs a Base UI version bump or an app-level Tab interceptor, not a one-line
-  fix); a `HashText`/`AddressText` tooltip can briefly overlap the next row's
-  button; table headers have no explicit `scope`.
-- 2 nice-to-have: tooltip trigger targets are under 24px tall (likely exempt,
-  since they are hover-disclosure, not pointer-activated); the `scope` gap
-  above again, listed lower-severity there.
-- 14 categories passed outright, including target size, reduced motion (both
-  on and off), landmarks, heading outline, `aria-current`, live regions, and a
-  full keyboard walk of the demo, the palette, the sheet, the theme toggle and
-  copy buttons.
+- A11Y-01, forced colors: a `@media (forced-colors: active)` block in
+  `app/globals.css` draws a system coloured focus outline and gives buttons,
+  badges, status pills and inputs a real border.
+- A11Y-02, reflow: no horizontal scroll at 320 px on any public route or through
+  the full demo. Buttons wrap (`whitespace-nowrap` removed from
+  `components/ui/button-variants.ts`), the policy grid has a single column base,
+  and prose elements break long tokens with `overflow-wrap: anywhere`.
+- A11Y-03, dialog focus: `components/ui/focus-loop.ts` keeps Tab and Shift Tab
+  inside the command palette and the mobile sheet, with focus returning to the
+  trigger on close.
+- A11Y-04, tooltips: collision padding and shift in `components/ui/tooltip.tsx`.
+- A11Y-05, table headers: `scope="col"` by default in `components/ui/table.tsx`.
+- A11Y-06, target size: a 24 px hit area on tooltip triggers.
+
+`e2e/a11y-regressions.spec.ts` guards the forced colors outline, 320 px reflow,
+the focus loops and header scope. The audit's 14 passing categories (target
+size, reduced motion, landmarks, heading outline, `aria-current`, live
+regions, and the full keyboard walk) still apply. Not run: Safari, Firefox, a
+real phone and a VoiceOver pass (see `QA_REPORT.md`).
 
 ## Known risks and open items
 
 Collected from `docs/REMAINING_WORK.md`, `PERF.md`'s unapplied proposals,
-`A11Y_AUDIT.md`'s open findings, and direct checks against this tree.
+the audit, and direct checks against this tree.
 
 - **Hydration.** An intermittent React #418 existed under parallel cold loads
   on Next 15.5 (2 in 120); `e8dc754`'s Next 16 upgrade measured 0 of 60 in two
