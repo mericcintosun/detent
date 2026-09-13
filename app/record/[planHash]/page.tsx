@@ -11,17 +11,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
-import { RecordEmptyState } from "@/components/console-states";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button-variants";
+import { HashScanLink, PageHeader, Section } from "@/components/design";
+import { Reveal } from "@/components/motion";
+import { PlanHash } from "@/components/record/plan-hash";
+import { RecordChainDetail } from "@/components/record/record-chain-detail";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AnchorNotConfiguredState,
+  ReadFailedState,
+  UnknownRecordState,
+} from "@/components/record/record-empty-states";
+import { RecordStatusPill } from "@/components/record/record-status-pill";
+import { selectRecordView } from "@/components/record/record-view";
+import { WhatThisProves } from "@/components/record/what-this-proves";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { readPlanRecord } from "@/lib/anchor";
 import { tokenExplorerHref } from "@/lib/hashscan";
 import { PLAN_ANCHOR_ADDRESS } from "@/lib/public-config";
@@ -30,25 +32,28 @@ import { planHashSchema } from "@/lib/schemas";
 /** Matches app/page.tsx: one relay read is not a cost to pay per navigation. */
 export const revalidate = 30;
 
-export const metadata: Metadata = {
-  title: "On chain plan record",
-  description:
-    "The anchored plan hash read back off PlanAnchor on Hedera testnet, with its status, its timestamps and its HashScan links.",
-};
+const DESCRIPTION =
+  "The anchored plan hash read back off PlanAnchor on Hedera testnet, with its status, its timestamps and its HashScan links.";
 
-/** ISO to the form a register prints: seconds, no T, named as UTC. */
-function utc(value: string | undefined): string {
-  if (!value) return "not set";
-  return `${value.slice(0, 19).replace("T", " ")} UTC`;
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="border-b border-border pb-3 last:border-b-0">
-      <dt className="detent-label">{label}</dt>
-      <dd className="pt-1 text-sm leading-relaxed break-all">{children}</dd>
-    </div>
-  );
+// generateMetadata rather than a static export, so a valid hash gets a
+// canonical built from the parsed segment. planHashSchema is the same parse
+// the page body runs below, so the two can never disagree about what counts
+// as a valid plan hash, and nothing here reads the chain.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ planHash: string }>;
+}): Promise<Metadata> {
+  const { planHash } = await params;
+  const parsed = planHashSchema.safeParse(planHash);
+  if (!parsed.success) {
+    return { title: "On chain plan record", description: DESCRIPTION };
+  }
+  return {
+    title: "On chain plan record",
+    description: DESCRIPTION,
+    alternates: { canonical: `/record/${parsed.data}` },
+  };
 }
 
 export default async function PlanRecordPage({
@@ -65,108 +70,61 @@ export default async function PlanRecordPage({
   if (!parsed.success) notFound();
 
   const record = await readPlanRecord(parsed.data);
+  const view = selectRecordView(record);
 
   /**
    * PlanAnchor itself is the only address on this page that has provably been
-   * deployed: it is the contract the read above just answered from. `token` is
-   * whatever the anchoring call passed in, which on the cached register is the
-   * seed literal, so it stays plain text rather than becoming a link to a 404.
+   * deployed: it is the contract the read above just answered from. The link
+   * is gated on the address alone, not on this hash having a row, so a relay
+   * hiccup on `unreadable` does not hide a link to a contract that is, in
+   * fact, real.
    */
   const anchorHref = tokenExplorerHref(PLAN_ANCHOR_ADDRESS, "on-chain");
 
-  // Narrowed rather than cast, so adding a state to PlanRecordState forces a
-  // decision here instead of falling into the wrong branch.
-  const emptyKind =
-    record.state === "unwired" ||
-    record.state === "unknown" ||
-    record.state === "unreadable"
-      ? record.state
-      : null;
-
-  const border =
-    record.state === "settled"
-      ? "border-ok"
-      : record.state === "abandoned"
-        ? "border-bad"
-        : "border-border";
-
   return (
-    <div className="max-w-[76ch] space-y-8">
-      <div className="space-y-4">
-        <p className="detent-label">PlanAnchor, Hedera testnet</p>
-        <h1 className="font-display text-3xl leading-tight tracking-tight sm:text-4xl">
-          On chain plan record
-        </h1>
-        <p className="text-base leading-relaxed text-muted-foreground">
-          This is the durable half of the audit record. The console holds a
-          session; the chain holds the plan hash, who anchored it and when it
-          closed.
-        </p>
-        <p className="text-sm leading-relaxed break-all" title={parsed.data}>
-          <span className="detent-label block pb-1">Plan hash</span>
-          {parsed.data}
-        </p>
-      </div>
+    <div className="max-w-measure-xl">
+      <Reveal as="div" variant="wipe" trigger="mount">
+        <PageHeader
+          eyebrow="PlanAnchor, Hedera testnet 296"
+          title="On chain plan record"
+          description="This is the permanent half of the audit record. The console holds a session; the chain holds the plan hash, who anchored it and when it closed."
+          meta={
+            <>
+              <PlanHash value={parsed.data} />
+              <RecordStatusPill label={view.pillLabel} tone={view.pillTone} />
+            </>
+          }
+          actions={
+            anchorHref && PLAN_ANCHOR_ADDRESS ? (
+              <HashScanLink kind="token" value={PLAN_ANCHOR_ADDRESS}>
+                Open PlanAnchor on HashScan
+              </HashScanLink>
+            ) : null
+          }
+        />
+      </Reveal>
 
-      {emptyKind ? (
-        <RecordEmptyState kind={emptyKind} note={record.note} />
-      ) : (
-        <Card className="detent-enter">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="font-display text-xl">
-              What the contract holds
-            </CardTitle>
-            <CardDescription className="leading-relaxed">
-              {record.note}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <dl className="space-y-4">
-              <Row label="State">
-                <Badge variant="outline" className={border}>
-                  {record.state}
-                </Badge>
-              </Row>
-              <Row label="Token">{record.token ?? "not set"}</Row>
-              <Row label="Selector">{record.selector ?? "not set"}</Row>
-              <Row label="Anchored by">{record.anchoredBy ?? "not set"}</Row>
-              <Row label="Anchored at">{utc(record.anchoredAt)}</Row>
-              {/* PlanAnchor closes an abandoned plan with the same field it
-                  closes a settled one, so the label names the event, not one
-                  outcome. */}
-              <Row label="Closed at">{utc(record.closedAt)}</Row>
-            </dl>
-          </CardContent>
-        </Card>
-      )}
+      <Section
+        id="record"
+        heading="What the contract holds"
+        description="One row in the PlanAnchor register, read with no operator key."
+      >
+        {view.kind === "unknown" ? <UnknownRecordState /> : null}
+        {view.kind === "unwired" ? <AnchorNotConfiguredState /> : null}
+        {view.kind === "unreadable" ? (
+          <ReadFailedState planHash={parsed.data} />
+        ) : null}
+        {view.hasChainData ? <RecordChainDetail record={record} /> : null}
+      </Section>
+
+      <Section id="proof" heading="What this record proves">
+        <WhatThisProves />
+      </Section>
 
       <div className="flex flex-wrap items-center gap-4 border-t border-border pt-6">
-        {/* The console opens this page in a tab of its own, so the session it
-            came from is still open there. The link keeps the name the
-            end-to-end suite asserts; the sentence above it says that following
-            it starts a fresh console rather than returning to that tab. */}
-        <p className="w-full max-w-[62ch] text-sm leading-relaxed text-muted-foreground">
-          The console opened this record in a new tab. Its approvals, lock and
-          audit record are still in the tab you came from; the link below opens
-          a fresh console.
-        </p>
-        <Link
-          href="/#ledger"
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Back to the audit record
+        <Link href="/" className={buttonVariants({ variant: "outline" })}>
+          Back to the console
         </Link>
-        {anchorHref ? (
-          <a
-            href={anchorHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={PLAN_ANCHOR_ADDRESS}
-            className="inline-flex min-h-11 items-center text-sm underline decoration-hairline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Open PlanAnchor on HashScan
-          </a>
-        ) : null}
       </div>
     </div>
   );
