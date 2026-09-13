@@ -1,4 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
+import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
 /**
@@ -21,9 +22,7 @@ const routes = [
 const NOT_FOUND_DOCUMENT =
   /^Failed to load resource: the server responded with a status of 404 \(Not Found\)$/;
 
-async function blockingViolations(
-  page: import("@playwright/test").Page,
-): Promise<string[]> {
+async function blockingViolations(page: Page): Promise<string[]> {
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
