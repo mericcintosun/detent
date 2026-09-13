@@ -5,6 +5,7 @@ import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
+import { useFocusLoop } from "@/components/ui/focus-loop";
 import { XIcon } from "@phosphor-icons/react";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
@@ -46,10 +47,14 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left";
   showCloseButton?: boolean;
 }) {
+  // A11Y-03: a deterministic Tab-loop backstop, see components/ui/focus-loop.
+  const popupRef = React.useRef<HTMLDivElement>(null);
+  useFocusLoop(popupRef);
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Popup
+        ref={popupRef}
         data-slot="sheet-content"
         data-side={side}
         className={cn(

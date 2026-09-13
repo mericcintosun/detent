@@ -420,6 +420,47 @@
     background: color-mix(in oklch, var(--primary) 35%, transparent);
     color: var(--foreground);
   }
+  /* A11Y-02, WCAG 1.4.10 Reflow: an unbroken run of characters (a function
+     signature, a long identifier) in running prose must not force real,
+     two-dimensional page scroll at 320 CSS px. A dedicated horizontally
+     scrolling region (a data table, CodeBlock) is unaffected: it already
+     opts in to its own scroll, and this only changes where a normal line of
+     text is allowed to break when nothing else will make it fit. */
+  p,
+  li,
+  dd,
+  dt,
+  blockquote {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* A11Y-01, WCAG 2.4.7 Focus Visible: every focus style in the app is a
+   box-shadow ring (focus-visible:ring-2 focus-visible:ring-ring) paired with
+   an unconditional outline-none. Chromium computes box-shadow to none under
+   forced colors unless the element opts out, and nothing here does, so a
+   forced-colors user tabbing the console sees no focus indicator anywhere.
+   This restores a native outline, which the OS re-colors and always renders,
+   without touching the normal-colors ring already covered by
+   e2e/accessibility.spec.ts. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+  /* Chromium's UA forced-colors stylesheet already gives buttons, links and
+     form controls a system border, but a few controls (ghost buttons, chips,
+     the mobile menu's icon buttons, held-row markers) draw their border with
+     `border-transparent` or no border at all in normal colors. Force a real
+     1px system-coloured border on every control and status pill so their
+     boundary is never invisible against Canvas. */
+  [data-slot="button"],
+  [data-slot="badge"],
+  [data-slot="status-pill"],
+  [data-slot="input"],
+  [data-slot="textarea"] {
+    border: 1px solid ButtonText;
+  }
 }
 
 /* Amounts, hashes and counts: aligned digits that do not jitter as they change. */

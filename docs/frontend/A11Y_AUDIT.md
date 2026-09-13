@@ -34,6 +34,16 @@ No source file was changed to produce this report.
 
 ### A11Y-01: Forced colors strip every focus indicator (blocker)
 
+- **Status: fixed**, Wave 3 A11Y FIX. `app/globals.css` adds a
+  `@media (forced-colors: active)` rule matching the proposed diff below, plus
+  a real 1px `ButtonText` border on `[data-slot]` button, badge, status-pill,
+  input and textarea, since a `border-transparent` control would otherwise
+  stay invisible under forced colors even with the outline restored.
+  Reproduced the audit's own repro after the fix: the first tab stop past the
+  skip link now computes `outline-style: solid`, `outline-width: 2px` under
+  `forced-colors: active` (was `none`/`0px`). Covered by
+  `e2e/a11y-regressions.spec.ts` (a button and a link) and
+  `tests/a11y-fixes.test.ts`.
 - **WCAG:** 2.4.7 Focus Visible (AA), and the forced-colors corollary of 1.4.11
   Non-text Contrast (AA). Windows High Contrast Mode / `forced-colors: active`
   is a real assistive setting, not a decorative theme.
@@ -95,6 +105,26 @@ No source file was changed to produce this report.
 
 ### A11Y-02: Reflow: the console overflows horizontally at 320 CSS px (blocker)
 
+- **Status: fixed**, Wave 3 A11Y FIX. Three changes, all measured at 320,
+  375 and 768 px in both themes with the full seven-step demo walked on `/`:
+  (1) `components/ui/button-variants.ts` drops the base `whitespace-nowrap`,
+  so the Lock button's label wraps instead of forcing a wide min-content box;
+  (2) `components/console/policy-section.tsx`'s two-card grid gets an
+  explicit `grid-cols-1` below `lg` (`grid grid-cols-1 gap-6 lg:grid-cols-2`),
+  since a bare `grid` with no column template below `lg` has no
+  `minmax(0, ...)` floor and lets a wide child blow the track out past the
+  viewport — this is also what the coordinator's QA-01 (cards ~10px past
+  the content column at 375px) traced to; both cards now measure at or
+  inside `main`'s right edge at 320/375/768 with the plan locked; (3) the
+  second contributor was not actually inside `PolicyEmptyState`: isolating
+  by bisecting `scrollWidth` down the tree found it in the Send section's
+  card, an unbroken `distributeCoupon(bytes32,address[],uint256[])` token in
+  a plain paragraph with no wrappable space. Fixed with a global, defensive
+  rule in `app/globals.css` (`p, li, dd, dt, blockquote { overflow-wrap:
+  anywhere; }`) rather than editing that other agent's file. Result: every
+  public route plus the full demo walk on `/` now measures
+  `document.documentElement.scrollWidth === 320` at 320px, in both themes.
+  Covered by `e2e/a11y-regressions.spec.ts` and `tests/a11y-fixes.test.ts`.
 - **WCAG:** 1.4.10 Reflow (AA).
 - **Page/width/theme:** `/` only, 320 px viewport, both light and dark
   (identical, since the cause is layout, not color).
@@ -163,6 +193,20 @@ No source file was changed to produce this report.
 
 ### A11Y-03: Base UI dialogs leak keyboard focus to the page behind them (should fix)
 
+- **Status: fixed**, Wave 3 A11Y FIX. Added `components/ui/focus-loop.ts`
+  (`useFocusLoop`), a deterministic Tab-loop backstop wired into both
+  `components/ui/dialog.tsx`'s `DialogContent` (which the command palette
+  renders through) and `components/ui/sheet.tsx`'s `SheetContent`. It listens
+  for `Tab` in the capture phase and wraps focus to the first/last real
+  tabbable element itself whenever a press would leave the container or has
+  already escaped to `<body>`, rather than depending on Base UI's own
+  focus-guard `enqueueFocus` race. This is additive, not a replacement:
+  Base UI's guards still run and still handle the common case; this only
+  decides the outcome first. Verified with the audit's own reproduction, a
+  40-press Tab loop and a 40-press Shift+Tab loop in each of the command
+  palette and the mobile menu Sheet (80 presses per overlay, 0 escapes in
+  both), Escape still closes and returns focus to the exact trigger in both.
+  Covered by `e2e/a11y-regressions.spec.ts` and `tests/a11y-fixes.test.ts`.
 - **Relevant to:** the ARIA APG modal dialog pattern's focus-containment
   expectation, which underlies 4.1.2 Name, Role, Value (AA) for a
   `role="dialog"`, a screen reader user is told "dialog" and reasonably
@@ -216,6 +260,17 @@ No source file was changed to produce this report.
 
 ### A11Y-04: A stray tooltip can partially overlap the next row's button (should fix, narrow)
 
+- **Status: fixed**, Wave 3 A11Y FIX. `components/ui/tooltip.tsx`'s
+  `TooltipContent` now sets `collisionPadding={8}` and
+  `collisionAvoidance={{ side: "shift", align: "shift" }}` on the
+  `Positioner`. Default collision handling could flip a `side="top"` tooltip
+  to the opposite side when a row sat near the top of a scrollable region,
+  landing the popup a full row away, over the next row's button; `shift`
+  keeps the requested side and slides along it to stay inside the boundary
+  instead. Hoverable-without-closing (`disableHoverablePopup` defaults to
+  `false`) and Escape-dismissible are already Base UI Tooltip defaults, so
+  1.4.13's three conditions were already met; this change is the occlusion
+  fix specifically. Covered by `tests/a11y-fixes.test.ts`.
 - **WCAG:** 2.4.11 Focus Not Obscured (Minimum) (AA). Read narrowly: this SC
   only requires the focused component not be **entirely** hidden, which
   never happened here (see occlusion counts below), so this is reported as
@@ -253,6 +308,12 @@ No source file was changed to produce this report.
 
 ### A11Y-05: Table column headers have no explicit `scope` (nice to have)
 
+- **Status: fixed**, Wave 3 A11Y FIX. `components/ui/table.tsx`'s
+  `TableHead` now applies the proposed diff exactly: `scope={props.scope ??
+  "col"}`, with `{...props}` staying last so a future row-header call site
+  can still pass `scope="row"`. Verified every `<th>` in the plan table
+  carries `scope="col"`. Covered by `e2e/a11y-regressions.spec.ts` and
+  `tests/a11y-fixes.test.ts`.
 - **WCAG:** adjacent to 1.3.1 Info and Relationships (A); not itself a
   failure for a table this simple (one header row, no row headers, no
   spanning cells), where browsers and screen readers reliably infer column
@@ -287,6 +348,18 @@ No source file was changed to produce this report.
 
 ### A11Y-06: `HashText`/`AddressText` tooltip triggers are under 24 CSS px tall (nice to have, likely exempt)
 
+- **Status: fixed, without editing `components/design/hash-text.tsx`**, Wave
+  3 A11Y FIX. `components/ui/tooltip.tsx`'s `TooltipTrigger` now sets a
+  default `relative after:absolute after:-inset-1 after:content-['']`, merged
+  with the caller's own className through Base UI's `render`/className
+  composition (`internals/useRenderElement.js`'s `mergeClassNames`), so it
+  reaches `HashText`'s and `AddressText`'s span without touching either file
+  (`AddressText` composes `HashText` internally, so one fix covers both).
+  The empty, absolutely positioned `::after` pads the hit and hover region on
+  every side by 4px without changing text layout, truncation or visible
+  size, a standard technique for enlarging a target this way. Measured
+  before: 17.4px tall trigger. After: `::after` computes `inset: -4px`, an
+  effective ~25.4px tall region. Covered by `tests/a11y-fixes.test.ts`.
 - **WCAG:** 2.5.8 Target Size (Minimum) (AA), but this SC applies to
   pointer-activated targets, and this element has no pointer activation.
 - **Page/width:** `/`, 375 px. 16 instances measured, all 17 px tall
