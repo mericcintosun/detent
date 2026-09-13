@@ -113,7 +113,7 @@ No source file was changed to produce this report.
   explicit `grid-cols-1` below `lg` (`grid grid-cols-1 gap-6 lg:grid-cols-2`),
   since a bare `grid` with no column template below `lg` has no
   `minmax(0, ...)` floor and lets a wide child blow the track out past the
-  viewport — this is also what the coordinator's QA-01 (cards ~10px past
+  viewport, this is also what the coordinator's QA-01 (cards ~10px past
   the content column at 375px) traced to; both cards now measure at or
   inside `main`'s right edge at 320/375/768 with the plan locked; (3) the
   second contributor was not actually inside `PolicyEmptyState`: isolating
