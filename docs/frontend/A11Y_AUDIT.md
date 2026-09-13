@@ -32,7 +32,7 @@ No source file was changed to produce this report.
 
 ## Findings
 
-### A11Y-01 — Forced colors strip every focus indicator (blocker)
+### A11Y-01: Forced colors strip every focus indicator (blocker)
 
 - **WCAG:** 2.4.7 Focus Visible (AA), and the forced-colors corollary of 1.4.11
   Non-text Contrast (AA). Windows High Contrast Mode / `forced-colors: active`
@@ -93,7 +93,7 @@ No source file was changed to produce this report.
   already stripping author color, so it cannot regress the normal-colors
   focus ring already covered by `e2e/accessibility.spec.ts`.
 
-### A11Y-02 — Reflow: the console overflows horizontally at 320 CSS px (blocker)
+### A11Y-02: Reflow: the console overflows horizontally at 320 CSS px (blocker)
 
 - **WCAG:** 1.4.10 Reflow (AA).
 - **Page/width/theme:** `/` only, 320 px viewport, both light and dark
@@ -114,7 +114,7 @@ No source file was changed to produce this report.
     `grid gap-6 lg:grid-cols-2` wrapper, the `Section`, and the page.
   - A second, smaller contributor remains inside the "Compiled wallet
     policy" card's empty state (346 px alone, still 26 px over budget); I
-    did not fully trace this second source inside the audit window — the
+    did not fully trace this second source inside the audit window, the
     isolation narrows it to `PolicyEmptyState`
     (`components/console-states.tsx:306`) but not to a single leaf.
   - The other six routes (`/how-it-works`, `/security`, `/faucet`,
@@ -129,7 +129,7 @@ No source file was changed to produce this report.
     I tried emulating it with the non-standard CSS `zoom` property on
     `<html>`, but that property scales layout inside the same 1280 px
     layout viewport rather than shrinking the layout viewport itself, so it
-    reports overflow on every route trivially (an artifact, not a finding —
+    reports overflow on every route trivially (an artifact, not a finding , 
     e.g. `document.documentElement.clientWidth` stayed `1280` after
     `zoom: 4` was applied, when a genuine 400% desktop zoom would report a
     `320`-equivalent effective viewport). A 1280 px window at 400% zoom is
@@ -161,11 +161,11 @@ No source file was changed to produce this report.
   `06_CONTRACTS.md` ("controls are 44px tall... kept from Detent" section of
   `04_DESIGN_SYSTEM.md`).
 
-### A11Y-03 — Base UI dialogs leak keyboard focus to the page behind them (should fix)
+### A11Y-03: Base UI dialogs leak keyboard focus to the page behind them (should fix)
 
 - **Relevant to:** the ARIA APG modal dialog pattern's focus-containment
   expectation, which underlies 4.1.2 Name, Role, Value (AA) for a
-  `role="dialog"` — a screen reader user is told "dialog" and reasonably
+  `role="dialog"`, a screen reader user is told "dialog" and reasonably
   expects Tab to stay inside it while it is open.
 - **Page/width/theme:** the command palette (`/`, 1280 px, Cmd/Ctrl+K) and
   the mobile menu Sheet (`/`, 375 px). Not theme-dependent.
@@ -179,7 +179,7 @@ No source file was changed to produce this report.
   .overflow` is still `"hidden"`, confirming the dialog considers itself
   open). Full trace, command palette (only two real stops: the search input,
   then the guard, since palette items are arrow-key/`option` navigated, not
-  Tab-stopped — itself correct per the combobox pattern):
+  Tab-stopped, itself correct per the combobox pattern):
 
   ```
   0  INPUT (search)              inside: true
@@ -214,23 +214,23 @@ No source file was changed to produce this report.
   app-level `onKeyDown` Tab interceptor as a workaround, which is a judgment
   call for the owning agent, not a one-line fix.
 
-### A11Y-04 — A stray tooltip can partially overlap the next row's button (should fix, narrow)
+### A11Y-04: A stray tooltip can partially overlap the next row's button (should fix, narrow)
 
 - **WCAG:** 2.4.11 Focus Not Obscured (Minimum) (AA). Read narrowly: this SC
   only requires the focused component not be **entirely** hidden, which
-  never happened here (see occlusion counts below) — so this is reported as
+  never happened here (see occlusion counts below), so this is reported as
   a should-fix quality issue adjacent to the SC, not a certain AA failure.
 - **Page/width/theme:** `/`, the plan table, 375 px and 1440 px, light theme
   (positioning is not color-dependent; not re-verified in dark).
 - **Evidence:** point-sampling `document.elementsFromPoint` at each focused
-  element's four corners and center (the correct way to check 2.4.11 — a
+  element's four corners and center (the correct way to check 2.4.11, a
   bounding-box-only check gives false positives, see the skip link note
   below) found the same shape at both widths: after a `HashText`/
   `AddressText` tooltip opens (hover or focus) and the user tabs onward, the
   floating tooltip panel (`components/ui/tooltip.tsx`, `side="top"
   sideOffset={4}`, default Base UI collision handling) can still be
   animating/positioned over part of the next row's "Force in"/"Defer" button
-  or, at 1440 px, over the row's own "Copy the ... contract" button — 1 to 3
+  or, at 1440 px, over the row's own "Copy the ... contract" button, 1 to 3
   of 5 sampled points touched, never all 5. Screenshot:
   `screenshots/focus-obscured-_-375-26.png` shows the tooltip bubble
   overlapping the corner of a "Force in" button in the row below it.
@@ -242,7 +242,7 @@ No source file was changed to produce this report.
   page. That was wrong: the skip link's `focus:z-(--z-tooltip)` (80) paints
   above the top bar's `z-(--z-sticky)` (20), so it is not actually covered;
   the rect-only check does not see paint order. Switching to
-  `elementsFromPoint` fixed this and it is **not** in the findings below —
+  `elementsFromPoint` fixed this and it is **not** in the findings below , 
   see A11Y-P-01.
 - **Severity:** should fix, not blocker, given the SC's own "not entirely
   hidden" wording and the partial (never full) occlusion measured.
@@ -251,7 +251,7 @@ No source file was changed to produce this report.
   `components/design/address-text.tsx` (also design-system), inside
   `components/console/plan-section.tsx` (page-console) rows.
 
-### A11Y-05 — Table column headers have no explicit `scope` (nice to have)
+### A11Y-05: Table column headers have no explicit `scope` (nice to have)
 
 - **WCAG:** adjacent to 1.3.1 Info and Relationships (A); not itself a
   failure for a table this simple (one header row, no row headers, no
@@ -285,9 +285,9 @@ No source file was changed to produce this report.
   (Ordering matters: `{...props}` must stay last so a caller can still
   override `scope` explicitly for a future row-header use.)
 
-### A11Y-06 — `HashText`/`AddressText` tooltip triggers are under 24 CSS px tall (nice to have, likely exempt)
+### A11Y-06: `HashText`/`AddressText` tooltip triggers are under 24 CSS px tall (nice to have, likely exempt)
 
-- **WCAG:** 2.5.8 Target Size (Minimum) (AA) — but this SC applies to
+- **WCAG:** 2.5.8 Target Size (Minimum) (AA), but this SC applies to
   pointer-activated targets, and this element has no pointer activation.
 - **Page/width:** `/`, 375 px. 16 instances measured, all 17 px tall
   (single line of `text-caption`), widths 81-168 px.
@@ -300,7 +300,7 @@ No source file was changed to produce this report.
   text than to a control, which is why I am not calling this a finding
   against the SC itself.
 - **Also checked and correctly exempt:** `/how-it-works`'s "the security
-  model" inline text link (121 x 17 px) — 2.5.8 explicitly excepts a target
+  model" inline text link (121 x 17 px), 2.5.8 explicitly excepts a target
   "in a sentence or block of text," which this is.
 - **Severity:** nice to have. Recommend a small height bump regardless,
   since it costs nothing and removes the ambiguity for future auditors.
@@ -424,7 +424,7 @@ Each of these was tested with the tooling above, not assumed from reading
       audit to confirm it still passes on this build, not re-litigated here.
     - Record page: 20-stop tab order is exactly rail nav, palette trigger,
       theme toggle x3, page content ("Copy the plan hash", "Back to the
-      audit record"), footer links, then wraps — logical, matches visual
+      audit record"), footer links, then wraps, logical, matches visual
       order, no dead stops.
 14. **Colour is not the only signal (1.4.1):** `/` rendered with
     `filter: grayscale(100%)` (`screenshots/grayscale-plan-section.png`)
